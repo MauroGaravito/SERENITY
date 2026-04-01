@@ -41,6 +41,8 @@ POSTGRES_USER=postgres
 POSTGRES_PASSWORD=postgres
 AUTH_SECRET=serenity-test-secret-2026-dokploy
 APP_URL=https://aged-care.downundersolutions.com
+CADDY_SHARED_NETWORK=shared_caddy_net
+CADDY_UPSTREAM_ALIAS=serenity-aged-care-app
 ```
 
 Do not set `DATABASE_URL` manually when using `docker-compose.prod.yml`.
@@ -81,13 +83,13 @@ Later, this should move to explicit migrations with `prisma migrate deploy`.
 
 The current Caddy split between `frontend` and `backend` does not match the app as it exists today.
 
-For the current version of Serenity, the reverse proxy should point all traffic to the single Next.js container:
+For the current version of Serenity, the reverse proxy should point all traffic to the single Next.js container through the shared Docker network alias:
 
 ```caddy
 aged-care.downundersolutions.com {
     encode gzip
 
-    reverse_proxy serenity-serenityac-k5y2d4-service3_app-1:3000
+    reverse_proxy serenity-aged-care-app:3000
 
     log {
         output file /var/log/caddy/aged-care.access.log
@@ -95,6 +97,8 @@ aged-care.downundersolutions.com {
     }
 }
 ```
+
+This avoids relying on Dokploy-generated container names, which can change between deploys.
 
 ## Why this matters
 
