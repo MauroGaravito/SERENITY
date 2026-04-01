@@ -5,6 +5,8 @@ dist
 coverage
 .turbo
 .env
+.env.dokploy
+.env.dokploy.local
 .env.local
 .env.development.local
 .env.test.local
