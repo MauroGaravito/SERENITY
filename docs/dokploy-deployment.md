@@ -21,6 +21,17 @@ Minimum variables:
 - `DATABASE_URL=postgresql://...`
 - `AUTH_SECRET=...`
 
+## Container startup
+
+The production container currently does this on startup:
+
+1. `prisma generate`
+2. `prisma db push`
+3. `next start`
+
+This is acceptable for the current phase because the schema is still moving fast.
+Later, this should move to explicit migrations with `prisma migrate deploy`.
+
 ## Caddy note
 
 The current Caddy split between `frontend` and `backend` does not match the app as it exists today.
@@ -56,3 +67,10 @@ Create:
 2. `postgres`
 
 Do not create separate `frontend` and `backend` services for this codebase yet.
+
+## Build source
+
+Dokploy can build directly from:
+
+- [Dockerfile](C:/Users/mgara/OneDrive/Documents/DUS%20Products/SERENITY/Dockerfile)
+- [.dockerignore](C:/Users/mgara/OneDrive/Documents/DUS%20Products/SERENITY/.dockerignore)
