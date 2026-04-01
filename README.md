@@ -144,6 +144,7 @@ Ese enfoque tiene mejor coherencia, menor dispersion y una narrativa comercial m
 
 - Dokploy env base: `.env.dokploy.example`
 - Dokploy notes and current reverse proxy shape: `docs/dokploy-deployment.md`
+- Dokploy compose file: `docker-compose.prod.yml`
 - Container build: `Dockerfile`
 
 ## Estado actual

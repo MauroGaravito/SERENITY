@@ -10,16 +10,61 @@ Serenity is currently deployed as:
 There is no separate backend service yet.
 The UI, server actions and Prisma access all live in the same process.
 
-## Required environment
+## Recommended deploy mode in Dokploy
 
-Use [.env.dokploy.example](C:/Users/mgara/OneDrive/Documents/DUS%20Products/SERENITY/.env.dokploy.example) as the base.
+Use Dokploy in `Compose` mode with:
 
-Minimum variables:
+- [docker-compose.prod.yml](C:/Users/mgara/OneDrive/Documents/DUS%20Products/SERENITY/docker-compose.prod.yml)
 
-- `NODE_ENV=production`
-- `PORT=3000`
-- `DATABASE_URL=postgresql://...`
-- `AUTH_SECRET=...`
+Do not use:
+
+- [docker-compose.yml](C:/Users/mgara/OneDrive/Documents/DUS%20Products/SERENITY/docker-compose.yml)
+
+That file is only for local development and starts PostgreSQL only.
+
+## Exact Dokploy changes
+
+In `General`:
+
+- `Provider`: `GitHub`
+- `Repository`: `SERENITY`
+- `Branch`: `main`
+- `Compose Path`: `./docker-compose.prod.yml`
+
+In `Environment`, set these variables:
+
+```env
+NODE_ENV=production
+PORT=3000
+POSTGRES_DB=serenity
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=postgres
+AUTH_SECRET=serenity-test-secret-2026-dokploy
+APP_URL=https://aged-care.downundersolutions.com
+```
+
+Do not set `DATABASE_URL` manually when using `docker-compose.prod.yml`.
+The compose file builds it automatically for the app container using the internal `postgres` service.
+
+## Why the database works this way
+
+Inside Dokploy Compose mode:
+
+- the database container is named `postgres`
+- the app container connects to it through the internal Docker network
+- the app uses this internal host:
+
+```text
+postgres:5432
+```
+
+That is why [docker-compose.prod.yml](C:/Users/mgara/OneDrive/Documents/DUS%20Products/SERENITY/docker-compose.prod.yml) sets:
+
+```text
+DATABASE_URL=postgresql://postgres:postgres@postgres:5432/serenity?schema=public
+```
+
+derived from your `POSTGRES_*` variables.
 
 ## Container startup
 
@@ -59,18 +104,9 @@ If you keep the old split:
 - Next.js routes and server actions will be routed incorrectly
 - auth and page rendering will fail unpredictably
 
-## Recommended Dokploy services
-
-Create:
-
-1. `app`
-2. `postgres`
-
-Do not create separate `frontend` and `backend` services for this codebase yet.
-
 ## Build source
 
-Dokploy can build directly from:
+Dokploy will build the app container from:
 
 - [Dockerfile](C:/Users/mgara/OneDrive/Documents/DUS%20Products/SERENITY/Dockerfile)
 - [.dockerignore](C:/Users/mgara/OneDrive/Documents/DUS%20Products/SERENITY/.dockerignore)
