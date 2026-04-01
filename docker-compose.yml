@@ -1,0 +1,16 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: serenity-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: serenity
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "54329:5432"
+    volumes:
+      - serenity-postgres-data:/var/lib/postgresql/data
+
+volumes:
+  serenity-postgres-data:

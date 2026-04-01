@@ -1,0 +1,14 @@
+﻿<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="Serenity icon">
+  <defs>
+    <linearGradient id="serenity-gradient" x1="0%" x2="100%" y1="0%" y2="100%">
+      <stop offset="0%" stop-color="#0f5f57" />
+      <stop offset="100%" stop-color="#db6c4a" />
+    </linearGradient>
+  </defs>
+  <rect width="128" height="128" rx="28" fill="#f6efe5" />
+  <path
+    d="M28 80c12-24 28-36 48-36 12 0 22 4 31 12-9 22-25 34-46 34-13 0-24-3-33-10Z"
+    fill="url(#serenity-gradient)"
+  />
+  <circle cx="88" cy="42" r="10" fill="#133c3a" />
+</svg>

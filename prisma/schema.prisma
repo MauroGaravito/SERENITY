@@ -1,0 +1,389 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum OrganizationKind {
+  CENTER
+  PROVIDER
+}
+
+enum UserRole {
+  PLATFORM_ADMIN
+  CENTER_MANAGER
+  PROVIDER_COORDINATOR
+  PROVIDER_REVIEWER
+  CARER
+}
+
+enum CarerKind {
+  INDEPENDENT
+  EMPLOYEE
+}
+
+enum ServiceOrderStatus {
+  DRAFT
+  OPEN
+  PARTIALLY_ASSIGNED
+  ASSIGNED
+  ACTIVE
+  COMPLETED
+  CLOSED
+  CANCELLED
+}
+
+enum VisitStatus {
+  SCHEDULED
+  CONFIRMED
+  IN_PROGRESS
+  COMPLETED
+  UNDER_REVIEW
+  APPROVED
+  REJECTED
+  CANCELLED
+  NO_SHOW
+}
+
+enum PriorityLevel {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum CredentialStatus {
+  PENDING
+  VALID
+  EXPIRED
+  REJECTED
+}
+
+enum ChecklistResult {
+  PASS
+  FAIL
+  NOT_APPLICABLE
+}
+
+enum IncidentSeverity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum ReviewOutcome {
+  APPROVED
+  NEEDS_CHANGES
+  REJECTED
+}
+
+enum ClosingPeriodStatus {
+  OPEN
+  LOCKED
+  EXPORTED
+}
+
+enum ExpenseType {
+  MILEAGE
+  TRAVEL
+  SUPPLIES
+  OTHER
+}
+
+enum AuditEventType {
+  ORDER_CREATED
+  ORDER_UPDATED
+  VISIT_CREATED
+  VISIT_ASSIGNED
+  VISIT_STATUS_CHANGED
+  VISIT_REVIEWED
+}
+
+model Organization {
+  id             String           @id @default(cuid())
+  kind           OrganizationKind
+  legalName      String
+  displayName    String
+  timezone       String
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  facilities     Facility[]
+  centerOrders   ServiceOrder[]   @relation("ServiceOrderCenter")
+  providerOrders ServiceOrder[]   @relation("ServiceOrderProvider")
+  users          User[]
+  carers         Carer[]
+  closingPeriods ClosingPeriod[]
+  auditEvents    AuditEvent[]
+}
+
+model Facility {
+  id             String          @id @default(cuid())
+  organizationId String
+  name           String
+  addressLine1   String
+  suburb         String
+  state          String
+  postalCode     String
+  timezone       String
+  organization   Organization    @relation(fields: [organizationId], references: [id])
+  recipients     CareRecipient[]
+  serviceOrders  ServiceOrder[]
+}
+
+model User {
+  id             String        @id @default(cuid())
+  organizationId String?
+  email          String        @unique
+  passwordHash   String?
+  fullName       String
+  role           UserRole
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  organization   Organization? @relation(fields: [organizationId], references: [id])
+  reviewActions  Review[]
+  uploadedItems  Evidence[]
+  auditEvents    AuditEvent[]  @relation("AuditActor")
+}
+
+model Carer {
+  id                 String              @id @default(cuid())
+  providerId         String?
+  ownerUserId        String?             @unique
+  kind               CarerKind
+  firstName          String
+  lastName           String
+  phone              String
+  email              String?
+  primaryLanguage    String?
+  businessName       String?
+  abnOrTaxId         String?
+  availabilityNote   String?
+  rating             Float               @default(0)
+  isActive           Boolean             @default(true)
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  provider           Organization?       @relation(fields: [providerId], references: [id])
+  credentials        Credential[]
+  availabilityBlocks AvailabilityBlock[]
+  visits             Visit[]
+  expenses           Expense[]
+}
+
+model Credential {
+  id          String           @id @default(cuid())
+  carerId     String
+  code        String
+  name        String
+  status      CredentialStatus
+  expiresAt   DateTime?
+  issuedAt    DateTime?
+  documentUrl String?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  carer       Carer            @relation(fields: [carerId], references: [id])
+}
+
+model AvailabilityBlock {
+  id        String   @id @default(cuid())
+  carerId   String
+  startsAt  DateTime
+  endsAt    DateTime
+  isWorking Boolean  @default(true)
+  carer     Carer    @relation(fields: [carerId], references: [id])
+}
+
+model CareRecipient {
+  id            String         @id @default(cuid())
+  facilityId    String
+  externalRef   String?
+  firstName     String
+  lastName      String
+  notes         String?
+  facility      Facility       @relation(fields: [facilityId], references: [id])
+  serviceOrders ServiceOrder[]
+}
+
+model ServiceType {
+  id                 String              @id @default(cuid())
+  code               String              @unique
+  name               String
+  requiresChecklist  Boolean             @default(true)
+  defaultDurationMin Int
+  checklistTemplates ChecklistTemplate[]
+  serviceOrders      ServiceOrder[]
+}
+
+model ServiceOrder {
+  id                 String             @id @default(cuid())
+  code               String             @unique
+  centerId           String
+  providerId         String
+  recipientId        String
+  facilityId         String
+  serviceTypeId      String
+  status             ServiceOrderStatus @default(DRAFT)
+  priority           PriorityLevel      @default(MEDIUM)
+  title              String
+  instructions       String?
+  coordinatorNotes   String?
+  requiredSkills     String[]
+  requiredLanguage   String?
+  plannedDurationMin Int
+  startsOn           DateTime
+  endsOn             DateTime?
+  recurrenceRule     String?
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+  center             Organization       @relation("ServiceOrderCenter", fields: [centerId], references: [id])
+  provider           Organization       @relation("ServiceOrderProvider", fields: [providerId], references: [id])
+  recipient          CareRecipient      @relation(fields: [recipientId], references: [id])
+  facility           Facility           @relation(fields: [facilityId], references: [id])
+  serviceType        ServiceType        @relation(fields: [serviceTypeId], references: [id])
+  visits             Visit[]
+  auditEvents        AuditEvent[]
+}
+
+model Visit {
+  id              String               @id @default(cuid())
+  serviceOrderId  String
+  assignedCarerId String?
+  status          VisitStatus          @default(SCHEDULED)
+  scheduledStart  DateTime
+  scheduledEnd    DateTime
+  actualStart     DateTime?
+  actualEnd       DateTime?
+  exceptionReason String?
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+  serviceOrder    ServiceOrder         @relation(fields: [serviceOrderId], references: [id])
+  assignedCarer   Carer?               @relation(fields: [assignedCarerId], references: [id])
+  checklistItems  VisitChecklistItem[]
+  evidence        Evidence[]
+  incidents       Incident[]
+  reviews         Review[]
+  expenses        Expense[]
+  settlements     VisitSettlement[]
+  auditEvents     AuditEvent[]
+}
+
+model AuditEvent {
+  id             String         @id @default(cuid())
+  organizationId String
+  actorUserId    String?
+  serviceOrderId String?
+  visitId        String?
+  type           AuditEventType
+  summary        String
+  payload        Json?
+  createdAt      DateTime       @default(now())
+  organization   Organization   @relation(fields: [organizationId], references: [id])
+  actorUser      User?          @relation("AuditActor", fields: [actorUserId], references: [id])
+  serviceOrder   ServiceOrder?  @relation(fields: [serviceOrderId], references: [id])
+  visit          Visit?         @relation(fields: [visitId], references: [id])
+}
+
+model ChecklistTemplate {
+  id            String                  @id @default(cuid())
+  serviceTypeId String
+  name          String
+  version       Int
+  serviceType   ServiceType             @relation(fields: [serviceTypeId], references: [id])
+  items         ChecklistTemplateItem[]
+}
+
+model ChecklistTemplateItem {
+  id         String               @id @default(cuid())
+  templateId String
+  label      String
+  sortOrder  Int
+  isRequired Boolean              @default(true)
+  template   ChecklistTemplate    @relation(fields: [templateId], references: [id])
+  visitItems VisitChecklistItem[]
+}
+
+model VisitChecklistItem {
+  id             String                @id @default(cuid())
+  visitId        String
+  templateItemId String
+  result         ChecklistResult
+  note           String?
+  visit          Visit                 @relation(fields: [visitId], references: [id])
+  templateItem   ChecklistTemplateItem @relation(fields: [templateItemId], references: [id])
+}
+
+model Evidence {
+  id           String    @id @default(cuid())
+  visitId      String
+  uploadedById String
+  kind         String
+  fileUrl      String
+  capturedAt   DateTime?
+  createdAt    DateTime  @default(now())
+  visit        Visit     @relation(fields: [visitId], references: [id])
+  uploadedBy   User      @relation(fields: [uploadedById], references: [id])
+}
+
+model Incident {
+  id         String           @id @default(cuid())
+  visitId    String
+  category   String
+  severity   IncidentSeverity
+  summary    String
+  occurredAt DateTime
+  resolvedAt DateTime?
+  visit      Visit            @relation(fields: [visitId], references: [id])
+}
+
+model Review {
+  id         String        @id @default(cuid())
+  visitId    String
+  reviewerId String
+  outcome    ReviewOutcome
+  notes      String?
+  reviewedAt DateTime      @default(now())
+  visit      Visit         @relation(fields: [visitId], references: [id])
+  reviewer   User          @relation(fields: [reviewerId], references: [id])
+}
+
+model Expense {
+  id          String      @id @default(cuid())
+  visitId     String?
+  carerId     String
+  type        ExpenseType
+  amountCents Int
+  currency    String      @default("AUD")
+  note        String?
+  evidenceUrl String?
+  createdAt   DateTime    @default(now())
+  visit       Visit?      @relation(fields: [visitId], references: [id])
+  carer       Carer       @relation(fields: [carerId], references: [id])
+}
+
+model ClosingPeriod {
+  id          String              @id @default(cuid())
+  providerId  String
+  label       String
+  startsAt    DateTime
+  endsAt      DateTime
+  status      ClosingPeriodStatus @default(OPEN)
+  createdAt   DateTime            @default(now())
+  provider    Organization        @relation(fields: [providerId], references: [id])
+  settlements VisitSettlement[]
+}
+
+model VisitSettlement {
+  id              String        @id @default(cuid())
+  closingPeriodId String
+  visitId         String
+  approvedMinutes Int
+  billableCents   Int?
+  payableCents    Int?
+  closingPeriod   ClosingPeriod @relation(fields: [closingPeriodId], references: [id])
+  visit           Visit         @relation(fields: [visitId], references: [id])
+
+  @@unique([closingPeriodId, visitId])
+}
