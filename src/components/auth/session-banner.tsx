@@ -5,14 +5,14 @@ import { getHomeForRole, getRoleLabel, type SessionUser } from "@/lib/auth";
 export function SessionBanner({ session }: { session: SessionUser }) {
   return (
     <div className="session-banner">
-      <div>
+      <div className="session-banner-info">
         <span className="eyebrow">Active session</span>
         <strong>{session.fullName}</strong>
         <p>
           {getRoleLabel(session.role)} · {session.email}
         </p>
       </div>
-      <div className="inline-actions">
+      <div className="session-banner-actions">
         <Link className="ghost-link" href={getHomeForRole(session.role)}>
           Open workspace
         </Link>

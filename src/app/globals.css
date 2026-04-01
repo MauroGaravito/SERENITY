@@ -828,6 +828,10 @@ ul {
   background: rgba(255, 255, 255, 0.72);
 }
 
+.session-banner-info {
+  min-width: 0;
+}
+
 .session-banner strong {
   display: block;
   margin-top: 0.35rem;
@@ -838,6 +842,17 @@ ul {
 .session-banner p {
   margin: 0.25rem 0 0;
   color: var(--muted);
+}
+
+.session-banner-actions {
+  display: grid;
+  gap: 0.65rem;
+  justify-items: end;
+  flex-shrink: 0;
+}
+
+.session-banner-actions form {
+  margin: 0;
 }
 
 .logout-button {
@@ -851,6 +866,8 @@ ul {
   margin-top: 1.5rem;
   border-color: rgba(255, 255, 255, 0.14);
   background: rgba(255, 255, 255, 0.08);
+  display: grid;
+  grid-template-columns: 1fr;
 }
 
 .providers-sidebar .session-banner p {
@@ -859,6 +876,16 @@ ul {
 
 .providers-sidebar .session-banner strong {
   color: white;
+}
+
+.providers-sidebar .session-banner-actions {
+  justify-items: stretch;
+}
+
+.providers-sidebar .session-banner-actions .ghost-link,
+.providers-sidebar .session-banner-actions .logout-button,
+.providers-sidebar .session-banner-actions form {
+  width: 100%;
 }
 
 .centers-shell .eyebrow::before,
@@ -974,7 +1001,18 @@ ul {
   }
 
   .session-banner {
+    display: grid;
     align-items: flex-start;
+  }
+
+  .session-banner-actions {
+    justify-items: stretch;
+  }
+
+  .session-banner-actions .ghost-link,
+  .session-banner-actions .logout-button,
+  .session-banner-actions form {
+    width: 100%;
   }
 }
 

@@ -98,6 +98,7 @@ La unidad central es la **prestacion de servicio verificable**:
 - `docs/roadmap.md`: propuesta de roadmap por fases.
 - `docs/architecture.md`: base tecnica inicial.
 - `docs/domain-model.md`: modelo de dominio inicial.
+- `docs/user-manual.md`: manual de usuario basado en la semilla demo actual.
 - `SECURITY.md`: postura minima de seguridad para dependencias e installs.
 
 ## Decision de enfoque
