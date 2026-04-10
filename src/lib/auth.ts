@@ -7,7 +7,7 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 
 const SESSION_COOKIE_NAME = "serenity_session";
-const SESSION_TTL_SECONDS = 60 * 60 * 24 * 7;
+const SESSION_TTL_SECONDS = 60 * 60 * 12;
 const PROVIDER_ROLES = [UserRole.PROVIDER_COORDINATOR, UserRole.PROVIDER_REVIEWER] as const;
 const CENTER_ROLES = [UserRole.CENTER_MANAGER] as const;
 const CARER_ROLES = [UserRole.CARER] as const;
@@ -26,8 +26,10 @@ export type OrganizationSessionUser = SessionUser & {
   organizationId: string;
 };
 
-type SessionPayload = SessionUser & {
+type SessionPayload = {
+  userId: string;
   issuedAt: number;
+  expiresAt: number;
 };
 
 function getAuthSecret() {
@@ -60,8 +62,8 @@ function decodeSession(cookieValue: string) {
     }
 
     const expectedSignature = signValue(value);
-    const providedBuffer = Buffer.from(signature);
-    const expectedBuffer = Buffer.from(expectedSignature);
+    const providedBuffer = Buffer.from(signature, "utf8");
+    const expectedBuffer = Buffer.from(expectedSignature, "utf8");
 
     if (
       providedBuffer.length !== expectedBuffer.length ||
@@ -115,6 +117,10 @@ async function readSessionFromCookie(): Promise<SessionUser | null> {
   const decoded = decodeSession(rawCookie);
 
   if (!decoded) {
+    return null;
+  }
+
+  if (decoded.expiresAt <= Date.now()) {
     return null;
   }
 
@@ -177,14 +183,16 @@ export function getRoleLabel(role: UserRole) {
 
 export async function createSession(session: SessionUser) {
   const cookieStore = await cookies();
+  const issuedAt = Date.now();
   const payload: SessionPayload = {
-    ...session,
-    issuedAt: Date.now()
+    userId: session.userId,
+    issuedAt,
+    expiresAt: issuedAt + SESSION_TTL_SECONDS * 1000
   };
 
   cookieStore.set(SESSION_COOKIE_NAME, encodeSession(payload), {
     httpOnly: true,
-    sameSite: "lax",
+    sameSite: "strict",
     secure: process.env.NODE_ENV === "production",
     path: "/",
     maxAge: SESSION_TTL_SECONDS

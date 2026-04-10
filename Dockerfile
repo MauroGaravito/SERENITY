@@ -1,10 +1,13 @@
-﻿FROM node:22-alpine AS builder
+FROM node:22-alpine AS builder
 WORKDIR /app
 
-RUN apk add --no-cache libc6-compat openssl
+ENV NEXT_TELEMETRY_DISABLED=1
+
+RUN apk add --no-cache libc6-compat openssl \
+  && npm install -g npm@11.10.0
 
 COPY package.json package-lock.json ./
-RUN npm ci
+RUN npm ci --allow-git=none
 
 COPY . .
 RUN npx prisma generate
@@ -15,8 +18,10 @@ WORKDIR /app
 
 ENV NODE_ENV=production
 ENV PORT=3000
+ENV NEXT_TELEMETRY_DISABLED=1
 
-RUN apk add --no-cache libc6-compat openssl
+RUN apk add --no-cache libc6-compat openssl \
+  && npm install -g npm@11.10.0
 
 COPY --from=builder /app/package.json ./package.json
 COPY --from=builder /app/package-lock.json ./package-lock.json

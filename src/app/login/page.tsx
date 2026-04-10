@@ -22,6 +22,7 @@ const demoAccounts = [
 
 export default async function LoginPage() {
   await redirectAuthenticatedUser();
+  const showDemoCredentials = process.env.SHOW_DEMO_CREDENTIALS === "true";
 
   return (
     <main className="auth-page-shell">
@@ -31,18 +32,27 @@ export default async function LoginPage() {
         <p>
           Cada actor entra a una superficie distinta. La sesion ahora define que datos puede ver y que acciones puede ejecutar.
         </p>
-        <div className="sequence-list auth-demo-list">
-          {demoAccounts.map((account) => (
-            <div className="note-block" key={account.email}>
-              <strong>{account.role}</strong>
-              <p>{account.email}</p>
+        {showDemoCredentials ? (
+          <>
+            <div className="sequence-list auth-demo-list">
+              {demoAccounts.map((account) => (
+                <div className="note-block" key={account.email}>
+                  <strong>{account.role}</strong>
+                  <p>{account.email}</p>
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
-        <div className="note-block">
-          <strong>Shared demo password</strong>
-          <p>SerenityDemo!2026</p>
-        </div>
+            <div className="note-block">
+              <strong>Shared demo password</strong>
+              <p>SerenityDemo!2026</p>
+            </div>
+          </>
+        ) : (
+          <div className="note-block">
+            <strong>Restricted access</strong>
+            <p>Demo credentials are intentionally hidden on public environments.</p>
+          </div>
+        )}
       </section>
 
       <section className="auth-panel-card">

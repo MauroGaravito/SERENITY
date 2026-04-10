@@ -3,6 +3,12 @@
 import { redirect } from "next/navigation";
 import { createSession, getHomeForRole, verifyPassword } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import {
+  assertLoginAttemptAllowed,
+  clearLoginFailures,
+  createLoginThrottleKey,
+  recordLoginFailure
+} from "@/lib/security";
 
 export type LoginFormState = {
   error?: string;
@@ -23,6 +29,16 @@ export async function loginAction(
     return { error: "Email and password are required." };
   }
 
+  const throttleKey = await createLoginThrottleKey(email);
+
+  try {
+    await assertLoginAttemptAllowed(throttleKey);
+  } catch (error) {
+    return {
+      error: error instanceof Error ? error.message : "Unable to sign in right now."
+    };
+  }
+
   const user = await prisma.user.findUnique({
     where: { email },
     select: {
@@ -36,8 +52,11 @@ export async function loginAction(
   });
 
   if (!user || !verifyPassword(password, user.passwordHash)) {
+    await recordLoginFailure(throttleKey);
     return { error: "Invalid email or password." };
   }
+
+  await clearLoginFailures(throttleKey);
 
   await createSession({
     userId: user.id,
