@@ -18,6 +18,7 @@ import {
 import { StatusBadge } from "@/components/providers/status-badge";
 
 type VisitControlPanelProps = {
+  canReviewVisits: boolean;
   order: ServiceOrderRecord;
 };
 
@@ -41,7 +42,10 @@ function getSuggestedAction(visit: VisitRecord) {
   return "Track execution and keep the visit moving toward closure.";
 }
 
-export function VisitControlPanel({ order }: VisitControlPanelProps) {
+export function VisitControlPanel({
+  canReviewVisits,
+  order
+}: VisitControlPanelProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -207,27 +211,29 @@ export function VisitControlPanel({ order }: VisitControlPanelProps) {
               </div>
             </div>
 
-            <div className="action-card">
-              <h3>Review outcome</h3>
-              <div className="inline-actions">
-                <button
-                  className="mini-action approve"
-                  disabled={isPending}
-                  onClick={() => handleReview("approved")}
-                  type="button"
-                >
-                  Approve
-                </button>
-                <button
-                  className="mini-action reject"
-                  disabled={isPending}
-                  onClick={() => handleReview("rejected")}
-                  type="button"
-                >
-                  Reject
-                </button>
+            {canReviewVisits ? (
+              <div className="action-card">
+                <h3>Review outcome</h3>
+                <div className="inline-actions">
+                  <button
+                    className="mini-action approve"
+                    disabled={isPending}
+                    onClick={() => handleReview("approved")}
+                    type="button"
+                  >
+                    Approve
+                  </button>
+                  <button
+                    className="mini-action reject"
+                    disabled={isPending}
+                    onClick={() => handleReview("rejected")}
+                    type="button"
+                  >
+                    Reject
+                  </button>
+                </div>
               </div>
-            </div>
+            ) : null}
           </div>
         </article>
 

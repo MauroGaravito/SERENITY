@@ -2,6 +2,7 @@
 
 import { useFormStatus } from "react-dom";
 import { updateServiceOrder } from "@/app/providers/actions";
+import { SKILL_CATALOG } from "@/lib/catalogs";
 import { ServiceOrderRecord } from "@/lib/providers";
 
 function SaveButton() {
@@ -64,11 +65,24 @@ export function ProviderOrderEditForm({ order }: { order: ServiceOrderRecord }) 
           <input defaultValue={order.frequency} name="recurrenceRule" required type="text" />
         </label>
 
-        <label className="form-grid-span-2">
-          <span>Required skills</span>
-          <input defaultValue={order.requiredSkills.join(", ")} name="requiredSkills" required type="text" />
-        </label>
       </div>
+
+      <fieldset className="form-block">
+        <legend>Required skills</legend>
+        <div className="pill-row checkbox-pill-row">
+          {SKILL_CATALOG.map((skill) => (
+            <label className="checkbox-pill" key={skill}>
+              <input
+                defaultChecked={order.requiredSkills.includes(skill)}
+                name="requiredSkills"
+                type="checkbox"
+                value={skill}
+              />
+              <span>{skill}</span>
+            </label>
+          ))}
+        </div>
+      </fieldset>
 
       <label className="form-block">
         <span>Instructions</span>

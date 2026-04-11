@@ -15,6 +15,7 @@ import {
   UserRole,
   VisitStatus
 } from "@prisma/client";
+import catalogs from "../src/lib/catalogs.json" with { type: "json" };
 
 const prisma = new PrismaClient();
 const DEMO_PASSWORD = "SerenityDemo!2026";
@@ -281,13 +282,13 @@ async function main() {
   }
 
   const credentialMap = [
-    [sofia.id, ["Manual handling", "Personal care", "Medication prompt", "First Aid"]],
-    [liam.id, ["Manual handling", "Personal care", "Medication prompt"]],
-    [anika.id, ["Manual handling", "Personal care", "Medication prompt", "Dementia care"]],
-    [emily.id, ["Driver licence", "Mobility support"]],
-    [noah.id, ["Driver licence", "Mobility support", "Transport escort"]],
-    [grace.id, ["Overnight care", "Medication prompt", "Dementia care", "First Aid"]],
-    [daniel.id, ["Overnight care", "Medication prompt", "Dementia care"]]
+    [sofia.id, ["Domestic cleaning", "Meal preparation", "Manual handling", "Personal hygiene support"]],
+    [liam.id, ["Personal hygiene support", "Manual handling", "Medication prompt", "Meal preparation"]],
+    [anika.id, ["Personal hygiene support", "Manual handling", "Medication prompt", "Social engagement"]],
+    [emily.id, ["Transport escort", "Community participation", "Social engagement"]],
+    [noah.id, ["Transport escort", "Community participation", "Domestic cleaning"]],
+    [grace.id, ["Social engagement", "Medication prompt", "Meal preparation", "Manual handling"]],
+    [daniel.id, ["Social engagement", "Medication prompt", "Community participation"]]
   ];
 
   for (const [carerId, credentials] of credentialMap) {
@@ -337,30 +338,14 @@ async function main() {
     }
   });
 
-  const personalCare = await prisma.serviceType.create({
-    data: {
-      code: "PERSONAL_CARE",
-      name: "Personal Care",
-      requiresChecklist: true,
-      defaultDurationMin: 120
-    }
-  });
-  const transportEscort = await prisma.serviceType.create({
-    data: {
-      code: "TRANSPORT_ESCORT",
-      name: "Transport Escort",
-      requiresChecklist: true,
-      defaultDurationMin: 150
-    }
-  });
-  const overnightRespite = await prisma.serviceType.create({
-    data: {
-      code: "OVERNIGHT_RESPITE",
-      name: "Overnight Respite",
-      requiresChecklist: true,
-      defaultDurationMin: 600
-    }
-  });
+  const [domesticAssistanceType, communityAccessType, personalCareType, companionshipType] =
+    await Promise.all(
+      catalogs.serviceTypes.map((serviceType) =>
+        prisma.serviceType.create({
+          data: serviceType
+        })
+      )
+    );
 
   async function createChecklist(serviceTypeId, name, labels) {
     return prisma.checklistTemplate.create({
@@ -380,20 +365,25 @@ async function main() {
     });
   }
 
-  const personalTemplate = await createChecklist(personalCare.id, "AM personal care", [
-    "Personal hygiene completed",
-    "Breakfast prepared",
-    "Medication prompt recorded"
+  await createChecklist(domesticAssistanceType.id, "Domestic assistance", [
+    "Cleaning completed",
+    "Meal prep completed",
+    "Home left safe and tidy"
   ]);
-  const transportTemplate = await createChecklist(transportEscort.id, "Transport escort", [
-    "Pickup completed",
-    "Appointment escort completed",
+  const communityTemplate = await createChecklist(communityAccessType.id, "Community access", [
+    "Escort completed",
+    "Community activity completed",
     "Return handoff completed"
   ]);
-  await createChecklist(overnightRespite.id, "Overnight respite", [
-    "Safety checks completed",
-    "Medication prompt recorded",
-    "Morning handover note captured"
+  const personalTemplate = await createChecklist(personalCareType.id, "Personal care", [
+    "Personal hygiene completed",
+    "Manual handling completed safely",
+    "Medication prompt recorded"
+  ]);
+  await createChecklist(companionshipType.id, "Companionship", [
+    "Engagement activity completed",
+    "Mood and participation noted",
+    "Handover note captured"
   ]);
 
   const orderOne = await prisma.serviceOrder.create({
@@ -403,13 +393,13 @@ async function main() {
       providerId: provider.id,
       recipientId: maria.id,
       facilityId: bondiFacility.id,
-      serviceTypeId: personalCare.id,
+      serviceTypeId: personalCareType.id,
       status: ServiceOrderStatus.PARTIALLY_ASSIGNED,
       priority: PriorityLevel.HIGH,
       title: "Morning personal care support",
-      instructions: "AM hygiene routine, breakfast setup, medication prompt and mobility support.",
+      instructions: "AM hygiene routine, medication prompt and breakfast setup before family handoff.",
       coordinatorNotes: "Existing carer unavailable on Thursdays. Replacement coverage still open.",
-      requiredSkills: ["Manual handling", "Personal care", "Medication prompt"],
+      requiredSkills: ["Personal hygiene support", "Manual handling", "Medication prompt"],
       requiredLanguage: "English",
       plannedDurationMin: 120,
       startsOn: new Date("2026-04-03T07:00:00.000Z"),
@@ -425,13 +415,13 @@ async function main() {
       providerId: provider.id,
       recipientId: george.id,
       facilityId: innerWestFacility.id,
-      serviceTypeId: transportEscort.id,
+      serviceTypeId: communityAccessType.id,
       status: ServiceOrderStatus.ACTIVE,
       priority: PriorityLevel.MEDIUM,
-      title: "Community transport and appointment escort",
-      instructions: "Collect recipient from home, escort to specialist visit, return and handoff notes.",
-      coordinatorNotes: "Appointment duration often varies by 30 minutes. Watch actual time vs planned time.",
-      requiredSkills: ["Driver licence", "Mobility support"],
+      title: "Community access and shopping support",
+      instructions: "Escort recipient to local shops, support participation and return with handoff notes.",
+      coordinatorNotes: "Shopping duration varies by queue times. Watch actual time vs planned time.",
+      requiredSkills: ["Transport escort", "Community participation"],
       plannedDurationMin: 150,
       startsOn: new Date("2026-04-01T10:30:00.000Z"),
       recurrenceRule: "Weekly, Tuesdays 10:30-13:00"
@@ -445,18 +435,18 @@ async function main() {
       providerId: provider.id,
       recipientId: elaine.id,
       facilityId: southSydneyFacility.id,
-      serviceTypeId: overnightRespite.id,
+      serviceTypeId: companionshipType.id,
       status: ServiceOrderStatus.OPEN,
       priority: PriorityLevel.CRITICAL,
-      title: "Overnight respite coverage",
-      instructions: "Sleepover support, safety checks every 2 hours, morning handover note required.",
-      coordinatorNotes: "Two carers declined due to shift length. Escalation required before noon.",
-      requiredSkills: ["Overnight care", "Medication prompt", "Dementia care"],
+      title: "Evening companionship coverage",
+      instructions: "Provide evening companionship, light meal support and medication prompt before sleep routine.",
+      coordinatorNotes: "Two carers declined due to evening duration. Escalation required before noon.",
+      requiredSkills: ["Social engagement", "Meal preparation", "Medication prompt"],
       requiredLanguage: "English",
-      plannedDurationMin: 600,
-      startsOn: new Date("2026-04-05T21:00:00.000Z"),
-      endsOn: new Date("2026-04-06T07:00:00.000Z"),
-      recurrenceRule: "Sat-Sun, 21:00-07:00"
+      plannedDurationMin: 180,
+      startsOn: new Date("2026-04-05T16:00:00.000Z"),
+      endsOn: new Date("2026-04-05T19:00:00.000Z"),
+      recurrenceRule: "Sat-Sun, 16:00-19:00"
     }
   });
 
@@ -517,7 +507,7 @@ async function main() {
     });
   }
 
-  for (const item of transportTemplate.items) {
+  for (const item of communityTemplate.items) {
     await prisma.visitChecklistItem.create({
       data: {
         visitId: visitThree.id,
@@ -569,7 +559,7 @@ async function main() {
       visitId: visitThree.id,
       category: "Delay",
       severity: IncidentSeverity.MEDIUM,
-      summary: "Clinic delayed patient handover.",
+      summary: "Shopping trip finished later than planned due to queues.",
       occurredAt: new Date("2026-04-02T01:30:00.000Z")
     }
   });

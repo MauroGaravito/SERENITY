@@ -1,0 +1,38 @@
+{
+  "serviceTypes": [
+    {
+      "code": "DOMESTIC_ASSISTANCE",
+      "name": "Domestic Assistance",
+      "defaultDurationMin": 120,
+      "requiresChecklist": true
+    },
+    {
+      "code": "COMMUNITY_ACCESS",
+      "name": "Community Access",
+      "defaultDurationMin": 150,
+      "requiresChecklist": true
+    },
+    {
+      "code": "PERSONAL_CARE",
+      "name": "Personal Care",
+      "defaultDurationMin": 120,
+      "requiresChecklist": true
+    },
+    {
+      "code": "COMPANIONSHIP",
+      "name": "Companionship",
+      "defaultDurationMin": 180,
+      "requiresChecklist": true
+    }
+  ],
+  "skills": [
+    "Domestic cleaning",
+    "Meal preparation",
+    "Transport escort",
+    "Community participation",
+    "Personal hygiene support",
+    "Manual handling",
+    "Medication prompt",
+    "Social engagement"
+  ]
+}

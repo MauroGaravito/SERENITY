@@ -174,18 +174,23 @@ export function ProviderOrderForm({
           <span>Required language</span>
           <input name="requiredLanguage" placeholder="English" type="text" />
         </label>
-
-        <label>
-          <span>Required skills</span>
-          <input
-            defaultValue="Manual handling, Personal care"
-            name="requiredSkills"
-            placeholder="Comma separated skills"
-            required
-            type="text"
-          />
-        </label>
       </div>
+
+      <fieldset className="form-block">
+        <legend>Required skills</legend>
+        <div className="pill-row checkbox-pill-row">
+          {formData.skills.map((skill) => {
+            const defaultChecked = ["Manual handling", "Personal hygiene support"].includes(skill);
+
+            return (
+              <label className="checkbox-pill" key={skill}>
+                <input defaultChecked={defaultChecked} name="requiredSkills" type="checkbox" value={skill} />
+                <span>{skill}</span>
+              </label>
+            );
+          })}
+        </div>
+      </fieldset>
 
       <label className="form-block">
         <span>Instructions</span>

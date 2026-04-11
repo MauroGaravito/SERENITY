@@ -1,41 +1,29 @@
-﻿import { SessionBanner } from "@/components/auth/session-banner";
-import { CARER_ROLES, requireOrganizationUser } from "@/lib/auth";
+import { CarerWorkspace } from "@/components/carers/carer-workspace";
+import { CARER_ROLES, requireUser } from "@/lib/auth";
+import { getCarerWorkspace } from "@/lib/carers-data";
 
-export default async function CarersPage() {
-  const session = await requireOrganizationUser(CARER_ROLES);
+export const dynamic = "force-dynamic";
 
-  return (
-    <main className="role-page carer-theme">
-      <SessionBanner session={session} />
+export default async function CarersPage({
+  searchParams
+}: {
+  searchParams: Promise<{ visit?: string }>;
+}) {
+  const session = await requireUser(CARER_ROLES);
+  const workspace = await getCarerWorkspace(session.userId);
+  const { visit } = await searchParams;
 
-      <section>
-        <span className="eyebrow">Cuidador independiente</span>
-        <h1>Operacion movil con orden administrativo</h1>
-        <p>
-          Serenity debe ayudar al cuidador a ejecutar bien la visita y tambien a
-          manejar su actividad como microempresa formal.
-        </p>
-      </section>
+  if (!workspace) {
+    return (
+      <main className="role-page carer-theme">
+        <section>
+          <span className="eyebrow">Carer execution</span>
+          <h1>No active carer workspace found</h1>
+          <p>The logged in user is not linked to an active carer profile.</p>
+        </section>
+      </main>
+    );
+  }
 
-      <section className="role-columns">
-        <article className="role-panel">
-          <h2>Vista movil</h2>
-          <ul>
-            <li>Agenda del dia con estado de cada visita</li>
-            <li>Checklist, evidencia e incidencias desde terreno</li>
-            <li>Alertas por credenciales o documentos por vencer</li>
-          </ul>
-        </article>
-        <article className="role-panel">
-          <h2>Backoffice ligero</h2>
-          <ul>
-            <li>Historial de servicios e ingresos</li>
-            <li>Gastos y kilometraje por visita</li>
-            <li>Perfil profesional y disponibilidad</li>
-          </ul>
-        </article>
-      </section>
-    </main>
-  );
+  return <CarerWorkspace selectedVisitId={visit} session={session} workspace={workspace} />;
 }
-

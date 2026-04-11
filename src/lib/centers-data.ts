@@ -5,6 +5,7 @@
 } from "@prisma/client";
 import { unstable_noStore as noStore } from "next/cache";
 import { prisma } from "@/lib/prisma";
+import { SKILL_CATALOG } from "@/lib/catalogs";
 import {
   IncidentSeverity,
   ProviderMetric,
@@ -32,6 +33,7 @@ export type CenterOrderFormData = {
     name: string;
     defaultDurationMin: number;
   }>;
+  skills: string[];
 };
 
 const centerOrderInclude = {
@@ -258,7 +260,8 @@ export async function getCenterOrderFormData(centerId: string): Promise<CenterOr
         name: `${recipient.firstName} ${recipient.lastName}`
       }))
     })),
-    serviceTypes
+    serviceTypes,
+    skills: [...SKILL_CATALOG]
   };
 }
 

@@ -38,21 +38,46 @@ Todo lo que aparece aqui corresponde al estado demo sembrado para abril de 2026.
 - `George Hill` (`EV-1002`)
 - `Elaine Cooper` (`BW-1003`)
 
+### Catalogos cerrados actuales
+
+La demo actual ya usa catalogos cerrados para `service types` y `skills`.
+
+#### Service types
+
+- `Domestic Assistance`
+- `Community Access`
+- `Personal Care`
+- `Companionship`
+
+#### Skills
+
+- `Domestic cleaning`
+- `Meal preparation`
+- `Transport escort`
+- `Community participation`
+- `Personal hygiene support`
+- `Manual handling`
+- `Medication prompt`
+- `Social engagement`
+
 ### Ordenes sembradas
 
 - `SR-2401`: Morning personal care support
   - Centro: `Harbour View Care`
   - Recipient: `Maria Thompson`
+  - Service type: `Personal Care`
   - Estado inicial: `partially_assigned`
   - Prioridad: `high`
-- `SR-2402`: Community transport and appointment escort
+- `SR-2402`: Community access and shopping support
   - Centro: `Evergreen Support Services`
   - Recipient: `George Hill`
+  - Service type: `Community Access`
   - Estado inicial: `active`
   - Prioridad: `medium`
-- `SR-2403`: Overnight respite coverage
+- `SR-2403`: Evening companionship coverage
   - Centro: `BlueWattle Homecare`
   - Recipient: `Elaine Cooper`
+  - Service type: `Companionship`
   - Estado inicial: `open`
   - Prioridad: `critical`
 
@@ -118,13 +143,14 @@ Usa `SR-2401`.
 - Observa:
   - `Maria Thompson`
   - `Bondi Homecare North`
-  - skills requeridos: `Manual handling`, `Personal care`, `Medication prompt`
+  - service type `Personal Care`
+  - skills requeridos: `Personal hygiene support`, `Manual handling`, `Medication prompt`
   - una visita aprobada con `Liam Ortega`
   - una visita futura sin asignar
 - En `Eligible carers` deberias ver opciones coherentes como:
-  - `Sofia Bennett`
   - `Liam Ortega`
   - `Anika Perera`
+  - `Sofia Bennett`
 - En `Visit control` puedes seleccionar la visita sin cobertura y asignarla.
 
 #### Ejemplo 2: orden critica abierta
@@ -133,8 +159,8 @@ Usa `SR-2403`.
 
 - Abre la orden `SR-2403`.
 - Veras que esta `open` y con `critical risk`.
-- El objetivo del coordinador es encontrar cobertura para overnight respite.
-- En las notas aparece que ya hubo rechazos por duracion del turno.
+- El objetivo del coordinador es encontrar cobertura para acompanamiento de tarde.
+- En las notas aparece que ya hubo rechazos por duracion del bloque.
 - La accion esperada es asignar un carer elegible y mover la visita a `confirmed`.
 
 ### Formularios disponibles
@@ -152,7 +178,7 @@ En `/providers/orders` puedes crear una orden nueva con estos campos:
 - duracion planificada
 - recurrencia
 - idioma requerido
-- skills requeridos
+- skills requeridos desde catalogo cerrado
 - instrucciones
 - notas de coordinacion
 
@@ -189,7 +215,7 @@ Usa `SR-2402`.
   - checklist completo
   - evidencia capturada
   - un incidente `Delay`
-  - nota indicando que la clinica retraso el handoff
+  - nota indicando que la salida de compras se extendio por colas
 - Desde `Review outcome` puedes:
   - `Approve`
   - `Reject`
@@ -291,7 +317,7 @@ En `/centers/orders` puedes crear una solicitud nueva con:
 - planned duration
 - recurrence
 - required language
-- required skills
+- required skills desde catalogo cerrado
 - care instructions
 - provider handoff note
 
@@ -334,12 +360,12 @@ Aunque la UI del carer aun no esta hecha, la semilla ya contiene base real:
 - `Liam Ortega`
   - rating `4.7`
   - disponibilidad `Available Mon-Fri mornings`
-  - credenciales `Manual handling`, `Personal care`, `Medication prompt`
+  - credenciales `Personal hygiene support`, `Manual handling`, `Medication prompt`, `Meal preparation`
 - `Emily Tran`
   - rating `4.8`
-  - skills de movilidad y licencia
+  - skills de `Transport escort`, `Community participation`, `Social engagement`
 - `Grace Walker` y `Daniel Kim`
-  - orientados a `Overnight care`
+  - orientados a `Companionship`
 
 ## Auditoria y trazabilidad
 

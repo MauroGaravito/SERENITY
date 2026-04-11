@@ -97,12 +97,25 @@ Razon:
 - Tipos de servicio.
 - Tarifas, convenios y reglas base.
 
+Catalogos recomendados para la primera fase:
+
+- `service types` cerrados y cortos para mantener coherencia operativa
+- `skills` cerradas para matching, elegibilidad y futura integracion con automatizaciones o MCPs
+
 ### Modulo 2. Ordenes de servicio
 
 - Alta de requerimientos.
 - Frecuencia, duracion y ventana horaria.
 - Nivel de prioridad.
 - Requisitos de skill, documentos y idioma.
+
+Los `service types` no deben capturar toda la complejidad del trabajo por si solos.
+
+La recomendacion es separar:
+
+- `service type`: categoria operacional visible
+- `skills`: capacidades concretas requeridas
+- `credentials` o verificaciones: evidencia de habilitacion
 
 ### Modulo 3. Matching y cobertura
 

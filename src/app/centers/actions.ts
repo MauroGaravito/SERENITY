@@ -12,6 +12,7 @@ import {
   createCenterOrderCode,
   syncServiceOrderStatus
 } from "@/lib/centers-data";
+import { SKILL_CATALOG } from "@/lib/catalogs";
 import { prisma } from "@/lib/prisma";
 
 function requiredString(value: FormDataEntryValue | null, field: string) {
@@ -29,6 +30,22 @@ function optionalString(value: FormDataEntryValue | null) {
 
   const trimmed = value.trim();
   return trimmed.length > 0 ? trimmed : undefined;
+}
+
+function parseRequiredSkills(formData: FormData) {
+  const skills = formData
+    .getAll("requiredSkills")
+    .filter((value): value is string => typeof value === "string")
+    .map((skill) => skill.trim())
+    .filter((skill): skill is (typeof SKILL_CATALOG)[number] =>
+      SKILL_CATALOG.includes(skill as (typeof SKILL_CATALOG)[number])
+    );
+
+  if (skills.length === 0) {
+    throw new Error("Select at least one required skill.");
+  }
+
+  return skills;
 }
 
 function parsePriority(value: string) {
@@ -61,10 +78,7 @@ export async function createCenterServiceOrder(formData: FormData) {
     requiredString(formData.get("plannedDurationMin"), "plannedDurationMin")
   );
   const priority = parsePriority(requiredString(formData.get("priority"), "priority"));
-  const requiredSkills = requiredString(formData.get("requiredSkills"), "requiredSkills")
-    .split(",")
-    .map((skill) => skill.trim())
-    .filter(Boolean);
+  const requiredSkills = parseRequiredSkills(formData);
 
   const [provider, facility, serviceType] = await Promise.all([
     prisma.organization.findFirst({

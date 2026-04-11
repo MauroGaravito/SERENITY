@@ -7,6 +7,7 @@ import { ProviderVisitCreateForm } from "@/components/providers/provider-visit-c
 import { VisitControlPanel } from "@/components/providers/visit-control-panel";
 import { listOrderAuditEvents } from "@/lib/audit-data";
 import { PROVIDER_ROLES, requireOrganizationUser } from "@/lib/auth";
+import { UserRole } from "@prisma/client";
 import { formatDateTime } from "@/lib/providers";
 import { getProviderOrder } from "@/lib/providers-data";
 
@@ -97,7 +98,10 @@ export default async function ProviderOrderDetailPage({
         <ProviderVisitCreateForm orderId={order.id} />
       </section>
 
-      <VisitControlPanel order={order} />
+      <VisitControlPanel
+        canReviewVisits={session.role === UserRole.PROVIDER_REVIEWER}
+        order={order}
+      />
 
       <section className="ops-two-column">
         <article className="ops-panel">

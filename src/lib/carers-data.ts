@@ -1,0 +1,179 @@
+import {
+  ChecklistResult,
+  CredentialStatus,
+  IncidentSeverity,
+  Prisma,
+  VisitStatus as PrismaVisitStatus
+} from "@prisma/client";
+import { unstable_noStore as noStore } from "next/cache";
+import { CarerVisitChecklistItem, CarerWorkspaceRecord } from "@/lib/carers";
+import { prisma } from "@/lib/prisma";
+
+const carerWorkspaceInclude = {
+  credentials: {
+    where: { status: CredentialStatus.VALID },
+    orderBy: { name: "asc" }
+  },
+  visits: {
+    include: {
+      checklistItems: {
+        include: {
+          templateItem: true
+        }
+      },
+      evidence: {
+        orderBy: { createdAt: "desc" }
+      },
+      incidents: {
+        orderBy: { occurredAt: "desc" }
+      },
+      serviceOrder: {
+        include: {
+          center: true,
+          facility: true,
+          recipient: true,
+          serviceType: {
+            include: {
+              checklistTemplates: {
+                take: 1,
+                orderBy: { version: "desc" },
+                include: {
+                  items: {
+                    orderBy: { sortOrder: "asc" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    orderBy: { scheduledStart: "asc" }
+  }
+} satisfies Prisma.CarerInclude;
+
+type CarerWorkspaceRow = Prisma.CarerGetPayload<{
+  include: typeof carerWorkspaceInclude;
+}>;
+
+function mapChecklistResult(
+  value?: ChecklistResult
+): CarerVisitChecklistItem["result"] {
+  switch (value) {
+    case ChecklistResult.PASS:
+      return "pass";
+    case ChecklistResult.FAIL:
+      return "fail";
+    case ChecklistResult.NOT_APPLICABLE:
+      return "not_applicable";
+    default:
+      return "pending";
+  }
+}
+
+function mapSeverity(value: IncidentSeverity) {
+  return value.toLowerCase() as "low" | "medium" | "high" | "critical";
+}
+
+function mapStatus(value: PrismaVisitStatus) {
+  return value.toLowerCase() as CarerWorkspaceRecord["visits"][number]["status"];
+}
+
+function getChecklistItems(
+  visit: CarerWorkspaceRow["visits"][number]
+): CarerVisitChecklistItem[] {
+  const template = visit.serviceOrder.serviceType.checklistTemplates[0];
+  const existingItems = new Map(
+    visit.checklistItems.map((item) => [item.templateItemId, item])
+  );
+
+  const templateItems = template?.items ?? [];
+
+  if (templateItems.length === 0) {
+    return [];
+  }
+
+  return templateItems.map((templateItem) => {
+    const visitItem = existingItems.get(templateItem.id);
+
+    return {
+      id: visitItem?.id,
+      templateItemId: templateItem.id,
+      label: templateItem.label,
+      result: mapChecklistResult(visitItem?.result),
+      note: visitItem?.note ?? undefined
+    };
+  });
+}
+
+function getChecklistCompletion(items: ReturnType<typeof getChecklistItems>) {
+  if (items.length === 0) {
+    return 0;
+  }
+
+  const completedItems = items.filter((item) => item.result !== "pending").length;
+  return Math.round((completedItems / items.length) * 100);
+}
+
+function mapWorkspace(record: CarerWorkspaceRow): CarerWorkspaceRecord {
+  return {
+    carerId: record.id,
+    carerName: `${record.firstName} ${record.lastName}`,
+    availability: record.availabilityNote ?? "Availability to be confirmed",
+    credentials: record.credentials.map((credential) => credential.name),
+    visits: record.visits.map((visit) => {
+      const checklistItems = getChecklistItems(visit);
+
+      return {
+        id: visit.id,
+        label: new Intl.DateTimeFormat("en-AU", {
+          weekday: "short",
+          day: "2-digit",
+          month: "short"
+        }).format(visit.scheduledStart),
+        orderCode: visit.serviceOrder.code,
+        orderTitle: visit.serviceOrder.title,
+        serviceType: visit.serviceOrder.serviceType.name,
+        centerName: visit.serviceOrder.center.displayName,
+        facilityName: visit.serviceOrder.facility.name,
+        recipientName: `${visit.serviceOrder.recipient.firstName} ${visit.serviceOrder.recipient.lastName}`,
+        scheduledStart: visit.scheduledStart.toISOString(),
+        scheduledEnd: visit.scheduledEnd.toISOString(),
+        status: mapStatus(visit.status),
+        instructions:
+          visit.serviceOrder.instructions ?? "No service instructions recorded yet.",
+        notes: visit.exceptionReason ?? "No execution notes yet.",
+        requiredSkills: visit.serviceOrder.requiredSkills,
+        checklistCompletion: getChecklistCompletion(checklistItems),
+        checklistItems,
+        evidence: visit.evidence.map((item) => ({
+          id: item.id,
+          kind: item.kind,
+          fileUrl: item.fileUrl,
+          capturedAt: item.capturedAt?.toISOString()
+        })),
+        incidents: visit.incidents.map((incident) => ({
+          id: incident.id,
+          category: incident.category,
+          severity: mapSeverity(incident.severity),
+          summary: incident.summary,
+          occurredAt: incident.occurredAt.toISOString()
+        }))
+      };
+    })
+  };
+}
+
+export async function getCarerWorkspace(userId: string) {
+  noStore();
+
+  const carer = await prisma.carer.findFirst({
+    where: {
+      ownerUserId: userId,
+      isActive: true
+    },
+    include: carerWorkspaceInclude
+  });
+
+  return carer ? mapWorkspace(carer) : null;
+}

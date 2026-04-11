@@ -99,6 +99,7 @@ La unidad central es la **prestacion de servicio verificable**:
 - `docs/architecture.md`: base tecnica inicial.
 - `docs/domain-model.md`: modelo de dominio inicial.
 - `docs/user-manual.md`: manual de usuario basado en la semilla demo actual.
+- `docs/app-scope-2026-04-12.md`: alcance actual de la app para demos.
 - `SECURITY.md`: postura minima de seguridad para dependencias e installs.
 
 ## Decision de enfoque
@@ -154,5 +155,34 @@ Ya existe un scaffold tecnico inicial con:
 
 - homepage de producto,
 - rutas por actor (`/centers`, `/providers`, `/carers`),
+- catalogos cerrados iniciales para `service types` y `skills`,
 - esquema de dominio inicial en `prisma/schema.prisma`,
 - arquitectura y modelo documentados.
+
+## Catalogos cerrados iniciales
+
+La demo actual ya usa un primer catalogo operativo compartido por la semilla y los formularios.
+
+### Service types
+
+- `Domestic Assistance`
+- `Community Access`
+- `Personal Care`
+- `Companionship`
+
+### Skills
+
+- `Domestic cleaning`
+- `Meal preparation`
+- `Transport escort`
+- `Community participation`
+- `Personal hygiene support`
+- `Manual handling`
+- `Medication prompt`
+- `Social engagement`
+
+Estos catalogos se usan como base para:
+
+- tipos de servicio visibles en ordenes,
+- skills requeridas en provider y center,
+- matching inicial de carers en la demo.
