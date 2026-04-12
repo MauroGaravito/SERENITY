@@ -148,6 +148,54 @@ export type ClosingWorkspaceRecord = {
   };
 };
 
+export type ClosingExportPackage = {
+  schemaVersion: string;
+  exportBatchId: string;
+  generatedAt: string;
+  provider: {
+    id: string;
+    displayName: string;
+    legalName: string;
+    timezone: string;
+  };
+  closingPeriod: {
+    id: string;
+    label: string;
+    status: ClosingPeriodStatus;
+    startsAt: string;
+    endsAt: string;
+  };
+  totals: {
+    visits: number;
+    approvedMinutes: number;
+    billableCents: number;
+    payableCents: number;
+    expenseCents: number;
+  };
+  visits: Array<{
+    visitId: string;
+    settlementId: string;
+    serviceOrderId: string;
+    orderCode: string;
+    orderTitle: string;
+    recipientId: string;
+    recipientExternalRef?: string;
+    recipientName: string;
+    assignedCarerId?: string;
+    carerName?: string;
+    serviceType: string;
+    scheduledStart: string;
+    scheduledEnd: string;
+    actualStart?: string;
+    actualEnd?: string;
+    approvedMinutes: number;
+    billableCents: number;
+    payableCents: number;
+    currency: string;
+    expenses: ExpenseRecord[];
+  }>;
+};
+
 export type AuditEventRecord = {
   id: string;
   type:

@@ -40,3 +40,34 @@ export async function listOrderAuditEvents(
     actorRole: event.actorUser ? formatRoleLabel(event.actorUser.role) : undefined
   }));
 }
+
+export async function listClosingAuditEvents(
+  periodId: string,
+  organizationId: string
+): Promise<AuditEventRecord[]> {
+  noStore();
+
+  const events = await prisma.auditEvent.findMany({
+    where: {
+      organizationId,
+      type: "ORDER_UPDATED"
+    },
+    include: auditInclude,
+    orderBy: { createdAt: "desc" },
+    take: 24
+  });
+
+  return events
+    .filter((event) => {
+      const payload = event.payload as Record<string, unknown> | null;
+      return payload?.periodId === periodId;
+    })
+    .map((event) => ({
+      id: event.id,
+      type: event.type.toLowerCase() as AuditEventRecord["type"],
+      summary: event.summary,
+      createdAt: event.createdAt.toISOString(),
+      actorName: event.actorUser?.fullName,
+      actorRole: event.actorUser ? formatRoleLabel(event.actorUser.role) : undefined
+    }));
+}

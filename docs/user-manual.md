@@ -201,6 +201,8 @@ En `/providers/closing` puedes:
 - registrar gastos basicos
 - marcar un periodo como `locked`
 - marcar un periodo como `exported`
+- descargar el export package en `json`
+- descargar el export package en `csv`
 
 ## Perfil: Provider reviewer
 
@@ -258,12 +260,29 @@ La vista actual muestra:
 - billable y payable
 - gastos asociados
 - estado de exportacion del periodo
+- export batch id
+- trazabilidad basica de descarga del export package
 
 Regla clave actual:
 
 - un periodo `open` todavia se puede editar
 - un periodo `locked` equivale a `ready for export`
 - un periodo `exported` ya fue marcado como entregado a un sistema externo
+
+### Export package actual
+
+Cuando el periodo ya esta `locked` o `exported`, Serenity permite descargar:
+
+- un paquete `json` canonico
+- una vista `csv` derivada
+
+El `json` es la referencia principal para integracion futura y contiene:
+
+- provider
+- closing period
+- totals
+- visits
+- expenses
 
 ## Perfil: Center manager
 

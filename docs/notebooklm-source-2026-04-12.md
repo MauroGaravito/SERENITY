@@ -107,6 +107,7 @@ Puede hoy:
 - guardar settlements por visita aprobada,
 - registrar gastos basicos por visita aprobada,
 - mover periodos a `locked` y `exported`,
+- descargar export package en `json` y `csv`,
 - crear ordenes,
 - editar ordenes,
 - agregar visitas,
@@ -119,6 +120,7 @@ No puede hoy:
 - aprobar o rechazar visitas,
 - gestionar un cierre financiero completo,
 - exportar automaticamente a payroll,
+- sincronizar estados con sistema externo,
 - crear incidentes desde una UI dedicada del provider.
 
 ### Provider reviewer
@@ -357,10 +359,21 @@ Este documento sirve bien para responder preguntas como:
 Las principales limitaciones actuales son:
 
 - el cierre financiero no procesa pagos aunque ya tiene cierre operativo visible,
+- la exportacion actual es manual y no una integracion completa,
 - la experiencia del carer ya cubre disponibilidad y credenciales de forma basica, pero no con backoffice completo,
 - la evidencia no es carga real de archivos,
 - el perfil del carer todavia necesita alertas y reglas mas robustas,
 - el producto no intenta cubrir EMR clinico ni contabilidad avanzada.
+
+## Que falta despues de este bloque
+
+Lo siguiente que todavia falta para convertir la exportacion en integracion real es:
+
+- export jobs
+- estado de sincronizacion
+- referencia externa del sistema receptor
+- manejo de errores y reintentos
+- conectores por partner externo
 
 ## Estado de Fase 2 del carer
 
@@ -389,4 +402,4 @@ Su mayor fortaleza actual esta en:
 - primera capa de cierre operativo,
 - y uso de catalogos cerrados para ordenar servicios y skills.
 
-Su siguiente evolucion natural, despues de estabilizar demos, es volver mas robusto el cierre operativo y preparar exportacion externa.
+Su siguiente evolucion natural, despues de estabilizar demos, es conectar esta capa de exportacion con sistemas externos reales.

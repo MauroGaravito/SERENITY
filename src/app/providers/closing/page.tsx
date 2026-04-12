@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { OrderAuditTimeline } from "@/components/audit/order-audit-timeline";
 import {
   ClosingPeriodStatusForm,
   VisitExpenseForm,
@@ -6,6 +7,7 @@ import {
 } from "@/components/providers/closing-forms";
 import { ProviderShell } from "@/components/providers/provider-shell";
 import { StatusBadge } from "@/components/providers/status-badge";
+import { listClosingAuditEvents } from "@/lib/audit-data";
 import { PROVIDER_ROLES, requireOrganizationUser } from "@/lib/auth";
 import { formatCurrency, formatDateTime } from "@/lib/providers";
 import { getProviderClosingWorkspace } from "@/lib/providers-data";
@@ -24,6 +26,9 @@ export default async function ProviderClosingPage({
     workspace.periods.find((item) => item.id === period) ?? workspace.periods[0];
   const selectedVisit =
     selectedPeriod?.visits.find((item) => item.id === visit) ?? selectedPeriod?.visits[0];
+  const exportAuditEvents = selectedPeriod
+    ? await listClosingAuditEvents(selectedPeriod.id, session.organizationId)
+    : [];
 
   return (
     <ProviderShell
@@ -131,6 +136,26 @@ export default async function ProviderClosingPage({
                     : "Exported periods were already marked as handed off to an external system."}
               </p>
             </div>
+            {selectedPeriod.status !== "open" ? (
+              <div className="note-block top-gap">
+                <strong>Export package</strong>
+                <p>Batch id: {`serenity-${selectedPeriod.id}`}</p>
+                <div className="inline-actions top-gap">
+                  <Link
+                    className="primary-link"
+                    href={`/providers/closing/export/${selectedPeriod.id}`}
+                  >
+                    Download JSON
+                  </Link>
+                  <Link
+                    className="ghost-link"
+                    href={`/providers/closing/export/${selectedPeriod.id}?format=csv`}
+                  >
+                    Download CSV
+                  </Link>
+                </div>
+              </div>
+            ) : null}
           </article>
         ) : null}
       </section>
@@ -277,6 +302,8 @@ export default async function ProviderClosingPage({
           </article>
         </section>
       ) : null}
+
+      {selectedPeriod ? <OrderAuditTimeline events={exportAuditEvents} /> : null}
     </ProviderShell>
   );
 }

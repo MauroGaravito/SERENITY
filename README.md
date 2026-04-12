@@ -100,6 +100,7 @@ La unidad central es la **prestacion de servicio verificable**:
 - `docs/domain-model.md`: modelo de dominio inicial.
 - `docs/user-manual.md`: manual de usuario basado en la semilla demo actual.
 - `docs/app-scope-2026-04-12.md`: alcance actual de la app para demos.
+- `docs/external-export-spec-2026-04-12.md`: especificacion inicial de exportacion externa.
 - `SECURITY.md`: postura minima de seguridad para dependencias e installs.
 
 ## Decision de enfoque

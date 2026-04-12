@@ -188,6 +188,7 @@ Incluye:
 Estado actual:
 
 - iniciada con primera UI de periodos, settlements y gastos basicos
+- incluye export package manual en `json` y `csv`
 
 ### Fase E. External Finance Integration
 
@@ -209,7 +210,7 @@ No incluye:
 
 Estado actual:
 
-- no iniciada
+- iniciada en base documental y formato de export
 
 ## Prioridad recomendada
 
@@ -235,9 +236,9 @@ Se puede considerar que Serenity llego al limite usable planeado cuando:
 
 Estimacion aproximada al 2026-04-12:
 
-**60% del alcance objetivo total**
+**68% del alcance objetivo total**
 
-## Como se calcula ese 60%
+## Como se calcula ese 68%
 
 ### Ya bastante avanzado
 
@@ -256,16 +257,18 @@ Estimacion aproximada al 2026-04-12:
 - matching
 - carer execution flow como demo
 - reglas de exportacion externa
+- formato inicial de export package
+- trazabilidad basica de exportacion
 
 ### Todavia faltante
 
 - alertas de vencimiento
 - reemplazos y escalamiento mas robustos
-- exportacion o integracion externa
+- sincronizacion externa real
 - seed demo optimizado para cierre completo
 
 ## Interpretacion del porcentaje
-El 60% no significa que falte poco.
+El 68% no significa que falte poco.
 
 Significa que:
 
@@ -319,14 +322,15 @@ La senal correcta es:
 
 ## Recomendacion inmediata
 
-Lo siguiente mas sensato no es saltar aun a integraciones financieras.
+Lo siguiente mas sensato ya no es seguir ampliando UI operativa general.
 
-Lo correcto es:
+Lo correcto ahora es:
 
-1. mejorar seed y demo del carer para un flujo operativo mas claro
-2. entrar a disponibilidad y credenciales
-3. despues construir cierre operativo
-4. solo luego definir integracion externa
+1. convertir el export package manual en una capa de sincronizacion real
+2. modelar export jobs y estado de sync
+3. guardar referencia externa del sistema receptor
+4. manejar errores y reintentos
+5. solo despues decidir conectores especificos por partner
 
 ## Regla de decision para nuevas features
 

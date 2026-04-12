@@ -11,6 +11,7 @@ import { unstable_noStore as noStore } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { SKILL_CATALOG } from "@/lib/catalogs";
 import {
+  ClosingExportPackage,
   ClosingWorkspaceRecord,
   IncidentSeverity,
   ProviderMetric,
@@ -69,6 +70,33 @@ const closingPeriodInclude = {
 type ClosingPeriodRow = Prisma.ClosingPeriodGetPayload<{
   include: typeof closingPeriodInclude;
 }>;
+
+const closingExportInclude = {
+  provider: true,
+  settlements: {
+    include: {
+      visit: {
+        include: {
+          assignedCarer: true,
+          expenses: {
+            orderBy: { createdAt: "asc" }
+          },
+          serviceOrder: {
+            include: {
+              recipient: true,
+              serviceType: true
+            }
+          }
+        }
+      }
+    },
+    orderBy: {
+      visit: {
+        scheduledStart: "asc"
+      }
+    }
+  }
+} satisfies Prisma.ClosingPeriodInclude;
 
 const providerOrderInclude = {
   center: true,
@@ -455,6 +483,151 @@ export async function getProviderClosingWorkspace(
       )
     }
   };
+}
+
+export async function getClosingExportPackage(
+  periodId: string,
+  providerId: string
+): Promise<ClosingExportPackage | null> {
+  noStore();
+
+  const period = await prisma.closingPeriod.findFirst({
+    where: {
+      id: periodId,
+      providerId
+    },
+    include: closingExportInclude
+  });
+
+  if (!period || period.status === PrismaClosingPeriodStatus.OPEN) {
+    return null;
+  }
+
+  const visits = period.settlements.map((settlement) => {
+    const visit = settlement.visit;
+    const expenses = visit.expenses.map((expense) => ({
+      id: expense.id,
+      type: mapExpenseType(expense.type),
+      amountCents: expense.amountCents,
+      currency: expense.currency,
+      note: expense.note ?? undefined,
+      evidenceUrl: expense.evidenceUrl ?? undefined,
+      createdAt: expense.createdAt.toISOString()
+    }));
+
+    return {
+      visitId: visit.id,
+      settlementId: settlement.id,
+      serviceOrderId: visit.serviceOrderId,
+      orderCode: visit.serviceOrder.code,
+      orderTitle: visit.serviceOrder.title,
+      recipientId: visit.serviceOrder.recipient.id,
+      recipientExternalRef: visit.serviceOrder.recipient.externalRef ?? undefined,
+      recipientName: `${visit.serviceOrder.recipient.firstName} ${visit.serviceOrder.recipient.lastName}`,
+      assignedCarerId: visit.assignedCarerId ?? undefined,
+      carerName: visit.assignedCarer
+        ? `${visit.assignedCarer.firstName} ${visit.assignedCarer.lastName}`
+        : undefined,
+      serviceType: visit.serviceOrder.serviceType.name,
+      scheduledStart: visit.scheduledStart.toISOString(),
+      scheduledEnd: visit.scheduledEnd.toISOString(),
+      actualStart: visit.actualStart?.toISOString(),
+      actualEnd: visit.actualEnd?.toISOString(),
+      approvedMinutes: settlement.approvedMinutes,
+      billableCents: settlement.billableCents ?? 0,
+      payableCents: settlement.payableCents ?? 0,
+      currency: "AUD",
+      expenses
+    };
+  });
+
+  return {
+    schemaVersion: "serenity-closing-export-v1",
+    exportBatchId: `serenity-${period.id}`,
+    generatedAt: new Date().toISOString(),
+    provider: {
+      id: period.provider.id,
+      displayName: period.provider.displayName,
+      legalName: period.provider.legalName,
+      timezone: period.provider.timezone
+    },
+    closingPeriod: {
+      id: period.id,
+      label: period.label,
+      status: mapClosingStatus(period.status),
+      startsAt: period.startsAt.toISOString(),
+      endsAt: period.endsAt.toISOString()
+    },
+    totals: {
+      visits: visits.length,
+      approvedMinutes: visits.reduce((total, visit) => total + visit.approvedMinutes, 0),
+      billableCents: visits.reduce((total, visit) => total + visit.billableCents, 0),
+      payableCents: visits.reduce((total, visit) => total + visit.payableCents, 0),
+      expenseCents: visits.reduce(
+        (total, visit) =>
+          total + visit.expenses.reduce((expenseTotal, expense) => expenseTotal + expense.amountCents, 0),
+        0
+      )
+    },
+    visits
+  };
+}
+
+export function serializeClosingExportCsv(payload: ClosingExportPackage) {
+  const header = [
+    "export_batch_id",
+    "period_id",
+    "period_label",
+    "visit_id",
+    "settlement_id",
+    "service_order_id",
+    "order_code",
+    "recipient_id",
+    "recipient_external_ref",
+    "recipient_name",
+    "carer_id",
+    "carer_name",
+    "service_type",
+    "scheduled_start",
+    "scheduled_end",
+    "actual_start",
+    "actual_end",
+    "approved_minutes",
+    "billable_cents",
+    "payable_cents",
+    "expense_total_cents",
+    "expense_count"
+  ];
+
+  const escape = (value: string | number | undefined) =>
+    `"${String(value ?? "").replaceAll("\"", "\"\"")}"`;
+
+  const rows = payload.visits.map((visit) => [
+    payload.exportBatchId,
+    payload.closingPeriod.id,
+    payload.closingPeriod.label,
+    visit.visitId,
+    visit.settlementId,
+    visit.serviceOrderId,
+    visit.orderCode,
+    visit.recipientId,
+    visit.recipientExternalRef ?? "",
+    visit.recipientName,
+    visit.assignedCarerId ?? "",
+    visit.carerName ?? "",
+    visit.serviceType,
+    visit.scheduledStart,
+    visit.scheduledEnd,
+    visit.actualStart ?? "",
+    visit.actualEnd ?? "",
+    visit.approvedMinutes,
+    visit.billableCents,
+    visit.payableCents,
+    visit.expenses.reduce((total, expense) => total + expense.amountCents, 0),
+    visit.expenses.length
+  ]);
+
+  return [header, ...rows].map((row) => row.map(escape).join(",")).join("\n");
 }
 
 export async function getProviderOrderFormData(): Promise<ProviderOrderFormData> {
