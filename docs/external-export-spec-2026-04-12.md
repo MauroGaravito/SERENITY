@@ -26,6 +26,11 @@ Hoy Serenity ya soporta:
 - descarga de export package en `json`
 - descarga de export package en `csv`
 - auditoria de descarga del export package
+- export jobs explicitos
+- estados `pending`, `processing`, `succeeded` y `failed`
+- numero de intentos por job
+- referencia externa mock cuando el sync fue exitoso
+- retry de jobs fallidos
 
 ## Regla de exportabilidad
 
@@ -33,6 +38,7 @@ Un periodo solo se puede exportar cuando:
 
 1. esta en estado `locked` o `exported`
 2. todas las visitas aprobadas dentro del periodo ya tienen settlement
+3. existe al menos un `export job` exitoso
 
 Un periodo `open` no debe exponer paquete de exportacion.
 
@@ -186,24 +192,55 @@ El resumen actual del audit event indica:
 - para que periodo
 - y en que formato
 
+Cada sync job tambien crea trazabilidad operativa con:
+
+- `periodId`
+- `jobId`
+- `targetSystem`
+- `status`
+- `externalReference` cuando existe
+- `error` cuando falla
+
+## Sync jobs actuales
+
+La base actual de sync trabaja con jobs asociados al `closingPeriod`.
+
+Cada job guarda:
+
+- `targetSystem`
+- `format`
+- `status`
+- `attemptCount`
+- `externalReference`
+- `lastError`
+- `lastAttemptAt`
+- `completedAt`
+- `payload`
+
+Targets demo actuales:
+
+- `mock_payroll_gateway`
+- `manual_handoff`
+- `qa_failure_simulation`
+
 ## Lo que aun no hace
 
-Esta especificacion inicial todavia no cubre:
+Esta especificacion actual todavia no cubre:
 
-- push automatico a sistema externo
-- reintentos o estados de sync
+- procesamiento asincrono real por cola o worker
 - confirmacion remota de recepcion
 - versionado por partner externo
 - multiples formatos por partner
 - mapeos especificos por proveedor de payroll
+- secretos o autenticacion real hacia conectores externos
 
 ## Siguiente evolucion recomendada
 
 La siguiente capa sobre esta especificacion deberia incluir:
 
-1. tabla o modelo explicito de export jobs
-2. estado de sincronizacion por periodo
-3. referencia externa del sistema receptor
-4. reintentos
-5. mensajes de error de integracion
-6. conectores por plataforma externa
+1. ejecucion asincrona real por job
+2. confirmacion remota y `external status`
+3. politicas de retry mas robustas
+4. mensajes de error mas estructurados
+5. conectores por plataforma externa
+6. observabilidad tecnica de integracion

@@ -24,6 +24,11 @@ export type ReviewOutcome = "approved" | "needs_changes" | "rejected";
 export type Tone = "neutral" | "warning" | "critical" | "positive";
 export type ClosingPeriodStatus = "open" | "locked" | "exported";
 export type ExpenseType = "mileage" | "travel" | "supplies" | "other";
+export type ExportJobStatus = "pending" | "processing" | "succeeded" | "failed";
+export type ExportTargetSystem =
+  | "manual_handoff"
+  | "mock_payroll_gateway"
+  | "qa_failure_simulation";
 
 export type CarerOption = {
   id: string;
@@ -135,6 +140,21 @@ export type ClosingPeriodRecord = {
   billableCentsTotal: number;
   payableCentsTotal: number;
   expenseCentsTotal: number;
+  latestSuccessfulExportAt?: string;
+  exportJobs: Array<{
+    id: string;
+    targetSystem: ExportTargetSystem;
+    format: string;
+    status: ExportJobStatus;
+    attemptCount: number;
+    exportBatchId?: string;
+    externalReference?: string;
+    lastError?: string;
+    lastAttemptAt?: string;
+    completedAt?: string;
+    createdAt: string;
+    updatedAt: string;
+  }>;
   visits: ClosingVisitRecord[];
 };
 
@@ -145,6 +165,8 @@ export type ClosingWorkspaceRecord = {
     visitsReadyForSettlement: number;
     visitsReadyForExport: number;
     approvedMinutesInFlight: number;
+    syncJobsPending: number;
+    syncJobsFailed: number;
   };
 };
 
@@ -228,21 +250,30 @@ export function formatCurrency(valueCents: number, currency = "AUD"): string {
 }
 
 export function getStatusTone(
-  status: OrderStatus | VisitStatus | ReviewOutcome | ClosingPeriodStatus
+  status:
+    | OrderStatus
+    | VisitStatus
+    | ReviewOutcome
+    | ClosingPeriodStatus
+    | ExportJobStatus
 ) {
   switch (status) {
     case "approved":
     case "closed":
     case "exported":
+    case "succeeded":
       return "positive";
     case "under_review":
     case "partially_assigned":
     case "needs_changes":
     case "locked":
+    case "pending":
+    case "processing":
       return "warning";
     case "rejected":
     case "cancelled":
     case "no_show":
+    case "failed":
       return "critical";
     default:
       return "neutral";

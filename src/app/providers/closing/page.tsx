@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { OrderAuditTimeline } from "@/components/audit/order-audit-timeline";
 import {
+  ClosingSyncForm,
   ClosingPeriodStatusForm,
+  RetryClosingSyncForm,
   VisitExpenseForm,
   VisitSettlementForm
 } from "@/components/providers/closing-forms";
@@ -55,6 +57,16 @@ export default async function ProviderClosingPage({
           <p>Approved minutes</p>
           <strong>{workspace.summary.approvedMinutesInFlight}</strong>
           <span>Total approved or suggested minutes inside visible periods</span>
+        </article>
+        <article className="metric-card metric-warning">
+          <p>Sync jobs pending</p>
+          <strong>{workspace.summary.syncJobsPending}</strong>
+          <span>External handoff jobs still processing or queued</span>
+        </article>
+        <article className="metric-card metric-critical">
+          <p>Sync jobs failed</p>
+          <strong>{workspace.summary.syncJobsFailed}</strong>
+          <span>Exports that need retry before the period is marked exported</span>
         </article>
       </section>
 
@@ -122,6 +134,14 @@ export default async function ProviderClosingPage({
                 <dt>Expenses</dt>
                 <dd>{formatCurrency(selectedPeriod.expenseCentsTotal)}</dd>
               </div>
+              <div>
+                <dt>Last successful sync</dt>
+                <dd>
+                  {selectedPeriod.latestSuccessfulExportAt
+                    ? formatDateTime(selectedPeriod.latestSuccessfulExportAt)
+                    : "None yet"}
+                </dd>
+              </div>
             </dl>
             <div className="top-gap">
               <ClosingPeriodStatusForm period={selectedPeriod} />
@@ -137,24 +157,29 @@ export default async function ProviderClosingPage({
               </p>
             </div>
             {selectedPeriod.status !== "open" ? (
-              <div className="note-block top-gap">
-                <strong>Export package</strong>
-                <p>Batch id: {`serenity-${selectedPeriod.id}`}</p>
-                <div className="inline-actions top-gap">
-                  <Link
-                    className="primary-link"
-                    href={`/providers/closing/export/${selectedPeriod.id}`}
-                  >
-                    Download JSON
-                  </Link>
-                  <Link
-                    className="ghost-link"
-                    href={`/providers/closing/export/${selectedPeriod.id}?format=csv`}
-                  >
-                    Download CSV
-                  </Link>
+              <>
+                <div className="note-block top-gap">
+                  <strong>Export package</strong>
+                  <p>Batch id: {`serenity-${selectedPeriod.id}`}</p>
+                  <div className="inline-actions top-gap">
+                    <Link
+                      className="primary-link"
+                      href={`/providers/closing/export/${selectedPeriod.id}`}
+                    >
+                      Download JSON
+                    </Link>
+                    <Link
+                      className="ghost-link"
+                      href={`/providers/closing/export/${selectedPeriod.id}?format=csv`}
+                    >
+                      Download CSV
+                    </Link>
+                  </div>
                 </div>
-              </div>
+                <div className="top-gap">
+                  <ClosingSyncForm periodId={selectedPeriod.id} />
+                </div>
+              </>
             ) : null}
           </article>
         ) : null}
@@ -298,6 +323,81 @@ export default async function ProviderClosingPage({
               ) : (
                 <p className="panel-copy">No expenses recorded for this approved visit yet.</p>
               )}
+            </div>
+          </article>
+        </section>
+      ) : null}
+
+      {selectedPeriod ? (
+        <section className="ops-two-column">
+          <article className="ops-panel">
+            <div className="panel-heading">
+              <div>
+                <p className="card-tag">External sync</p>
+                <h2>Sync jobs</h2>
+              </div>
+            </div>
+            <div className="sequence-list">
+              {selectedPeriod.exportJobs.length > 0 ? (
+                selectedPeriod.exportJobs.map((job) => (
+                  <div className="note-block" key={job.id}>
+                    <div className="split-row">
+                      <strong>{job.targetSystem.replaceAll("_", " ")}</strong>
+                      <StatusBadge value={job.status} />
+                    </div>
+                    <p>Attempts: {job.attemptCount}</p>
+                    <p>Batch: {job.exportBatchId ?? `serenity-${selectedPeriod.id}`}</p>
+                    <p>
+                      External ref: {job.externalReference ?? "Pending external acknowledgement"}
+                    </p>
+                    <p>
+                      Last attempt:{" "}
+                      {job.lastAttemptAt ? formatDateTime(job.lastAttemptAt) : "Not attempted yet"}
+                    </p>
+                    <p>{job.lastError ?? "No connector error recorded."}</p>
+                    {job.status === "failed" ? (
+                      <div className="top-gap">
+                        <RetryClosingSyncForm jobId={job.id} />
+                      </div>
+                    ) : null}
+                  </div>
+                ))
+              ) : (
+                <p className="panel-copy">
+                  No external sync jobs yet. Lock the period first, then run a sync job.
+                </p>
+              )}
+            </div>
+          </article>
+
+          <article className="ops-panel">
+            <div className="panel-heading">
+              <div>
+                <p className="card-tag">Handoff rule</p>
+                <h2>What is still missing</h2>
+              </div>
+            </div>
+            <div className="sequence-list">
+              <div className="note-block">
+                <strong>Current foundation</strong>
+                <p>
+                  Serenity can now generate a package, run a sync job, store attempts and keep
+                  the external reference without managing payroll directly.
+                </p>
+              </div>
+              <div className="note-block">
+                <strong>Still outside the app</strong>
+                <p>
+                  Payment execution, tax logic, superannuation and bank transfer remain in the
+                  external finance platform.
+                </p>
+              </div>
+              <div className="note-block">
+                <strong>Exported gate</strong>
+                <p>
+                  A period can only move to exported after at least one successful sync job.
+                </p>
+              </div>
             </div>
           </article>
         </section>

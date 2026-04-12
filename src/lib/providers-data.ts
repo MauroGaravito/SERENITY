@@ -2,6 +2,7 @@
   ClosingPeriodStatus as PrismaClosingPeriodStatus,
   CredentialStatus,
   ExpenseType as PrismaExpenseType,
+  ExportJobStatus as PrismaExportJobStatus,
   Prisma,
   ReviewOutcome as PrismaReviewOutcome,
   ServiceOrderStatus,
@@ -13,6 +14,7 @@ import { SKILL_CATALOG } from "@/lib/catalogs";
 import {
   ClosingExportPackage,
   ClosingWorkspaceRecord,
+  ExportTargetSystem,
   IncidentSeverity,
   ProviderMetric,
   ReviewOutcome,
@@ -42,6 +44,9 @@ export type ProviderOrderFormData = {
 };
 
 const closingPeriodInclude = {
+  exportJobs: {
+    orderBy: [{ createdAt: "desc" }]
+  },
   settlements: {
     include: {
       visit: {
@@ -73,6 +78,9 @@ type ClosingPeriodRow = Prisma.ClosingPeriodGetPayload<{
 
 const closingExportInclude = {
   provider: true,
+  exportJobs: {
+    orderBy: [{ createdAt: "desc" }]
+  },
   settlements: {
     include: {
       visit: {
@@ -145,6 +153,18 @@ function mapExpenseType(value: PrismaExpenseType) {
 
 function mapClosingStatus(value: PrismaClosingPeriodStatus) {
   return value.toLowerCase() as ClosingWorkspaceRecord["periods"][number]["status"];
+}
+
+function mapExportJobStatus(value: PrismaExportJobStatus) {
+  return value.toLowerCase() as ClosingWorkspaceRecord["periods"][number]["exportJobs"][number]["status"];
+}
+
+function mapExportTarget(value: string) {
+  return value as ExportTargetSystem;
+}
+
+function getExportBatchId(periodId: string) {
+  return `serenity-${periodId}`;
 }
 
 function durationInMinutes(start?: Date | null, end?: Date | null) {
@@ -355,6 +375,20 @@ function mapClosingPeriod(
   }>
 ): ClosingWorkspaceRecord["periods"][number] {
   const settlementByVisitId = new Map(period.settlements.map((settlement) => [settlement.visitId, settlement]));
+  const exportJobs = period.exportJobs.map((job) => ({
+    id: job.id,
+    targetSystem: mapExportTarget(job.targetSystem),
+    format: job.format,
+    status: mapExportJobStatus(job.status),
+    attemptCount: job.attemptCount,
+    exportBatchId: (job.payload as { exportBatchId?: string } | null)?.exportBatchId ?? getExportBatchId(period.id),
+    externalReference: job.externalReference ?? undefined,
+    lastError: job.lastError ?? undefined,
+    lastAttemptAt: job.lastAttemptAt?.toISOString(),
+    completedAt: job.completedAt?.toISOString(),
+    createdAt: job.createdAt.toISOString(),
+    updatedAt: job.updatedAt.toISOString()
+  }));
   const visits = approvedVisits
     .filter((visit) => isVisitInsidePeriod(visit, period))
     .map((visit) => {
@@ -412,6 +446,9 @@ function mapClosingPeriod(
       total + visit.expenses.reduce((expenseTotal, expense) => expenseTotal + expense.amountCents, 0),
     0
   );
+  const latestSuccessfulExport = period.exportJobs.find(
+    (job) => job.status === PrismaExportJobStatus.SUCCEEDED
+  );
 
   return {
     id: period.id,
@@ -427,6 +464,10 @@ function mapClosingPeriod(
     billableCentsTotal,
     payableCentsTotal,
     expenseCentsTotal,
+    latestSuccessfulExportAt: latestSuccessfulExport?.completedAt
+      ? latestSuccessfulExport.completedAt.toISOString()
+      : undefined,
+    exportJobs,
     visits
   };
 }
@@ -479,6 +520,19 @@ export async function getProviderClosingWorkspace(
       ),
       approvedMinutesInFlight: mappedPeriods.reduce(
         (total, period) => total + period.approvedMinutesTotal,
+        0
+      ),
+      syncJobsPending: mappedPeriods.reduce(
+        (total, period) =>
+          total +
+          period.exportJobs.filter(
+            (job) => job.status === "pending" || job.status === "processing"
+          ).length,
+        0
+      ),
+      syncJobsFailed: mappedPeriods.reduce(
+        (total, period) =>
+          total + period.exportJobs.filter((job) => job.status === "failed").length,
         0
       )
     }
@@ -543,7 +597,7 @@ export async function getClosingExportPackage(
 
   return {
     schemaVersion: "serenity-closing-export-v1",
-    exportBatchId: `serenity-${period.id}`,
+    exportBatchId: getExportBatchId(period.id),
     generatedAt: new Date().toISOString(),
     provider: {
       id: period.provider.id,
@@ -628,6 +682,121 @@ export function serializeClosingExportCsv(payload: ClosingExportPackage) {
   ]);
 
   return [header, ...rows].map((row) => row.map(escape).join(",")).join("\n");
+}
+
+function buildExportPayloadSummary(
+  payload: ClosingExportPackage,
+  targetSystem: ExportTargetSystem
+) {
+  return {
+    schemaVersion: payload.schemaVersion,
+    exportBatchId: payload.exportBatchId,
+    targetSystem,
+    totals: payload.totals,
+    visitIds: payload.visits.map((visit) => visit.visitId)
+  };
+}
+
+function buildExternalReference(targetSystem: ExportTargetSystem, periodId: string) {
+  const suffix = periodId.slice(-6).toUpperCase();
+
+  switch (targetSystem) {
+    case "manual_handoff":
+      return `MANUAL-${suffix}`;
+    case "mock_payroll_gateway":
+      return `MPG-${suffix}`;
+    case "qa_failure_simulation":
+      return undefined;
+  }
+}
+
+async function processExportJob(jobId: string, targetSystem: ExportTargetSystem, payload: ClosingExportPackage) {
+  await prisma.exportJob.update({
+    where: { id: jobId },
+    data: {
+      status: PrismaExportJobStatus.PROCESSING,
+      attemptCount: { increment: 1 },
+      lastAttemptAt: new Date(),
+      lastError: null,
+      payload: buildExportPayloadSummary(payload, targetSystem)
+    }
+  });
+
+  if (targetSystem === "qa_failure_simulation") {
+    return prisma.exportJob.update({
+      where: { id: jobId },
+      data: {
+        status: PrismaExportJobStatus.FAILED,
+        lastError: "Mock connector rejected the payload. Review mapping and retry.",
+        externalReference: null,
+        completedAt: null
+      }
+    });
+  }
+
+  return prisma.exportJob.update({
+    where: { id: jobId },
+    data: {
+      status: PrismaExportJobStatus.SUCCEEDED,
+      externalReference: buildExternalReference(targetSystem, payload.closingPeriod.id),
+      completedAt: new Date(),
+      lastError: null
+    }
+  });
+}
+
+export async function createClosingExportJob(
+  periodId: string,
+  providerId: string,
+  targetSystem: ExportTargetSystem
+) {
+  const payload = await getClosingExportPackage(periodId, providerId);
+
+  if (!payload) {
+    throw new Error("Closing period is not ready for external sync.");
+  }
+
+  const job = await prisma.exportJob.create({
+    data: {
+      closingPeriodId: periodId,
+      targetSystem,
+      format: "json",
+      status: PrismaExportJobStatus.PENDING,
+      payload: buildExportPayloadSummary(payload, targetSystem)
+    }
+  });
+
+  return processExportJob(job.id, targetSystem, payload);
+}
+
+export async function retryClosingExportJob(jobId: string, providerId: string) {
+  const job = await prisma.exportJob.findFirst({
+    where: {
+      id: jobId,
+      closingPeriod: {
+        providerId
+      }
+    },
+    include: {
+      closingPeriod: {
+        select: {
+          id: true
+        }
+      }
+    }
+  });
+
+  if (!job) {
+    throw new Error("Export job not found for this provider.");
+  }
+
+  const payload = await getClosingExportPackage(job.closingPeriod.id, providerId);
+
+  if (!payload) {
+    throw new Error("Closing period is not ready for retry.");
+  }
+
+  return processExportJob(job.id, mapExportTarget(job.targetSystem), payload);
 }
 
 export async function getProviderOrderFormData(): Promise<ProviderOrderFormData> {

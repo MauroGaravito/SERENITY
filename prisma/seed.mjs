@@ -32,6 +32,7 @@ function normalizeEmail(email) {
 
 async function resetDatabase() {
   await prisma.auditEvent.deleteMany();
+  await prisma.exportJob.deleteMany();
   await prisma.visitSettlement.deleteMany();
   await prisma.closingPeriod.deleteMany();
   await prisma.expense.deleteMany();
@@ -537,6 +538,19 @@ async function main() {
     }
   });
 
+  const visitFour = await prisma.visit.create({
+    data: {
+      serviceOrderId: orderTwo.id,
+      assignedCarerId: emily.id,
+      status: VisitStatus.APPROVED,
+      scheduledStart: new Date("2026-04-08T00:30:00.000Z"),
+      scheduledEnd: new Date("2026-04-08T03:00:00.000Z"),
+      actualStart: new Date("2026-04-08T00:32:00.000Z"),
+      actualEnd: new Date("2026-04-08T02:54:00.000Z"),
+      exceptionReason: "Community access visit approved and ready for sync demo."
+    }
+  });
+
   await prisma.visit.create({
     data: {
       serviceOrderId: orderThree.id,
@@ -562,6 +576,17 @@ async function main() {
     await prisma.visitChecklistItem.create({
       data: {
         visitId: visitThree.id,
+        templateItemId: item.id,
+        result: ChecklistResult.PASS,
+        note: "Completed"
+      }
+    });
+  }
+
+  for (const item of communityTemplate.items) {
+    await prisma.visitChecklistItem.create({
+      data: {
+        visitId: visitFour.id,
         templateItemId: item.id,
         result: ChecklistResult.PASS,
         note: "Completed"
@@ -656,6 +681,66 @@ async function main() {
     }
   });
 
+  const closingPeriodTwo = await prisma.closingPeriod.create({
+    data: {
+      providerId: provider.id,
+      label: "Apr 2026 - Week 2",
+      startsAt: new Date("2026-04-06T00:00:00.000Z"),
+      endsAt: new Date("2026-04-12T23:59:59.000Z"),
+      status: ClosingPeriodStatus.LOCKED
+    }
+  });
+
+  await prisma.visitSettlement.create({
+    data: {
+      closingPeriodId: closingPeriodTwo.id,
+      visitId: visitFour.id,
+      approvedMinutes: 142,
+      billableCents: 17200,
+      payableCents: 11100
+    }
+  });
+
+  await prisma.exportJob.create({
+    data: {
+      closingPeriodId: closingPeriodTwo.id,
+      targetSystem: "mock_payroll_gateway",
+      format: "json",
+      status: "SUCCEEDED",
+      attemptCount: 1,
+      externalReference: `MPG-${closingPeriodTwo.id.slice(-6).toUpperCase()}`,
+      payload: {
+        exportBatchId: `serenity-${closingPeriodTwo.id}`,
+        targetSystem: "mock_payroll_gateway",
+        totals: {
+          visits: 1,
+          approvedMinutes: 142,
+          billableCents: 17200,
+          payableCents: 11100,
+          expenseCents: 0
+        }
+      },
+      lastAttemptAt: new Date("2026-04-12T02:15:00.000Z"),
+      completedAt: new Date("2026-04-12T02:16:00.000Z")
+    }
+  });
+
+  await prisma.exportJob.create({
+    data: {
+      closingPeriodId: closingPeriodTwo.id,
+      targetSystem: "qa_failure_simulation",
+      format: "json",
+      status: "FAILED",
+      attemptCount: 1,
+      lastError: "Mock connector rejected the payload. Review mapping and retry.",
+      payload: {
+        exportBatchId: `serenity-${closingPeriodTwo.id}`,
+        targetSystem: "qa_failure_simulation"
+      },
+      lastAttemptAt: new Date("2026-04-12T02:45:00.000Z")
+    }
+  });
+
   await prisma.auditEvent.createMany({
     data: [
       {
@@ -712,7 +797,7 @@ async function main() {
     reviewer: reviewer.fullName,
     demoPassword: DEMO_PASSWORD,
     orders: 3,
-    visits: 4
+    visits: 5
   });
 }
 

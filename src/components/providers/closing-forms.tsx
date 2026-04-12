@@ -4,6 +4,8 @@ import { useFormStatus } from "react-dom";
 import {
   addVisitExpense,
   saveVisitSettlement,
+  retryClosingPeriodSync,
+  syncClosingPeriodExternally,
   updateClosingPeriodStatus
 } from "@/app/providers/actions";
 import { ClosingPeriodRecord, ClosingVisitRecord } from "@/lib/providers";
@@ -147,6 +149,42 @@ export function VisitExpenseForm({
         </label>
       </div>
       <PendingButton idleLabel="Add expense" pendingLabel="Adding..." />
+    </form>
+  );
+}
+
+export function ClosingSyncForm({
+  periodId
+}: {
+  periodId: string;
+}) {
+  return (
+    <form action={syncClosingPeriodExternally} className="compact-stack credential-form-card">
+      <input name="periodId" type="hidden" value={periodId} />
+      <div className="form-grid">
+        <label className="form-grid-span-2">
+          <span>External target</span>
+          <select defaultValue="mock_payroll_gateway" name="targetSystem">
+            <option value="mock_payroll_gateway">Mock payroll gateway</option>
+            <option value="manual_handoff">Manual handoff register</option>
+            <option value="qa_failure_simulation">QA failure simulation</option>
+          </select>
+        </label>
+      </div>
+      <PendingButton idleLabel="Run sync job" pendingLabel="Syncing..." />
+    </form>
+  );
+}
+
+export function RetryClosingSyncForm({
+  jobId
+}: {
+  jobId: string;
+}) {
+  return (
+    <form action={retryClosingPeriodSync}>
+      <input name="jobId" type="hidden" value={jobId} />
+      <PendingButton idleLabel="Retry job" pendingLabel="Retrying..." />
     </form>
   );
 }

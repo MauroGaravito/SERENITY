@@ -87,6 +87,13 @@ enum ClosingPeriodStatus {
   EXPORTED
 }
 
+enum ExportJobStatus {
+  PENDING
+  PROCESSING
+  SUCCEEDED
+  FAILED
+}
+
 enum ExpenseType {
   MILEAGE
   TRAVEL
@@ -383,6 +390,7 @@ model ClosingPeriod {
   createdAt   DateTime            @default(now())
   provider    Organization        @relation(fields: [providerId], references: [id])
   settlements VisitSettlement[]
+  exportJobs  ExportJob[]
 }
 
 model VisitSettlement {
@@ -396,4 +404,23 @@ model VisitSettlement {
   visit           Visit         @relation(fields: [visitId], references: [id])
 
   @@unique([closingPeriodId, visitId])
+}
+
+model ExportJob {
+  id                String          @id @default(cuid())
+  closingPeriodId   String
+  targetSystem      String
+  format            String          @default("json")
+  status            ExportJobStatus @default(PENDING)
+  attemptCount      Int             @default(0)
+  externalReference String?
+  lastError         String?
+  payload           Json?
+  lastAttemptAt     DateTime?
+  completedAt       DateTime?
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+  closingPeriod     ClosingPeriod   @relation(fields: [closingPeriodId], references: [id])
+
+  @@index([closingPeriodId, createdAt])
 }

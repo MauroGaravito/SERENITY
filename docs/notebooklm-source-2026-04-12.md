@@ -108,6 +108,8 @@ Puede hoy:
 - registrar gastos basicos por visita aprobada,
 - mover periodos a `locked` y `exported`,
 - descargar export package en `json` y `csv`,
+- correr sync jobs externos mock o manuales,
+- reintentar sync jobs fallidos,
 - crear ordenes,
 - editar ordenes,
 - agregar visitas,
@@ -119,8 +121,8 @@ No puede hoy:
 
 - aprobar o rechazar visitas,
 - gestionar un cierre financiero completo,
-- exportar automaticamente a payroll,
 - sincronizar estados con sistema externo,
+- confirmar recepcion remota real,
 - crear incidentes desde una UI dedicada del provider.
 
 ### Provider reviewer
@@ -359,7 +361,7 @@ Este documento sirve bien para responder preguntas como:
 Las principales limitaciones actuales son:
 
 - el cierre financiero no procesa pagos aunque ya tiene cierre operativo visible,
-- la exportacion actual es manual y no una integracion completa,
+- la exportacion ya tiene capa de sync base, pero no una integracion remota completa,
 - la experiencia del carer ya cubre disponibilidad y credenciales de forma basica, pero no con backoffice completo,
 - la evidencia no es carga real de archivos,
 - el perfil del carer todavia necesita alertas y reglas mas robustas,
@@ -369,10 +371,9 @@ Las principales limitaciones actuales son:
 
 Lo siguiente que todavia falta para convertir la exportacion en integracion real es:
 
-- export jobs
-- estado de sincronizacion
-- referencia externa del sistema receptor
-- manejo de errores y reintentos
+- jobs asincronos reales
+- confirmacion remota del sistema receptor
+- politicas de errores y reintentos mas robustas
 - conectores por partner externo
 
 ## Estado de Fase 2 del carer
@@ -400,6 +401,7 @@ Su mayor fortaleza actual esta en:
 - visibilidad center,
 - primera capa operativa del carer,
 - primera capa de cierre operativo,
+- capa inicial de sync externo,
 - y uso de catalogos cerrados para ordenar servicios y skills.
 
 Su siguiente evolucion natural, despues de estabilizar demos, es conectar esta capa de exportacion con sistemas externos reales.

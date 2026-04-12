@@ -553,6 +553,13 @@ ul {
   align-items: center;
 }
 
+.split-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
 .risk-pill,
 .skill-pill {
   display: inline-flex;

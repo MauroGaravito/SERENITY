@@ -200,6 +200,8 @@ En `/providers/closing` puedes:
 - guardar settlement por visita
 - registrar gastos basicos
 - marcar un periodo como `locked`
+- correr un `sync job` hacia un target externo mock o manual
+- reintentar un `sync job` fallido
 - marcar un periodo como `exported`
 - descargar el export package en `json`
 - descargar el export package en `csv`
@@ -261,12 +263,16 @@ La vista actual muestra:
 - gastos asociados
 - estado de exportacion del periodo
 - export batch id
-- trazabilidad basica de descarga del export package
+- jobs de sync por periodo
+- referencia externa cuando el sync fue exitoso
+- trazabilidad basica de descarga y sync
 
 Regla clave actual:
 
 - un periodo `open` todavia se puede editar
 - un periodo `locked` equivale a `ready for export`
+- un periodo `locked` puede correr sync jobs externos
+- un periodo `exported` exige al menos un sync job exitoso
 - un periodo `exported` ya fue marcado como entregado a un sistema externo
 
 ### Export package actual
@@ -283,6 +289,22 @@ El `json` es la referencia principal para integracion futura y contiene:
 - totals
 - visits
 - expenses
+
+### Sync externo actual
+
+Cuando el periodo ya esta `locked` o `exported`, Serenity tambien permite:
+
+- crear un `export job`
+- ver su estado (`pending`, `processing`, `succeeded`, `failed`)
+- guardar numero de intentos
+- guardar referencia externa mock
+- registrar error de conector para retry
+
+La implementacion actual sigue siendo una capa de handoff:
+
+- no ejecuta pagos
+- no confirma recepcion remota real
+- no sincroniza de vuelta desde payroll
 
 ## Perfil: Center manager
 

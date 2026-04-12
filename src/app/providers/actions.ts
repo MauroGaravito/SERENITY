@@ -18,11 +18,13 @@ import {
 } from "@/lib/auth";
 import { logAuditEvent } from "@/lib/audit";
 import {
+  createClosingExportJob,
+  retryClosingExportJob,
   syncServiceOrderStatus,
   toPrismaReviewOutcome,
   toPrismaVisitStatus
 } from "@/lib/providers-data";
-import { ReviewOutcome, VisitStatus } from "@/lib/providers";
+import { ExportTargetSystem, ReviewOutcome, VisitStatus } from "@/lib/providers";
 
 type ProviderMutationInput = {
   visitId: string;
@@ -90,6 +92,28 @@ async function getScopedClosingPeriod(periodId: string, providerId: string) {
       status: true,
       startsAt: true,
       endsAt: true
+    }
+  });
+}
+
+async function getScopedExportJob(jobId: string, providerId: string) {
+  return prisma.exportJob.findFirst({
+    where: {
+      id: jobId,
+      closingPeriod: {
+        providerId
+      }
+    },
+    select: {
+      id: true,
+      targetSystem: true,
+      status: true,
+      closingPeriodId: true,
+      closingPeriod: {
+        select: {
+          label: true
+        }
+      }
     }
   });
 }
@@ -329,6 +353,17 @@ function parseExpenseType(value: string) {
       return ExpenseType.OTHER;
     default:
       throw new Error("Invalid expense type.");
+  }
+}
+
+function parseExportTargetSystem(value: string): ExportTargetSystem {
+  switch (value) {
+    case "manual_handoff":
+    case "mock_payroll_gateway":
+    case "qa_failure_simulation":
+      return value;
+    default:
+      throw new Error("Invalid external target system.");
   }
 }
 
@@ -683,6 +718,79 @@ export async function addVisitExpense(formData: FormData) {
   revalidateProviderPaths(`/providers/closing?period=${periodId}&visit=${visit.id}`);
 }
 
+export async function syncClosingPeriodExternally(formData: FormData) {
+  const session = await requireProviderSession();
+  const periodId = requiredString(formData.get("periodId"), "periodId");
+  const targetSystem = parseExportTargetSystem(
+    requiredString(formData.get("targetSystem"), "targetSystem")
+  );
+  const period = await getScopedClosingPeriod(periodId, session.organizationId);
+
+  if (!period) {
+    throw new Error("Closing period not found for this provider.");
+  }
+
+  if (period.status === ClosingPeriodStatus.OPEN) {
+    throw new Error("Lock the closing period before syncing externally.");
+  }
+
+  const job = await createClosingExportJob(period.id, session.organizationId, targetSystem);
+
+  await logAuditEvent({
+    organizationId: session.organizationId,
+    actorUserId: session.userId,
+    type: AuditEventType.ORDER_UPDATED,
+    summary:
+      job.status === "SUCCEEDED"
+        ? `Closing period ${period.label} synced to ${targetSystem}.`
+        : `Closing period ${period.label} sync failed for ${targetSystem}.`,
+    payload: {
+      scope: "closing_sync",
+      periodId: period.id,
+      jobId: job.id,
+      targetSystem,
+      status: job.status.toLowerCase(),
+      externalReference: job.externalReference ?? null,
+      error: job.lastError ?? null
+    }
+  });
+
+  revalidateProviderPaths(`/providers/closing?period=${period.id}`);
+}
+
+export async function retryClosingPeriodSync(formData: FormData) {
+  const session = await requireProviderSession();
+  const jobId = requiredString(formData.get("jobId"), "jobId");
+  const job = await getScopedExportJob(jobId, session.organizationId);
+
+  if (!job) {
+    throw new Error("Export job not found for this provider.");
+  }
+
+  const updatedJob = await retryClosingExportJob(job.id, session.organizationId);
+
+  await logAuditEvent({
+    organizationId: session.organizationId,
+    actorUserId: session.userId,
+    type: AuditEventType.ORDER_UPDATED,
+    summary:
+      updatedJob.status === "SUCCEEDED"
+        ? `Retry succeeded for ${job.closingPeriod.label} sync.`
+        : `Retry failed for ${job.closingPeriod.label} sync.`,
+    payload: {
+      scope: "closing_sync_retry",
+      periodId: job.closingPeriodId,
+      jobId: job.id,
+      targetSystem: job.targetSystem,
+      status: updatedJob.status.toLowerCase(),
+      externalReference: updatedJob.externalReference ?? null,
+      error: updatedJob.lastError ?? null
+    }
+  });
+
+  revalidateProviderPaths(`/providers/closing?period=${job.closingPeriodId}`);
+}
+
 export async function updateClosingPeriodStatus(formData: FormData) {
   const session = await requireProviderSession();
   const periodId = requiredString(formData.get("periodId"), "periodId");
@@ -733,6 +841,19 @@ export async function updateClosingPeriodStatus(formData: FormData) {
 
   if (nextStatus === ClosingPeriodStatus.EXPORTED && period.status !== ClosingPeriodStatus.LOCKED) {
     throw new Error("Only locked periods can be marked as exported.");
+  }
+
+  if (nextStatus === ClosingPeriodStatus.EXPORTED) {
+    const successfulJobs = await prisma.exportJob.count({
+      where: {
+        closingPeriodId: period.id,
+        status: "SUCCEEDED"
+      }
+    });
+
+    if (successfulJobs === 0) {
+      throw new Error("Run at least one successful external sync before marking exported.");
+    }
   }
 
   await prisma.closingPeriod.update({
