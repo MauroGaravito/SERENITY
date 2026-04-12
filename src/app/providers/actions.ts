@@ -2,6 +2,8 @@
 
 import {
   AuditEventType,
+  ClosingPeriodStatus,
+  ExpenseType,
   PriorityLevel,
   ServiceOrderStatus,
   UserRole,
@@ -33,6 +35,7 @@ function revalidateProviderPaths(path?: string) {
   }
 
   revalidatePath("/providers");
+  revalidatePath("/providers/closing");
   revalidatePath("/providers/orders");
 }
 
@@ -70,6 +73,47 @@ async function getScopedOrder(orderId: string, providerId: string) {
       id: true,
       code: true,
       providerId: true
+    }
+  });
+}
+
+async function getScopedClosingPeriod(periodId: string, providerId: string) {
+  return prisma.closingPeriod.findFirst({
+    where: {
+      id: periodId,
+      providerId
+    },
+    select: {
+      id: true,
+      label: true,
+      providerId: true,
+      status: true,
+      startsAt: true,
+      endsAt: true
+    }
+  });
+}
+
+async function getScopedApprovedVisitForClosing(visitId: string, providerId: string) {
+  return prisma.visit.findFirst({
+    where: {
+      id: visitId,
+      status: PrismaVisitStatus.APPROVED,
+      serviceOrder: {
+        providerId
+      }
+    },
+    select: {
+      id: true,
+      assignedCarerId: true,
+      serviceOrderId: true,
+      actualEnd: true,
+      scheduledEnd: true,
+      serviceOrder: {
+        select: {
+          code: true
+        }
+      }
     }
   });
 }
@@ -258,6 +302,54 @@ function parsePriority(value: string) {
     default:
       return PriorityLevel.MEDIUM;
   }
+}
+
+function parseClosingStatusAction(value: string) {
+  switch (value) {
+    case "open":
+      return ClosingPeriodStatus.OPEN;
+    case "lock":
+      return ClosingPeriodStatus.LOCKED;
+    case "export":
+      return ClosingPeriodStatus.EXPORTED;
+    default:
+      throw new Error("Invalid closing period action.");
+  }
+}
+
+function parseExpenseType(value: string) {
+  switch (value) {
+    case "mileage":
+      return ExpenseType.MILEAGE;
+    case "travel":
+      return ExpenseType.TRAVEL;
+    case "supplies":
+      return ExpenseType.SUPPLIES;
+    case "other":
+      return ExpenseType.OTHER;
+    default:
+      throw new Error("Invalid expense type.");
+  }
+}
+
+function parsePositiveInt(value: string, field: string) {
+  const parsed = Number(value);
+
+  if (!Number.isFinite(parsed) || parsed < 0) {
+    throw new Error(`Invalid numeric field: ${field}`);
+  }
+
+  return Math.round(parsed);
+}
+
+function parseAmountToCents(value: string, field: string) {
+  const parsed = Number(value);
+
+  if (!Number.isFinite(parsed) || parsed < 0) {
+    throw new Error(`Invalid amount field: ${field}`);
+  }
+
+  return Math.round(parsed * 100);
 }
 
 export async function createServiceOrder(formData: FormData) {
@@ -450,5 +542,217 @@ export async function createVisitForOrder(formData: FormData) {
 
   await syncServiceOrderStatus(order.id);
   revalidateProviderPaths(`/providers/orders/${order.id}`);
+}
+
+export async function saveVisitSettlement(formData: FormData) {
+  const session = await requireProviderSession();
+  const periodId = requiredString(formData.get("periodId"), "periodId");
+  const visitId = requiredString(formData.get("visitId"), "visitId");
+  const approvedMinutes = parsePositiveInt(
+    requiredString(formData.get("approvedMinutes"), "approvedMinutes"),
+    "approvedMinutes"
+  );
+  const billableCents = parseAmountToCents(
+    requiredString(formData.get("billableAmount"), "billableAmount"),
+    "billableAmount"
+  );
+  const payableCents = parseAmountToCents(
+    requiredString(formData.get("payableAmount"), "payableAmount"),
+    "payableAmount"
+  );
+
+  const [period, visit] = await Promise.all([
+    getScopedClosingPeriod(periodId, session.organizationId),
+    getScopedApprovedVisitForClosing(visitId, session.organizationId)
+  ]);
+
+  if (!period) {
+    throw new Error("Closing period not found for this provider.");
+  }
+
+  if (!visit) {
+    throw new Error("Approved visit not found for this provider.");
+  }
+
+  if (period.status !== ClosingPeriodStatus.OPEN) {
+    throw new Error("Only open periods can be edited.");
+  }
+
+  const visitEnd = visit.actualEnd ?? visit.scheduledEnd;
+
+  if (visitEnd < period.startsAt || visitEnd > period.endsAt) {
+    throw new Error("Visit does not belong to the selected closing period.");
+  }
+
+  await prisma.visitSettlement.upsert({
+    where: {
+      closingPeriodId_visitId: {
+        closingPeriodId: period.id,
+        visitId: visit.id
+      }
+    },
+    update: {
+      approvedMinutes,
+      billableCents,
+      payableCents
+    },
+    create: {
+      closingPeriodId: period.id,
+      visitId: visit.id,
+      approvedMinutes,
+      billableCents,
+      payableCents
+    }
+  });
+
+  await logAuditEvent({
+    organizationId: session.organizationId,
+    actorUserId: session.userId,
+    serviceOrderId: visit.serviceOrderId,
+    visitId: visit.id,
+    type: AuditEventType.ORDER_UPDATED,
+    summary: `Closing settlement saved for ${visit.serviceOrder.code} in ${period.label}.`,
+    payload: {
+      periodId: period.id,
+      approvedMinutes,
+      billableCents,
+      payableCents
+    }
+  });
+
+  revalidateProviderPaths(`/providers/closing?period=${period.id}&visit=${visit.id}`);
+}
+
+export async function addVisitExpense(formData: FormData) {
+  const session = await requireProviderSession();
+  const visitId = requiredString(formData.get("visitId"), "visitId");
+  const periodId = requiredString(formData.get("periodId"), "periodId");
+  const type = parseExpenseType(requiredString(formData.get("type"), "type"));
+  const amountCents = parseAmountToCents(
+    requiredString(formData.get("amount"), "amount"),
+    "amount"
+  );
+  const note = optionalString(formData.get("note"));
+  const evidenceUrl = optionalString(formData.get("evidenceUrl"));
+  const [period, visit] = await Promise.all([
+    getScopedClosingPeriod(periodId, session.organizationId),
+    getScopedApprovedVisitForClosing(visitId, session.organizationId)
+  ]);
+
+  if (!period) {
+    throw new Error("Closing period not found for this provider.");
+  }
+
+  if (!visit) {
+    throw new Error("Approved visit not found for this provider.");
+  }
+
+  if (period.status !== ClosingPeriodStatus.OPEN) {
+    throw new Error("Only open periods can be edited.");
+  }
+
+  if (!visit.assignedCarerId) {
+    throw new Error("Expenses can only be attached to visits with an assigned carer.");
+  }
+
+  await prisma.expense.create({
+    data: {
+      visitId: visit.id,
+      carerId: visit.assignedCarerId,
+      type,
+      amountCents,
+      currency: "AUD",
+      note,
+      evidenceUrl
+    }
+  });
+
+  await logAuditEvent({
+    organizationId: session.organizationId,
+    actorUserId: session.userId,
+    serviceOrderId: visit.serviceOrderId,
+    visitId: visit.id,
+    type: AuditEventType.ORDER_UPDATED,
+    summary: `Expense added to ${visit.serviceOrder.code} for operational closing.`,
+    payload: {
+      type: type.toLowerCase(),
+      amountCents
+    }
+  });
+
+  revalidateProviderPaths(`/providers/closing?period=${periodId}&visit=${visit.id}`);
+}
+
+export async function updateClosingPeriodStatus(formData: FormData) {
+  const session = await requireProviderSession();
+  const periodId = requiredString(formData.get("periodId"), "periodId");
+  const nextStatus = parseClosingStatusAction(
+    requiredString(formData.get("statusAction"), "statusAction")
+  );
+  const period = await getScopedClosingPeriod(periodId, session.organizationId);
+
+  if (!period) {
+    throw new Error("Closing period not found for this provider.");
+  }
+
+  if (nextStatus === ClosingPeriodStatus.LOCKED) {
+    const approvedVisits = await prisma.visit.findMany({
+      where: {
+        status: PrismaVisitStatus.APPROVED,
+        serviceOrder: {
+          providerId: session.organizationId
+        }
+      },
+      select: {
+        id: true,
+        actualEnd: true,
+        scheduledEnd: true
+      }
+    });
+
+    const approvedVisitIds = approvedVisits
+      .filter((visit) => {
+        const comparisonDate = visit.actualEnd ?? visit.scheduledEnd;
+        return comparisonDate >= period.startsAt && comparisonDate <= period.endsAt;
+      })
+      .map((visit) => visit.id);
+
+    const settlementsCount = await prisma.visitSettlement.count({
+      where: {
+        closingPeriodId: period.id,
+        visitId: {
+          in: approvedVisitIds
+        }
+      }
+    });
+
+    if (settlementsCount !== approvedVisitIds.length) {
+      throw new Error("All approved visits in the period need a settlement before locking.");
+    }
+  }
+
+  if (nextStatus === ClosingPeriodStatus.EXPORTED && period.status !== ClosingPeriodStatus.LOCKED) {
+    throw new Error("Only locked periods can be marked as exported.");
+  }
+
+  await prisma.closingPeriod.update({
+    where: { id: period.id },
+    data: {
+      status: nextStatus
+    }
+  });
+
+  await logAuditEvent({
+    organizationId: session.organizationId,
+    actorUserId: session.userId,
+    type: AuditEventType.ORDER_UPDATED,
+    summary: `Closing period ${period.label} moved to ${nextStatus.toLowerCase()}.`,
+    payload: {
+      periodId: period.id,
+      status: nextStatus.toLowerCase()
+    }
+  });
+
+  revalidateProviderPaths(`/providers/closing?period=${period.id}`);
 }
 

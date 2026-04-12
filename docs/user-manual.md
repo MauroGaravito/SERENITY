@@ -114,6 +114,11 @@ La demo actual ya usa catalogos cerrados para `service types` y `skills`.
 
 - Ver metricas operativas de la prestadora.
 - Ver la cola de ordenes que requieren accion.
+- Ver periodos de cierre operativo.
+- Ver visitas aprobadas listas para settlement.
+- Registrar minutos aprobados, billable y payable por visita.
+- Registrar gastos o kilometraje basicos para visitas aprobadas.
+- Mover un periodo entre `open`, `locked` y `exported`.
 - Crear una nueva `service order`.
 - Editar una orden existente.
 - Agregar visitas a una orden.
@@ -128,8 +133,8 @@ La demo actual ya usa catalogos cerrados para `service types` y `skills`.
 ### Que no puede hacer hoy
 
 - No puede aprobar o rechazar una visita.
-- No tiene una vista separada de cierre financiero.
 - No tiene un modulo dedicado de incident creation desde UI.
+- No ejecuta payroll ni pagos.
 
 ### Recorrido recomendado en la semilla
 
@@ -188,6 +193,15 @@ En el detalle de la orden puedes:
 - editar configuracion operativa
 - agregar una visita adicional
 
+En `/providers/closing` puedes:
+
+- ver periodos de cierre
+- revisar visitas aprobadas por periodo
+- guardar settlement por visita
+- registrar gastos basicos
+- marcar un periodo como `locked`
+- marcar un periodo como `exported`
+
 ## Perfil: Provider reviewer
 
 ### Usuario demo
@@ -231,6 +245,25 @@ Eso sirve para mostrar:
 - evidencia completa
 - checklist alineado
 - settlement ya asociado al cierre `Apr 2026 - Week 1`
+
+### Workspace de cierre
+
+Tanto `Provider coordinator` como `Provider reviewer` pueden entrar a `/providers/closing`.
+
+La vista actual muestra:
+
+- periodos de cierre
+- visitas aprobadas dentro del periodo
+- approved minutes por visita
+- billable y payable
+- gastos asociados
+- estado de exportacion del periodo
+
+Regla clave actual:
+
+- un periodo `open` todavia se puede editar
+- un periodo `locked` equivale a `ready for export`
+- un periodo `exported` ya fue marcado como entregado a un sistema externo
 
 ## Perfil: Center manager
 

@@ -1,5 +1,7 @@
 ﻿import {
+  ClosingPeriodStatus as PrismaClosingPeriodStatus,
   CredentialStatus,
+  ExpenseType as PrismaExpenseType,
   Prisma,
   ReviewOutcome as PrismaReviewOutcome,
   ServiceOrderStatus,
@@ -9,6 +11,7 @@ import { unstable_noStore as noStore } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { SKILL_CATALOG } from "@/lib/catalogs";
 import {
+  ClosingWorkspaceRecord,
   IncidentSeverity,
   ProviderMetric,
   ReviewOutcome,
@@ -36,6 +39,36 @@ export type ProviderOrderFormData = {
   }>;
   skills: string[];
 };
+
+const closingPeriodInclude = {
+  settlements: {
+    include: {
+      visit: {
+        include: {
+          assignedCarer: true,
+          expenses: {
+            orderBy: { createdAt: "desc" }
+          },
+          serviceOrder: {
+            include: {
+              recipient: true,
+              serviceType: true
+            }
+          }
+        }
+      }
+    },
+    orderBy: {
+      visit: {
+        scheduledStart: "asc"
+      }
+    }
+  }
+} satisfies Prisma.ClosingPeriodInclude;
+
+type ClosingPeriodRow = Prisma.ClosingPeriodGetPayload<{
+  include: typeof closingPeriodInclude;
+}>;
 
 const providerOrderInclude = {
   center: true,
@@ -76,6 +109,30 @@ type ProviderOrderRow = Prisma.ServiceOrderGetPayload<{
 
 function toLowerSnake<T extends string>(value: T) {
   return value.toLowerCase() as Lowercase<T>;
+}
+
+function mapExpenseType(value: PrismaExpenseType) {
+  return value.toLowerCase() as ClosingWorkspaceRecord["periods"][number]["visits"][number]["expenses"][number]["type"];
+}
+
+function mapClosingStatus(value: PrismaClosingPeriodStatus) {
+  return value.toLowerCase() as ClosingWorkspaceRecord["periods"][number]["status"];
+}
+
+function durationInMinutes(start?: Date | null, end?: Date | null) {
+  if (!start || !end) {
+    return 0;
+  }
+
+  return Math.max(0, Math.round((end.getTime() - start.getTime()) / 60000));
+}
+
+function isVisitInsidePeriod(
+  visit: { actualEnd?: Date | null; scheduledEnd: Date },
+  period: { startsAt: Date; endsAt: Date }
+) {
+  const comparisonDate = visit.actualEnd ?? visit.scheduledEnd;
+  return comparisonDate >= period.startsAt && comparisonDate <= period.endsAt;
 }
 
 function deriveCoverageRisk(order: ProviderOrderRow): ServiceOrderRecord["coverageRisk"] {
@@ -240,6 +297,164 @@ export async function getProviderMetrics(providerId: string): Promise<ProviderMe
       detail: "Orders needing escalation now"
     }
   ];
+}
+
+function mapClosingPeriod(
+  period: ClosingPeriodRow,
+  approvedVisits: Array<{
+    id: string;
+    scheduledStart: Date;
+    scheduledEnd: Date;
+    actualStart: Date | null;
+    actualEnd: Date | null;
+    status: PrismaVisitStatus;
+    assignedCarer: { firstName: string; lastName: string } | null;
+    expenses: Array<{
+      id: string;
+      type: PrismaExpenseType;
+      amountCents: number;
+      currency: string;
+      note: string | null;
+      evidenceUrl: string | null;
+      createdAt: Date;
+    }>;
+    serviceOrder: {
+      code: string;
+      title: string;
+      recipient: { firstName: string; lastName: string };
+      serviceType: { name: string };
+    };
+  }>
+): ClosingWorkspaceRecord["periods"][number] {
+  const settlementByVisitId = new Map(period.settlements.map((settlement) => [settlement.visitId, settlement]));
+  const visits = approvedVisits
+    .filter((visit) => isVisitInsidePeriod(visit, period))
+    .map((visit) => {
+      const settlement = settlementByVisitId.get(visit.id);
+      const suggestedApprovedMinutes =
+        durationInMinutes(visit.actualStart, visit.actualEnd) ||
+        durationInMinutes(visit.scheduledStart, visit.scheduledEnd);
+
+      return {
+        id: visit.id,
+        orderCode: visit.serviceOrder.code,
+        orderTitle: visit.serviceOrder.title,
+        recipientName: `${visit.serviceOrder.recipient.firstName} ${visit.serviceOrder.recipient.lastName}`,
+        serviceType: visit.serviceOrder.serviceType.name,
+        carerName: visit.assignedCarer
+          ? `${visit.assignedCarer.firstName} ${visit.assignedCarer.lastName}`
+          : undefined,
+        status: toLowerSnake(visit.status) as ClosingWorkspaceRecord["periods"][number]["visits"][number]["status"],
+        scheduledStart: visit.scheduledStart.toISOString(),
+        scheduledEnd: visit.scheduledEnd.toISOString(),
+        actualStart: visit.actualStart?.toISOString(),
+        actualEnd: visit.actualEnd?.toISOString(),
+        suggestedApprovedMinutes,
+        settlementId: settlement?.id,
+        approvedMinutes: settlement?.approvedMinutes ?? undefined,
+        billableCents: settlement?.billableCents ?? undefined,
+        payableCents: settlement?.payableCents ?? undefined,
+        isReadyForExport: Boolean(
+          settlement &&
+            typeof settlement.approvedMinutes === "number" &&
+            period.status !== PrismaClosingPeriodStatus.OPEN
+        ),
+        expenses: visit.expenses.map((expense) => ({
+          id: expense.id,
+          type: mapExpenseType(expense.type),
+          amountCents: expense.amountCents,
+          currency: expense.currency,
+          note: expense.note ?? undefined,
+          evidenceUrl: expense.evidenceUrl ?? undefined,
+          createdAt: expense.createdAt.toISOString()
+        }))
+      };
+    });
+
+  const settledVisitsCount = visits.filter((visit) => Boolean(visit.settlementId)).length;
+  const unsettledVisitsCount = visits.length - settledVisitsCount;
+  const approvedMinutesTotal = visits.reduce(
+    (total, visit) => total + (visit.approvedMinutes ?? visit.suggestedApprovedMinutes),
+    0
+  );
+  const billableCentsTotal = visits.reduce((total, visit) => total + (visit.billableCents ?? 0), 0);
+  const payableCentsTotal = visits.reduce((total, visit) => total + (visit.payableCents ?? 0), 0);
+  const expenseCentsTotal = visits.reduce(
+    (total, visit) =>
+      total + visit.expenses.reduce((expenseTotal, expense) => expenseTotal + expense.amountCents, 0),
+    0
+  );
+
+  return {
+    id: period.id,
+    label: period.label,
+    startsAt: period.startsAt.toISOString(),
+    endsAt: period.endsAt.toISOString(),
+    status: mapClosingStatus(period.status),
+    readyForExport: period.status === PrismaClosingPeriodStatus.LOCKED,
+    approvedVisitsCount: visits.length,
+    settledVisitsCount,
+    unsettledVisitsCount,
+    approvedMinutesTotal,
+    billableCentsTotal,
+    payableCentsTotal,
+    expenseCentsTotal,
+    visits
+  };
+}
+
+export async function getProviderClosingWorkspace(
+  providerId: string
+): Promise<ClosingWorkspaceRecord> {
+  noStore();
+
+  const [periods, approvedVisits] = await Promise.all([
+    prisma.closingPeriod.findMany({
+      where: { providerId },
+      include: closingPeriodInclude,
+      orderBy: [{ startsAt: "desc" }]
+    }),
+    prisma.visit.findMany({
+      where: {
+        serviceOrder: { providerId },
+        status: PrismaVisitStatus.APPROVED
+      },
+      include: {
+        assignedCarer: true,
+        expenses: {
+          orderBy: { createdAt: "desc" }
+        },
+        serviceOrder: {
+          include: {
+            recipient: true,
+            serviceType: true
+          }
+        }
+      },
+      orderBy: { scheduledStart: "desc" }
+    })
+  ]);
+
+  const mappedPeriods = periods.map((period) => mapClosingPeriod(period, approvedVisits));
+
+  return {
+    periods: mappedPeriods,
+    summary: {
+      periodsOpen: mappedPeriods.filter((period) => period.status === "open").length,
+      visitsReadyForSettlement: mappedPeriods.reduce(
+        (total, period) => total + period.unsettledVisitsCount,
+        0
+      ),
+      visitsReadyForExport: mappedPeriods.reduce(
+        (total, period) => total + period.visits.filter((visit) => visit.isReadyForExport).length,
+        0
+      ),
+      approvedMinutesInFlight: mappedPeriods.reduce(
+        (total, period) => total + period.approvedMinutesTotal,
+        0
+      )
+    }
+  };
 }
 
 export async function getProviderOrderFormData(): Promise<ProviderOrderFormData> {

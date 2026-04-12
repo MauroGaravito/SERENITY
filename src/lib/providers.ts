@@ -22,6 +22,8 @@ export type VisitStatus =
 export type IncidentSeverity = "low" | "medium" | "high" | "critical";
 export type ReviewOutcome = "approved" | "needs_changes" | "rejected";
 export type Tone = "neutral" | "warning" | "critical" | "positive";
+export type ClosingPeriodStatus = "open" | "locked" | "exported";
+export type ExpenseType = "mileage" | "travel" | "supplies" | "other";
 
 export type CarerOption = {
   id: string;
@@ -88,6 +90,64 @@ export type ProviderMetric = {
   detail: string;
 };
 
+export type ExpenseRecord = {
+  id: string;
+  type: ExpenseType;
+  amountCents: number;
+  currency: string;
+  note?: string;
+  evidenceUrl?: string;
+  createdAt: string;
+};
+
+export type ClosingVisitRecord = {
+  id: string;
+  orderCode: string;
+  orderTitle: string;
+  recipientName: string;
+  serviceType: string;
+  carerName?: string;
+  status: VisitStatus;
+  scheduledStart: string;
+  scheduledEnd: string;
+  actualStart?: string;
+  actualEnd?: string;
+  suggestedApprovedMinutes: number;
+  settlementId?: string;
+  approvedMinutes?: number;
+  billableCents?: number;
+  payableCents?: number;
+  isReadyForExport: boolean;
+  expenses: ExpenseRecord[];
+};
+
+export type ClosingPeriodRecord = {
+  id: string;
+  label: string;
+  startsAt: string;
+  endsAt: string;
+  status: ClosingPeriodStatus;
+  readyForExport: boolean;
+  approvedVisitsCount: number;
+  settledVisitsCount: number;
+  unsettledVisitsCount: number;
+  approvedMinutesTotal: number;
+  billableCentsTotal: number;
+  payableCentsTotal: number;
+  expenseCentsTotal: number;
+  visits: ClosingVisitRecord[];
+};
+
+export type ClosingWorkspaceRecord = {
+  periods: ClosingPeriodRecord[];
+  summary: {
+    periodsOpen: number;
+    visitsReadyForSettlement: number;
+    visitsReadyForExport: number;
+    approvedMinutesInFlight: number;
+  };
+};
+
 export type AuditEventRecord = {
   id: string;
   type:
@@ -112,14 +172,25 @@ export function formatDateTime(value: string): string {
   }).format(new Date(value));
 }
 
-export function getStatusTone(status: OrderStatus | VisitStatus | ReviewOutcome) {
+export function formatCurrency(valueCents: number, currency = "AUD"): string {
+  return new Intl.NumberFormat("en-AU", {
+    style: "currency",
+    currency
+  }).format(valueCents / 100);
+}
+
+export function getStatusTone(
+  status: OrderStatus | VisitStatus | ReviewOutcome | ClosingPeriodStatus
+) {
   switch (status) {
     case "approved":
     case "closed":
+    case "exported":
       return "positive";
     case "under_review":
     case "partially_assigned":
     case "needs_changes":
+    case "locked":
       return "warning";
     case "rejected":
     case "cancelled":

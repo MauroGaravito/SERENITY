@@ -83,13 +83,13 @@ Hoy permite mostrar el flujo general de:
 2. asignar cobertura,
 3. ejecutar una visita,
 4. revisar una visita,
-5. dejar auditoria.
+5. dejar auditoria,
+6. consolidar cierre operativo por periodo.
 
 El producto todavia no cubre de forma completa:
 
 - facturacion,
 - liquidacion,
-- gastos y kilometraje desde UI,
 - carga real de archivos,
 - alertas automaticas y backoffice mas completo del cuidador.
 
@@ -103,6 +103,10 @@ Puede hoy:
 
 - ver dashboard operativo,
 - ver ordenes de servicio,
+- ver periodos de cierre,
+- guardar settlements por visita aprobada,
+- registrar gastos basicos por visita aprobada,
+- mover periodos a `locked` y `exported`,
 - crear ordenes,
 - editar ordenes,
 - agregar visitas,
@@ -114,6 +118,7 @@ No puede hoy:
 
 - aprobar o rechazar visitas,
 - gestionar un cierre financiero completo,
+- exportar automaticamente a payroll,
 - crear incidentes desde una UI dedicada del provider.
 
 ### Provider reviewer
@@ -295,7 +300,8 @@ Se puede mostrar:
 - asignacion de carer,
 - cambio de estado,
 - revision por reviewer,
-- auditoria.
+- auditoria,
+- workspace de cierre operativo.
 
 ### Demo de center
 
@@ -350,7 +356,7 @@ Este documento sirve bien para responder preguntas como:
 
 Las principales limitaciones actuales son:
 
-- el cierre financiero es parcial o conceptual,
+- el cierre financiero no procesa pagos aunque ya tiene cierre operativo visible,
 - la experiencia del carer ya cubre disponibilidad y credenciales de forma basica, pero no con backoffice completo,
 - la evidencia no es carga real de archivos,
 - el perfil del carer todavia necesita alertas y reglas mas robustas,
@@ -380,6 +386,7 @@ Su mayor fortaleza actual esta en:
 - coordinacion provider,
 - visibilidad center,
 - primera capa operativa del carer,
+- primera capa de cierre operativo,
 - y uso de catalogos cerrados para ordenar servicios y skills.
 
-Su siguiente evolucion natural, despues de estabilizar demos, es fortalecer el perfil del carer con disponibilidad y credenciales.
+Su siguiente evolucion natural, despues de estabilizar demos, es volver mas robusto el cierre operativo y preparar exportacion externa.

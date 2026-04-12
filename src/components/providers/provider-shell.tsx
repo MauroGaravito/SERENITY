@@ -5,7 +5,8 @@ import { getOptionalSession } from "@/lib/auth";
 
 const navItems = [
   { href: "/providers", label: "Dashboard" },
-  { href: "/providers/orders", label: "Orders" }
+  { href: "/providers/orders", label: "Orders" },
+  { href: "/providers/closing", label: "Closing" }
 ] as const;
 
 export async function ProviderShell({

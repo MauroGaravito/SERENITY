@@ -156,6 +156,7 @@ Ya existe un scaffold tecnico inicial con:
 - homepage de producto,
 - rutas por actor (`/centers`, `/providers`, `/carers`),
 - catalogos cerrados iniciales para `service types` y `skills`,
+- workspace inicial de `closing` para periodos, settlements y gastos basicos,
 - esquema de dominio inicial en `prisma/schema.prisma`,
 - arquitectura y modelo documentados.
 

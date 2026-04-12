@@ -147,7 +147,7 @@ Incluye:
 
 Estado actual:
 
-- no iniciada formalmente
+- iniciada en base operativa
 
 Dependencia:
 
@@ -187,7 +187,7 @@ Incluye:
 
 Estado actual:
 
-- conceptual con base tecnica parcial
+- iniciada con primera UI de periodos, settlements y gastos basicos
 
 ### Fase E. External Finance Integration
 
@@ -235,9 +235,9 @@ Se puede considerar que Serenity llego al limite usable planeado cuando:
 
 Estimacion aproximada al 2026-04-12:
 
-**45% del alcance objetivo total**
+**60% del alcance objetivo total**
 
-## Como se calcula ese 45%
+## Como se calcula ese 60%
 
 ### Ya bastante avanzado
 
@@ -247,26 +247,25 @@ Estimacion aproximada al 2026-04-12:
 - center workflow
 - catalogos cerrados iniciales
 - Fase 1 del carer
+- base de Fase 2 del carer
 - auditoria
+- workspace inicial de cierre operativo
 
 ### Parcialmente avanzado
 
 - matching
 - carer execution flow como demo
-- base de cierre operativo en datos
+- reglas de exportacion externa
 
 ### Todavia faltante
 
-- disponibilidad y credenciales del carer desde UI
 - alertas de vencimiento
 - reemplazos y escalamiento mas robustos
-- periodos de cierre usables desde UI
 - exportacion o integracion externa
 - seed demo optimizado para cierre completo
 
 ## Interpretacion del porcentaje
-
-El 45% no significa que falte “poco”.
+El 60% no significa que falte poco.
 
 Significa que:
 
@@ -339,3 +338,4 @@ Si la respuesta es:
 
 - `si`: probablemente entra
 - `no`: probablemente debe quedar fuera o ir a una integracion externa
+
