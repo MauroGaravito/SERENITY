@@ -21,6 +21,25 @@ export type CarerVisitIncident = {
   occurredAt: string;
 };
 
+export type CarerCredentialRecord = {
+  id: string;
+  code: string;
+  name: string;
+  status: "pending" | "valid" | "expired" | "rejected";
+  issuedAt?: string;
+  expiresAt?: string;
+  documentUrl?: string;
+  daysToExpiry?: number;
+  isExpiringSoon: boolean;
+};
+
+export type CarerAvailabilityBlockRecord = {
+  id: string;
+  startsAt: string;
+  endsAt: string;
+  isWorking: boolean;
+};
+
 export type CarerAssignedVisit = {
   id: string;
   label: string;
@@ -46,6 +65,8 @@ export type CarerWorkspaceRecord = {
   carerId: string;
   carerName: string;
   availability: string;
-  credentials: string[];
+  verifiedSkills: string[];
+  credentials: CarerCredentialRecord[];
+  availabilityBlocks: CarerAvailabilityBlockRecord[];
   visits: CarerAssignedVisit[];
 };

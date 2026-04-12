@@ -11,8 +11,15 @@ import { prisma } from "@/lib/prisma";
 
 const carerWorkspaceInclude = {
   credentials: {
-    where: { status: CredentialStatus.VALID },
-    orderBy: { name: "asc" }
+    orderBy: [{ status: "asc" }, { expiresAt: "asc" }, { name: "asc" }]
+  },
+  availabilityBlocks: {
+    where: {
+      endsAt: {
+        gte: new Date(Date.now() - 1000 * 60 * 60 * 24)
+      }
+    },
+    orderBy: { startsAt: "asc" }
   },
   visits: {
     include: {
@@ -75,8 +82,21 @@ function mapSeverity(value: IncidentSeverity) {
   return value.toLowerCase() as "low" | "medium" | "high" | "critical";
 }
 
+function mapCredentialStatus(value: CredentialStatus) {
+  return value.toLowerCase() as CarerWorkspaceRecord["credentials"][number]["status"];
+}
+
 function mapStatus(value: PrismaVisitStatus) {
   return value.toLowerCase() as CarerWorkspaceRecord["visits"][number]["status"];
+}
+
+function getDaysToExpiry(value?: Date | null) {
+  if (!value) {
+    return undefined;
+  }
+
+  const dayMs = 1000 * 60 * 60 * 24;
+  return Math.ceil((value.getTime() - Date.now()) / dayMs);
 }
 
 function getChecklistItems(
@@ -120,7 +140,33 @@ function mapWorkspace(record: CarerWorkspaceRow): CarerWorkspaceRecord {
     carerId: record.id,
     carerName: `${record.firstName} ${record.lastName}`,
     availability: record.availabilityNote ?? "Availability to be confirmed",
-    credentials: record.credentials.map((credential) => credential.name),
+    verifiedSkills: record.credentials
+      .filter((credential) => credential.status === CredentialStatus.VALID)
+      .map((credential) => credential.name),
+    credentials: record.credentials.map((credential) => {
+      const daysToExpiry = getDaysToExpiry(credential.expiresAt);
+
+      return {
+        id: credential.id,
+        code: credential.code,
+        name: credential.name,
+        status: mapCredentialStatus(credential.status),
+        issuedAt: credential.issuedAt?.toISOString(),
+        expiresAt: credential.expiresAt?.toISOString(),
+        documentUrl: credential.documentUrl ?? undefined,
+        daysToExpiry,
+        isExpiringSoon: typeof daysToExpiry === "number" && daysToExpiry >= 0 && daysToExpiry <= 45
+      };
+    }),
+    availabilityBlocks: record.availabilityBlocks
+      .slice()
+      .sort((left, right) => left.startsAt.getTime() - right.startsAt.getTime())
+      .map((block) => ({
+        id: block.id,
+        startsAt: block.startsAt.toISOString(),
+        endsAt: block.endsAt.toISOString(),
+        isWorking: block.isWorking
+      })),
     visits: record.visits.map((visit) => {
       const checklistItems = getChecklistItems(visit);
 

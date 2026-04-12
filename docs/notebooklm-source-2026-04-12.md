@@ -91,7 +91,7 @@ El producto todavia no cubre de forma completa:
 - liquidacion,
 - gastos y kilometraje desde UI,
 - carga real de archivos,
-- gestion completa de disponibilidad y credenciales del cuidador.
+- alertas automaticas y backoffice mas completo del cuidador.
 
 ## Actores y capacidades actuales
 
@@ -161,12 +161,13 @@ Puede hoy:
 - completar checklist basica,
 - agregar evidencia basica por referencia o URL,
 - reportar incidencias simples,
-- ver sus skills verificadas.
+- ver sus skills verificadas,
+- editar su nota de disponibilidad,
+- registrar bloques de disponibilidad,
+- gestionar credenciales con estado y vencimiento visible.
 
 No puede hoy:
 
-- gestionar disponibilidad,
-- gestionar credenciales,
 - recibir alertas de vencimiento,
 - subir archivos reales,
 - gestionar gastos o kilometraje,
@@ -350,23 +351,17 @@ Este documento sirve bien para responder preguntas como:
 Las principales limitaciones actuales son:
 
 - el cierre financiero es parcial o conceptual,
-- la experiencia del carer no cubre disponibilidad ni credenciales,
+- la experiencia del carer ya cubre disponibilidad y credenciales de forma basica, pero no con backoffice completo,
 - la evidencia no es carga real de archivos,
-- el seed del carer todavia puede mejorarse para mostrar mejor el flujo `start -> complete -> submit for review`,
+- el perfil del carer todavia necesita alertas y reglas mas robustas,
 - el producto no intenta cubrir EMR clinico ni contabilidad avanzada.
 
-## Momento ideal para comenzar Fase 2 del carer
+## Estado de Fase 2 del carer
 
-Tiene sentido comenzar Fase 2 del carer cuando:
+La base de Fase 2 ya fue iniciada.
 
-1. la Fase 1 ya sea suficiente para demos sin ajustes urgentes,
-2. el principal vacio deje de ser la ejecucion de la visita,
-3. el siguiente valor claro sea la gestion del perfil del cuidador.
+Lo siguiente dentro de esta fase deberia enfocarse en:
 
-Fase 2 deberia enfocarse en:
-
-- disponibilidad,
-- credenciales,
 - alertas de vencimiento,
 - perfil profesional basico.
 

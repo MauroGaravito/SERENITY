@@ -85,6 +85,7 @@ La demo actual ya usa catalogos cerrados para `service types` y `skills`.
 
 - `SR-2401`
   - una visita `approved` asignada a `Liam Ortega`
+  - una visita `confirmed` asignada a `Liam Ortega`
   - una visita `scheduled` sin asignar
 - `SR-2402`
   - una visita `under_review` asignada a `Emily Tran`
@@ -331,36 +332,58 @@ En `/centers/orders` puedes crear una solicitud nueva con:
 
 ### Estado actual del producto
 
-La superficie del cuidador todavia no es operativa.
+La superficie del cuidador ya tiene una Fase 1 operativa mas una base inicial de Fase 2.
 
-Hoy `/carers` funciona como una pagina de direccion de producto y no como una agenda ejecutable.
+Hoy `/carers` ya funciona como workspace ejecutable para el carer.
 
 ### Que puede ver hoy
 
-- la propuesta de valor para cuidador independiente
-- los bloques conceptuales:
-  - agenda del dia
-  - checklist y evidencia
-  - alertas de credenciales
-  - historial de ingresos
-  - gastos y kilometraje
-  - disponibilidad
+- agenda de visitas asignadas
+- detalle de visita
+- checklist editable
+- evidencia basica
+- reporte simple de incidencia
+- nota de disponibilidad editable
+- bloques de disponibilidad
+- credenciales con estado y vencimiento
+- skills verificadas derivadas de credenciales validas
 
 ### Que no puede hacer todavia
 
-- no puede ver visitas reales desde UI
-- no puede cargar evidencia desde UI
-- no puede reportar incidencias desde UI
 - no puede gestionar kilometraje desde UI
+- no tiene subida real de archivos
+- no tiene alertas automaticas fuera de la UI
+- no tiene cierre economico ni payroll
+- no tiene app movil nativa
 
-### Datos sembrados relevantes para futuro
+### Recorrido recomendado en la semilla
 
-Aunque la UI del carer aun no esta hecha, la semilla ya contiene base real:
+Usa `liam@serenity.local`.
+
+- Entra a `/carers`.
+- Veras:
+  - una visita ya `approved`
+  - una visita `confirmed` lista para iniciar
+  - una visita futura sin asignar que no aparece en la agenda del carer
+- En la visita `confirmed` puedes recorrer:
+  - `Start visit`
+  - completar checklist
+  - agregar evidencia
+  - reportar una incidencia si quieres
+  - `Complete visit`
+  - `Submit for review`
+
+### Datos sembrados relevantes
+
+La semilla actual ya deja visible tanto ejecucion como perfil operativo del carer:
 
 - `Liam Ortega`
   - rating `4.7`
   - disponibilidad `Available Mon-Fri mornings`
-  - credenciales `Personal hygiene support`, `Manual handling`, `Medication prompt`, `Meal preparation`
+  - skills validas `Personal hygiene support`, `Manual handling`, `Medication prompt`, `Meal preparation`
+  - credencial valida adicional `NDIS Worker Screening`
+  - credencial `pending` `First Aid Certificate`
+  - credencial `expired` `Police Check`
 - `Emily Tran`
   - rating `4.8`
   - skills de `Transport escort`, `Community participation`, `Social engagement`

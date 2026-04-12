@@ -1,7 +1,10 @@
 import Link from "next/link";
 import { SessionBanner } from "@/components/auth/session-banner";
 import {
+  CarerAvailabilityBlockForm,
+  CarerAvailabilityNoteForm,
   CarerChecklistItemForm,
+  CarerCredentialForm,
   CarerEvidenceForm,
   CarerIncidentForm,
   CarerStatusActionForm
@@ -23,6 +26,14 @@ function getAvailableActions(status: CarerWorkspaceRecord["visits"][number]["sta
     default:
       return [] as const;
   }
+}
+
+function formatDate(value: string) {
+  return new Intl.DateTimeFormat("en-AU", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric"
+  }).format(new Date(value));
 }
 
 export function CarerWorkspace({
@@ -53,6 +64,10 @@ export function CarerWorkspace({
 
     return visitDate === today;
   });
+  const validCredentials = workspace.credentials.filter(
+    (credential) => credential.status === "valid"
+  ).length;
+  const expiringSoon = workspace.credentials.filter((credential) => credential.isExpiringSoon).length;
 
   return (
     <main className="role-page carer-theme">
@@ -79,18 +94,14 @@ export function CarerWorkspace({
           <span>Visits scheduled for today in Australia/Sydney</span>
         </article>
         <article className="metric-card metric-warning">
-          <p>Evidence items</p>
-          <strong>
-            {workspace.visits.reduce((count, visit) => count + visit.evidence.length, 0)}
-          </strong>
-          <span>Captured evidence across assigned visits</span>
+          <p>Valid credentials</p>
+          <strong>{validCredentials}</strong>
+          <span>Credentials currently ready for operational matching</span>
         </article>
         <article className="metric-card metric-critical">
-          <p>Incidents</p>
-          <strong>
-            {workspace.visits.reduce((count, visit) => count + visit.incidents.length, 0)}
-          </strong>
-          <span>Exceptions reported from field execution</span>
+          <p>Expiring soon</p>
+          <strong>{expiringSoon}</strong>
+          <span>Credentials due to expire in the next 45 days</span>
         </article>
       </section>
 
@@ -101,8 +112,9 @@ export function CarerWorkspace({
               <p className="card-tag">Agenda</p>
               <h2>Assigned visits</h2>
             </div>
-            <span className="skill-pill">{workspace.availability}</span>
+            <span className="skill-pill">Execution queue</span>
           </div>
+          <p className="panel-copy">{workspace.availability}</p>
           <div className="visit-list">
             {workspace.visits.length > 0 ? (
               workspace.visits.map((visit) => (
@@ -138,11 +150,85 @@ export function CarerWorkspace({
             </div>
           </div>
           <div className="pill-row">
-            {workspace.credentials.map((credential) => (
+            {workspace.verifiedSkills.map((credential) => (
               <span className="skill-pill" key={credential}>
                 {credential}
               </span>
             ))}
+          </div>
+        </article>
+      </section>
+
+      <section className="ops-two-column">
+        <article className="ops-panel">
+          <div className="panel-heading">
+            <div>
+              <p className="card-tag">Availability</p>
+              <h2>Profile and working blocks</h2>
+            </div>
+          </div>
+          <CarerAvailabilityNoteForm availability={workspace.availability} />
+          <div className="top-gap">
+            <CarerAvailabilityBlockForm />
+          </div>
+          <div className="sequence-list top-gap">
+            {workspace.availabilityBlocks.length > 0 ? (
+              workspace.availabilityBlocks.map((block) => (
+                <div className="note-block" key={block.id}>
+                  <strong>{block.isWorking ? "Working block" : "Unavailable block"}</strong>
+                  <p>
+                    {formatDateTime(block.startsAt)} - {formatDateTime(block.endsAt)}
+                  </p>
+                </div>
+              ))
+            ) : (
+              <p className="panel-copy">No upcoming availability blocks have been recorded yet.</p>
+            )}
+          </div>
+        </article>
+
+        <article className="ops-panel">
+          <div className="panel-heading">
+            <div>
+              <p className="card-tag">Credentials</p>
+              <h2>Operational readiness</h2>
+            </div>
+          </div>
+          <CarerCredentialForm />
+          <div className="sequence-list top-gap">
+            {workspace.credentials.length > 0 ? (
+              workspace.credentials.map((credential) => (
+                <div className="credential-card" key={credential.id}>
+                  <div className="credential-card-header">
+                    <strong>{credential.name}</strong>
+                    <span
+                      className={`credential-pill credential-pill-${credential.status}${
+                        credential.isExpiringSoon ? " is-expiring" : ""
+                      }`}
+                    >
+                      {credential.status.replace("_", " ")}
+                    </span>
+                  </div>
+                  <div className="credential-meta">
+                    <span>Issued: {credential.issuedAt ? formatDate(credential.issuedAt) : "Not recorded"}</span>
+                    <span>
+                      Expires: {credential.expiresAt ? formatDate(credential.expiresAt) : "No expiry"}
+                    </span>
+                    <span>
+                      {credential.daysToExpiry === undefined
+                        ? "No expiry countdown"
+                        : credential.daysToExpiry >= 0
+                          ? `${credential.daysToExpiry} days remaining`
+                          : `${Math.abs(credential.daysToExpiry)} days overdue`}
+                    </span>
+                  </div>
+                  {credential.documentUrl ? <p>{credential.documentUrl}</p> : null}
+                  <CarerCredentialForm credential={credential} />
+                </div>
+              ))
+            ) : (
+              <p className="panel-copy">No credentials recorded for this carer yet.</p>
+            )}
           </div>
         </article>
       </section>

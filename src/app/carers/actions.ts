@@ -3,6 +3,7 @@
 import {
   AuditEventType,
   ChecklistResult,
+  CredentialStatus,
   IncidentSeverity,
   VisitStatus as PrismaVisitStatus
 } from "@prisma/client";
@@ -102,8 +103,119 @@ function parseIncidentSeverity(value: string) {
   }
 }
 
+function parseCredentialStatus(value: string) {
+  switch (value) {
+    case "pending":
+      return CredentialStatus.PENDING;
+    case "valid":
+      return CredentialStatus.VALID;
+    case "expired":
+      return CredentialStatus.EXPIRED;
+    case "rejected":
+      return CredentialStatus.REJECTED;
+    default:
+      throw new Error("Invalid credential status.");
+  }
+}
+
+function optionalDate(value: FormDataEntryValue | null) {
+  if (typeof value !== "string" || value.trim().length === 0) {
+    return undefined;
+  }
+
+  const parsed = new Date(value);
+
+  if (Number.isNaN(parsed.getTime())) {
+    throw new Error("Invalid date value.");
+  }
+
+  return parsed;
+}
+
 async function revalidateCarerPath() {
   revalidatePath("/carers");
+}
+
+export async function updateCarerAvailabilityProfile(formData: FormData) {
+  const session = await requireCarerSession();
+  const availabilityNote = requiredString(formData.get("availabilityNote"), "availabilityNote");
+
+  await prisma.carer.update({
+    where: { id: session.carerId },
+    data: {
+      availabilityNote
+    }
+  });
+
+  await revalidateCarerPath();
+}
+
+export async function addCarerAvailabilityBlock(formData: FormData) {
+  const session = await requireCarerSession();
+  const startsAt = optionalDate(formData.get("startsAt"));
+  const endsAt = optionalDate(formData.get("endsAt"));
+  const isWorking = String(formData.get("isWorking") ?? "working") === "working";
+
+  if (!startsAt || !endsAt) {
+    throw new Error("Availability block dates are required.");
+  }
+
+  if (endsAt <= startsAt) {
+    throw new Error("Availability block end must be after start.");
+  }
+
+  await prisma.availabilityBlock.create({
+    data: {
+      carerId: session.carerId,
+      startsAt,
+      endsAt,
+      isWorking
+    }
+  });
+
+  await revalidateCarerPath();
+}
+
+export async function saveCarerCredential(formData: FormData) {
+  const session = await requireCarerSession();
+  const credentialId = optionalString(formData.get("credentialId"));
+  const name = requiredString(formData.get("name"), "name");
+  const status = parseCredentialStatus(requiredString(formData.get("status"), "status"));
+  const issuedAt = optionalDate(formData.get("issuedAt"));
+  const expiresAt = optionalDate(formData.get("expiresAt"));
+  const documentUrl = optionalString(formData.get("documentUrl"));
+  const code = name.toUpperCase().replace(/[^A-Z0-9]+/g, "_");
+
+  if (credentialId) {
+    await prisma.credential.updateMany({
+      where: {
+        id: credentialId,
+        carerId: session.carerId
+      },
+      data: {
+        code,
+        name,
+        status,
+        issuedAt,
+        expiresAt,
+        documentUrl
+      }
+    });
+  } else {
+    await prisma.credential.create({
+      data: {
+        carerId: session.carerId,
+        code,
+        name,
+        status,
+        issuedAt,
+        expiresAt,
+        documentUrl
+      }
+    });
+  }
+
+  await revalidateCarerPath();
 }
 
 export async function updateCarerVisitStatus(formData: FormData) {

@@ -2,11 +2,15 @@
 
 import { useFormStatus } from "react-dom";
 import {
+  addCarerAvailabilityBlock,
   addVisitEvidence,
   reportVisitIncident,
   saveVisitChecklistItem,
+  saveCarerCredential,
+  updateCarerAvailabilityProfile,
   updateCarerVisitStatus
 } from "@/app/carers/actions";
+import { CarerWorkspaceRecord } from "@/lib/carers";
 
 function PendingButton({
   idleLabel,
@@ -144,6 +148,115 @@ export function CarerIncidentForm({ visitId }: { visitId: string }) {
         />
       </label>
       <PendingButton idleLabel="Report incident" pendingLabel="Reporting..." />
+    </form>
+  );
+}
+
+export function CarerAvailabilityNoteForm({
+  availability
+}: {
+  availability: string;
+}) {
+  return (
+    <form action={updateCarerAvailabilityProfile} className="compact-stack">
+      <label className="form-block">
+        <span>Availability note</span>
+        <textarea
+          defaultValue={availability}
+          name="availabilityNote"
+          placeholder="Available Mon-Fri mornings"
+          required
+          rows={3}
+        />
+      </label>
+      <PendingButton idleLabel="Save availability" pendingLabel="Saving..." />
+    </form>
+  );
+}
+
+export function CarerAvailabilityBlockForm() {
+  return (
+    <form action={addCarerAvailabilityBlock} className="compact-stack">
+      <div className="form-grid">
+        <label>
+          <span>Block type</span>
+          <select defaultValue="working" name="isWorking">
+            <option value="working">Working</option>
+            <option value="unavailable">Unavailable</option>
+          </select>
+        </label>
+        <label>
+          <span>Start</span>
+          <input name="startsAt" required type="datetime-local" />
+        </label>
+        <label>
+          <span>End</span>
+          <input name="endsAt" required type="datetime-local" />
+        </label>
+      </div>
+      <PendingButton idleLabel="Add block" pendingLabel="Adding..." />
+    </form>
+  );
+}
+
+export function CarerCredentialForm({
+  credential
+}: {
+  credential?: CarerWorkspaceRecord["credentials"][number];
+}) {
+  return (
+    <form action={saveCarerCredential} className="compact-stack credential-form-card">
+      {credential ? <input name="credentialId" type="hidden" value={credential.id} /> : null}
+      <div className="form-grid">
+        <label>
+          <span>Name</span>
+          <input
+            defaultValue={credential?.name ?? ""}
+            name="name"
+            placeholder="NDIS Worker Screening"
+            required
+            type="text"
+          />
+        </label>
+        <label>
+          <span>Status</span>
+          <select defaultValue={credential?.status ?? "pending"} name="status">
+            <option value="pending">Pending</option>
+            <option value="valid">Valid</option>
+            <option value="expired">Expired</option>
+            <option value="rejected">Rejected</option>
+          </select>
+        </label>
+        <label>
+          <span>Issued at</span>
+          <input
+            defaultValue={credential?.issuedAt?.slice(0, 10) ?? ""}
+            name="issuedAt"
+            type="date"
+          />
+        </label>
+        <label>
+          <span>Expires at</span>
+          <input
+            defaultValue={credential?.expiresAt?.slice(0, 10) ?? ""}
+            name="expiresAt"
+            type="date"
+          />
+        </label>
+        <label className="form-grid-span-2">
+          <span>Document reference</span>
+          <input
+            defaultValue={credential?.documentUrl ?? ""}
+            name="documentUrl"
+            placeholder="manual://credentials/worker-screening.pdf"
+            type="text"
+          />
+        </label>
+      </div>
+      <PendingButton
+        idleLabel={credential ? "Update credential" : "Add credential"}
+        pendingLabel={credential ? "Updating..." : "Adding..."}
+      />
     </form>
   );
 }

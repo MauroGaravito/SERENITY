@@ -268,15 +268,16 @@ async function main() {
     rating: 4.5
   });
 
-  async function addCredential(carerId, name, expiresAt) {
+  async function addCredential(carerId, name, expiresAt, options = {}) {
     await prisma.credential.create({
       data: {
         carerId,
         code: name.toUpperCase().replace(/[^A-Z0-9]+/g, "_"),
         name,
-        status: CredentialStatus.VALID,
-        issuedAt: new Date("2025-01-01T00:00:00.000Z"),
-        expiresAt: new Date(expiresAt)
+        status: options.status ?? CredentialStatus.VALID,
+        issuedAt: options.issuedAt ?? new Date("2025-01-01T00:00:00.000Z"),
+        expiresAt: expiresAt ? new Date(expiresAt) : null,
+        documentUrl: options.documentUrl ?? null
       }
     });
   }
@@ -297,13 +298,52 @@ async function main() {
     }
   }
 
-  for (const [index, carer] of [sofia, liam, anika, emily, noah, grace, daniel].entries()) {
+  await addCredential(liam.id, "NDIS Worker Screening", "2026-05-08T00:00:00.000Z", {
+    documentUrl: "manual://credentials/liam-ndis-worker-screening.pdf"
+  });
+  await addCredential(liam.id, "First Aid Certificate", "2027-02-01T00:00:00.000Z", {
+    status: CredentialStatus.PENDING,
+    documentUrl: "manual://credentials/liam-first-aid-certificate.pdf"
+  });
+  await addCredential(liam.id, "Police Check", "2026-04-01T00:00:00.000Z", {
+    status: CredentialStatus.EXPIRED,
+    documentUrl: "manual://credentials/liam-police-check.pdf"
+  });
+
+  for (const [index, carer] of [sofia, anika, emily, noah, grace, daniel].entries()) {
     await prisma.availabilityBlock.create({
       data: {
         carerId: carer.id,
         startsAt: new Date(`2026-04-0${(index % 5) + 1}T06:00:00.000Z`),
         endsAt: new Date(`2026-04-0${(index % 5) + 1}T18:00:00.000Z`),
         isWorking: true
+      }
+    });
+  }
+
+  for (const block of [
+    {
+      startsAt: "2026-04-13T20:30:00.000Z",
+      endsAt: "2026-04-13T23:30:00.000Z",
+      isWorking: true
+    },
+    {
+      startsAt: "2026-04-14T20:30:00.000Z",
+      endsAt: "2026-04-14T23:30:00.000Z",
+      isWorking: true
+    },
+    {
+      startsAt: "2026-04-15T03:00:00.000Z",
+      endsAt: "2026-04-15T06:00:00.000Z",
+      isWorking: false
+    }
+  ]) {
+    await prisma.availabilityBlock.create({
+      data: {
+        carerId: liam.id,
+        startsAt: new Date(block.startsAt),
+        endsAt: new Date(block.endsAt),
+        isWorking: block.isWorking
       }
     });
   }
@@ -466,9 +506,20 @@ async function main() {
   await prisma.visit.create({
     data: {
       serviceOrderId: orderOne.id,
+      assignedCarerId: liam.id,
+      status: VisitStatus.CONFIRMED,
+      scheduledStart: new Date("2026-04-13T20:30:00.000Z"),
+      scheduledEnd: new Date("2026-04-13T22:30:00.000Z"),
+      exceptionReason: "Demo execution visit ready for Liam to start from the carer workspace."
+    }
+  });
+
+  await prisma.visit.create({
+    data: {
+      serviceOrderId: orderOne.id,
       status: VisitStatus.SCHEDULED,
-      scheduledStart: new Date("2026-04-03T20:00:00.000Z"),
-      scheduledEnd: new Date("2026-04-03T22:00:00.000Z"),
+      scheduledStart: new Date("2026-04-14T20:00:00.000Z"),
+      scheduledEnd: new Date("2026-04-14T22:00:00.000Z"),
       exceptionReason: "Replacement required before 18:00 today."
     }
   });
