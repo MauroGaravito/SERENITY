@@ -18,7 +18,9 @@ import {
 } from "@/lib/auth";
 import { logAuditEvent } from "@/lib/audit";
 import {
+  acknowledgeClosingExportJob,
   createClosingExportJob,
+  processClosingExportJob,
   retryClosingExportJob,
   syncServiceOrderStatus,
   toPrismaReviewOutcome,
@@ -108,6 +110,7 @@ async function getScopedExportJob(jobId: string, providerId: string) {
       id: true,
       targetSystem: true,
       status: true,
+      externalStatus: true,
       closingPeriodId: true,
       closingPeriod: {
         select: {
@@ -364,6 +367,16 @@ function parseExportTargetSystem(value: string): ExportTargetSystem {
       return value;
     default:
       throw new Error("Invalid external target system.");
+  }
+}
+
+function parseExternalResolution(value: string) {
+  switch (value) {
+    case "acknowledged":
+    case "rejected":
+      return value;
+    default:
+      throw new Error("Invalid external resolution.");
   }
 }
 
@@ -740,22 +753,52 @@ export async function syncClosingPeriodExternally(formData: FormData) {
     organizationId: session.organizationId,
     actorUserId: session.userId,
     type: AuditEventType.ORDER_UPDATED,
-    summary:
-      job.status === "SUCCEEDED"
-        ? `Closing period ${period.label} synced to ${targetSystem}.`
-        : `Closing period ${period.label} sync failed for ${targetSystem}.`,
+    summary: `Closing period ${period.label} queued for ${targetSystem} sync.`,
     payload: {
       scope: "closing_sync",
       periodId: period.id,
       jobId: job.id,
       targetSystem,
       status: job.status.toLowerCase(),
-      externalReference: job.externalReference ?? null,
-      error: job.lastError ?? null
+      externalStatus: "not_sent"
     }
   });
 
   revalidateProviderPaths(`/providers/closing?period=${period.id}`);
+}
+
+export async function processClosingPeriodSync(formData: FormData) {
+  const session = await requireProviderSession();
+  const jobId = requiredString(formData.get("jobId"), "jobId");
+  const job = await getScopedExportJob(jobId, session.organizationId);
+
+  if (!job) {
+    throw new Error("Export job not found for this provider.");
+  }
+
+  const updatedJob = await processClosingExportJob(job.id, session.organizationId);
+
+  await logAuditEvent({
+    organizationId: session.organizationId,
+    actorUserId: session.userId,
+    type: AuditEventType.ORDER_UPDATED,
+    summary:
+      updatedJob.status === "SUCCEEDED"
+        ? `Closing period ${job.closingPeriod.label} delivered to ${job.targetSystem}.`
+        : `Closing period ${job.closingPeriod.label} delivery failed for ${job.targetSystem}.`,
+    payload: {
+      scope: "closing_sync_delivery",
+      periodId: job.closingPeriodId,
+      jobId: job.id,
+      targetSystem: job.targetSystem,
+      status: updatedJob.status.toLowerCase(),
+      externalStatus: updatedJob.externalStatus.toLowerCase(),
+      externalReference: updatedJob.externalReference ?? null,
+      error: updatedJob.lastError ?? null
+    }
+  });
+
+  revalidateProviderPaths(`/providers/closing?period=${job.closingPeriodId}`);
 }
 
 export async function retryClosingPeriodSync(formData: FormData) {
@@ -783,6 +826,43 @@ export async function retryClosingPeriodSync(formData: FormData) {
       jobId: job.id,
       targetSystem: job.targetSystem,
       status: updatedJob.status.toLowerCase(),
+      externalReference: updatedJob.externalReference ?? null,
+      error: updatedJob.lastError ?? null
+    }
+  });
+
+  revalidateProviderPaths(`/providers/closing?period=${job.closingPeriodId}`);
+}
+
+export async function resolveClosingPeriodSync(formData: FormData) {
+  const session = await requireProviderSession();
+  const jobId = requiredString(formData.get("jobId"), "jobId");
+  const resolution = parseExternalResolution(
+    requiredString(formData.get("resolution"), "resolution")
+  );
+  const job = await getScopedExportJob(jobId, session.organizationId);
+
+  if (!job) {
+    throw new Error("Export job not found for this provider.");
+  }
+
+  const updatedJob = await acknowledgeClosingExportJob(job.id, session.organizationId, resolution);
+
+  await logAuditEvent({
+    organizationId: session.organizationId,
+    actorUserId: session.userId,
+    type: AuditEventType.ORDER_UPDATED,
+    summary:
+      resolution === "acknowledged"
+        ? `Remote acknowledgement received for ${job.closingPeriod.label}.`
+        : `Remote rejection received for ${job.closingPeriod.label}.`,
+    payload: {
+      scope: "closing_sync_acknowledgement",
+      periodId: job.closingPeriodId,
+      jobId: job.id,
+      targetSystem: job.targetSystem,
+      status: updatedJob.status.toLowerCase(),
+      externalStatus: updatedJob.externalStatus.toLowerCase(),
       externalReference: updatedJob.externalReference ?? null,
       error: updatedJob.lastError ?? null
     }
@@ -844,15 +924,15 @@ export async function updateClosingPeriodStatus(formData: FormData) {
   }
 
   if (nextStatus === ClosingPeriodStatus.EXPORTED) {
-    const successfulJobs = await prisma.exportJob.count({
+    const acknowledgedJobs = await prisma.exportJob.count({
       where: {
         closingPeriodId: period.id,
-        status: "SUCCEEDED"
+        externalStatus: "ACKNOWLEDGED"
       }
     });
 
-    if (successfulJobs === 0) {
-      throw new Error("Run at least one successful external sync before marking exported.");
+    if (acknowledgedJobs === 0) {
+      throw new Error("Wait for at least one external acknowledgement before marking exported.");
     }
   }
 

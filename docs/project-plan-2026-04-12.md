@@ -189,7 +189,7 @@ Estado actual:
 
 - avanzada con UI de periodos, settlements y gastos basicos
 - incluye export package manual en `json` y `csv`
-- incluye regla de `exported` despues de sync exitoso
+- incluye regla de `exported` despues de sync `acknowledged`
 
 ### Fase E. External Finance Integration
 
@@ -211,7 +211,7 @@ No incluye:
 
 Estado actual:
 
-- iniciada con export jobs, estado de sync, retries y referencia externa mock
+- iniciada con export jobs, queue, delivery, acuse externo mock y retry
 
 ## Prioridad recomendada
 
@@ -237,9 +237,9 @@ Se puede considerar que Serenity llego al limite usable planeado cuando:
 
 Estimacion aproximada al 2026-04-12:
 
-**74% del alcance objetivo total**
+**79% del alcance objetivo total**
 
-## Como se calcula ese 74%
+## Como se calcula ese 79%
 
 ### Ya bastante avanzado
 
@@ -260,7 +260,7 @@ Estimacion aproximada al 2026-04-12:
 - reglas de exportacion externa
 - formato inicial de export package
 - trazabilidad basica de exportacion
-- sync jobs con retry y referencia externa mock
+- sync jobs con queue, delivery, acuse externo mock y retry
 
 ### Todavia faltante
 
@@ -270,7 +270,7 @@ Estimacion aproximada al 2026-04-12:
 - seed demo optimizado para cierre completo
 
 ## Interpretacion del porcentaje
-El 74% no significa que falte poco.
+El 79% no significa que falte poco.
 
 Significa que:
 
@@ -329,7 +329,7 @@ Lo siguiente mas sensato ya no es seguir ampliando UI operativa general.
 Lo correcto ahora es:
 
 1. pasar de sync mock a ejecucion asincrona real
-2. guardar confirmacion remota del sistema receptor
+2. guardar confirmacion remota real del sistema receptor
 3. endurecer manejo de errores y reintentos
 4. definir conectores especificos por partner
 5. solo despues decidir sincronizacion bidireccional

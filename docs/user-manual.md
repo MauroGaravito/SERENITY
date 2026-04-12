@@ -200,7 +200,9 @@ En `/providers/closing` puedes:
 - guardar settlement por visita
 - registrar gastos basicos
 - marcar un periodo como `locked`
-- correr un `sync job` hacia un target externo mock o manual
+- encolar un `sync job` hacia un target externo mock o manual
+- procesar la entrega del job
+- registrar `acknowledged` o `rejected` cuando el sistema externo responde
 - reintentar un `sync job` fallido
 - marcar un periodo como `exported`
 - descargar el export package en `json`
@@ -264,7 +266,8 @@ La vista actual muestra:
 - estado de exportacion del periodo
 - export batch id
 - jobs de sync por periodo
-- referencia externa cuando el sync fue exitoso
+- `external status` por job
+- referencia externa cuando la entrega fue aceptada
 - trazabilidad basica de descarga y sync
 
 Regla clave actual:
@@ -272,7 +275,7 @@ Regla clave actual:
 - un periodo `open` todavia se puede editar
 - un periodo `locked` equivale a `ready for export`
 - un periodo `locked` puede correr sync jobs externos
-- un periodo `exported` exige al menos un sync job exitoso
+- un periodo `exported` exige al menos un sync job `acknowledged`
 - un periodo `exported` ya fue marcado como entregado a un sistema externo
 
 ### Export package actual
@@ -295,7 +298,10 @@ El `json` es la referencia principal para integracion futura y contiene:
 Cuando el periodo ya esta `locked` o `exported`, Serenity tambien permite:
 
 - crear un `export job`
-- ver su estado (`pending`, `processing`, `succeeded`, `failed`)
+- ver su estado interno (`pending`, `processing`, `succeeded`, `failed`)
+- ver su estado externo (`not_sent`, `sent`, `acknowledged`, `rejected`)
+- procesar entrega de un job encolado
+- registrar confirmacion o rechazo remoto
 - guardar numero de intentos
 - guardar referencia externa mock
 - registrar error de conector para retry

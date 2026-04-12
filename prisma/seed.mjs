@@ -704,9 +704,39 @@ async function main() {
   await prisma.exportJob.create({
     data: {
       closingPeriodId: closingPeriodTwo.id,
+      targetSystem: "manual_handoff",
+      format: "json",
+      status: "SUCCEEDED",
+      externalStatus: "ACKNOWLEDGED",
+      attemptCount: 1,
+      externalReference: `MANUAL-${closingPeriodTwo.id.slice(-6).toUpperCase()}`,
+      payload: {
+        exportBatchId: `serenity-${closingPeriodTwo.id}`,
+        targetSystem: "manual_handoff",
+        totals: {
+          visits: 1,
+          approvedMinutes: 142,
+          billableCents: 17200,
+          payableCents: 11100,
+          expenseCents: 0
+        }
+      },
+      queuedAt: new Date("2026-04-12T02:00:00.000Z"),
+      lastAttemptAt: new Date("2026-04-12T02:05:00.000Z"),
+      completedAt: new Date("2026-04-12T02:06:00.000Z"),
+      acknowledgedAt: new Date("2026-04-12T02:06:00.000Z"),
+      connectorCode: "MANUAL_REGISTERED",
+      connectorMessage: "Manual handoff register completed and acknowledged immediately."
+    }
+  });
+
+  await prisma.exportJob.create({
+    data: {
+      closingPeriodId: closingPeriodTwo.id,
       targetSystem: "mock_payroll_gateway",
       format: "json",
       status: "SUCCEEDED",
+      externalStatus: "SENT",
       attemptCount: 1,
       externalReference: `MPG-${closingPeriodTwo.id.slice(-6).toUpperCase()}`,
       payload: {
@@ -720,8 +750,11 @@ async function main() {
           expenseCents: 0
         }
       },
+      queuedAt: new Date("2026-04-12T02:10:00.000Z"),
       lastAttemptAt: new Date("2026-04-12T02:15:00.000Z"),
-      completedAt: new Date("2026-04-12T02:16:00.000Z")
+      completedAt: new Date("2026-04-12T02:16:00.000Z"),
+      connectorCode: "PAYLOAD_ACCEPTED",
+      connectorMessage: "Payload accepted by connector and awaiting external acknowledgement."
     }
   });
 
@@ -731,13 +764,17 @@ async function main() {
       targetSystem: "qa_failure_simulation",
       format: "json",
       status: "FAILED",
+      externalStatus: "REJECTED",
       attemptCount: 1,
       lastError: "Mock connector rejected the payload. Review mapping and retry.",
       payload: {
         exportBatchId: `serenity-${closingPeriodTwo.id}`,
         targetSystem: "qa_failure_simulation"
       },
-      lastAttemptAt: new Date("2026-04-12T02:45:00.000Z")
+      queuedAt: new Date("2026-04-12T02:40:00.000Z"),
+      lastAttemptAt: new Date("2026-04-12T02:45:00.000Z"),
+      connectorCode: "QA_CONNECTOR_REJECTED",
+      connectorMessage: "Mock connector rejected the payload during delivery."
     }
   });
 

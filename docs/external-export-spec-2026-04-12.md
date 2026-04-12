@@ -28,8 +28,11 @@ Hoy Serenity ya soporta:
 - auditoria de descarga del export package
 - export jobs explicitos
 - estados `pending`, `processing`, `succeeded` y `failed`
+- estados externos `not_sent`, `sent`, `acknowledged` y `rejected`
 - numero de intentos por job
 - referencia externa mock cuando el sync fue exitoso
+- procesamiento de entrega por job
+- confirmacion o rechazo externo simulado
 - retry de jobs fallidos
 
 ## Regla de exportabilidad
@@ -38,7 +41,7 @@ Un periodo solo se puede exportar cuando:
 
 1. esta en estado `locked` o `exported`
 2. todas las visitas aprobadas dentro del periodo ya tienen settlement
-3. existe al menos un `export job` exitoso
+3. existe al menos un `export job` con `externalStatus = acknowledged`
 
 Un periodo `open` no debe exponer paquete de exportacion.
 
@@ -198,6 +201,7 @@ Cada sync job tambien crea trazabilidad operativa con:
 - `jobId`
 - `targetSystem`
 - `status`
+- `externalStatus`
 - `externalReference` cuando existe
 - `error` cuando falla
 
@@ -210,11 +214,16 @@ Cada job guarda:
 - `targetSystem`
 - `format`
 - `status`
+- `externalStatus`
 - `attemptCount`
 - `externalReference`
 - `lastError`
+- `queuedAt`
 - `lastAttemptAt`
 - `completedAt`
+- `acknowledgedAt`
+- `connectorCode`
+- `connectorMessage`
 - `payload`
 
 Targets demo actuales:
@@ -228,7 +237,7 @@ Targets demo actuales:
 Esta especificacion actual todavia no cubre:
 
 - procesamiento asincrono real por cola o worker
-- confirmacion remota de recepcion
+- callback o webhook remoto real
 - versionado por partner externo
 - multiples formatos por partner
 - mapeos especificos por proveedor de payroll

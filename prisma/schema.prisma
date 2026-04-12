@@ -94,6 +94,13 @@ enum ExportJobStatus {
   FAILED
 }
 
+enum ExternalSyncStatus {
+  NOT_SENT
+  SENT
+  ACKNOWLEDGED
+  REJECTED
+}
+
 enum ExpenseType {
   MILEAGE
   TRAVEL
@@ -412,12 +419,17 @@ model ExportJob {
   targetSystem      String
   format            String          @default("json")
   status            ExportJobStatus @default(PENDING)
+  externalStatus    ExternalSyncStatus @default(NOT_SENT)
   attemptCount      Int             @default(0)
   externalReference String?
   lastError         String?
+  queuedAt          DateTime        @default(now())
   payload           Json?
   lastAttemptAt     DateTime?
   completedAt       DateTime?
+  acknowledgedAt    DateTime?
+  connectorCode     String?
+  connectorMessage  String?
   createdAt         DateTime        @default(now())
   updatedAt         DateTime        @updatedAt
   closingPeriod     ClosingPeriod   @relation(fields: [closingPeriodId], references: [id])

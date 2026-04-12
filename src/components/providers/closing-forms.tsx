@@ -3,6 +3,8 @@
 import { useFormStatus } from "react-dom";
 import {
   addVisitExpense,
+  processClosingPeriodSync,
+  resolveClosingPeriodSync,
   saveVisitSettlement,
   retryClosingPeriodSync,
   syncClosingPeriodExternally,
@@ -171,7 +173,7 @@ export function ClosingSyncForm({
           </select>
         </label>
       </div>
-      <PendingButton idleLabel="Run sync job" pendingLabel="Syncing..." />
+      <PendingButton idleLabel="Queue sync job" pendingLabel="Queueing..." />
     </form>
   );
 }
@@ -185,6 +187,40 @@ export function RetryClosingSyncForm({
     <form action={retryClosingPeriodSync}>
       <input name="jobId" type="hidden" value={jobId} />
       <PendingButton idleLabel="Retry job" pendingLabel="Retrying..." />
+    </form>
+  );
+}
+
+export function ProcessClosingSyncForm({
+  jobId
+}: {
+  jobId: string;
+}) {
+  return (
+    <form action={processClosingPeriodSync}>
+      <input name="jobId" type="hidden" value={jobId} />
+      <PendingButton idleLabel="Process job" pendingLabel="Processing..." />
+    </form>
+  );
+}
+
+export function ResolveClosingSyncForm({
+  jobId,
+  resolution
+}: {
+  jobId: string;
+  resolution: "acknowledged" | "rejected";
+}) {
+  const labels =
+    resolution === "acknowledged"
+      ? { idle: "Mark acknowledged", pending: "Acknowledging..." }
+      : { idle: "Mark rejected", pending: "Rejecting..." };
+
+  return (
+    <form action={resolveClosingPeriodSync}>
+      <input name="jobId" type="hidden" value={jobId} />
+      <input name="resolution" type="hidden" value={resolution} />
+      <PendingButton idleLabel={labels.idle} pendingLabel={labels.pending} />
     </form>
   );
 }

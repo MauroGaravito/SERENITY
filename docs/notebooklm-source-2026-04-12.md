@@ -108,7 +108,9 @@ Puede hoy:
 - registrar gastos basicos por visita aprobada,
 - mover periodos a `locked` y `exported`,
 - descargar export package en `json` y `csv`,
-- correr sync jobs externos mock o manuales,
+- encolar sync jobs externos mock o manuales,
+- procesar entrega de sync jobs,
+- registrar confirmacion o rechazo externo,
 - reintentar sync jobs fallidos,
 - crear ordenes,
 - editar ordenes,
@@ -361,7 +363,7 @@ Este documento sirve bien para responder preguntas como:
 Las principales limitaciones actuales son:
 
 - el cierre financiero no procesa pagos aunque ya tiene cierre operativo visible,
-- la exportacion ya tiene capa de sync base, pero no una integracion remota completa,
+- la exportacion ya tiene queue, delivery y acuse externo mock, pero no una integracion remota completa,
 - la experiencia del carer ya cubre disponibilidad y credenciales de forma basica, pero no con backoffice completo,
 - la evidencia no es carga real de archivos,
 - el perfil del carer todavia necesita alertas y reglas mas robustas,
@@ -401,7 +403,7 @@ Su mayor fortaleza actual esta en:
 - visibilidad center,
 - primera capa operativa del carer,
 - primera capa de cierre operativo,
-- capa inicial de sync externo,
+- capa operativa de sync externo,
 - y uso de catalogos cerrados para ordenar servicios y skills.
 
 Su siguiente evolucion natural, despues de estabilizar demos, es conectar esta capa de exportacion con sistemas externos reales.

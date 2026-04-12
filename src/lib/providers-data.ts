@@ -2,6 +2,7 @@
   ClosingPeriodStatus as PrismaClosingPeriodStatus,
   CredentialStatus,
   ExpenseType as PrismaExpenseType,
+  ExternalSyncStatus as PrismaExternalSyncStatus,
   ExportJobStatus as PrismaExportJobStatus,
   Prisma,
   ReviewOutcome as PrismaReviewOutcome,
@@ -9,11 +10,13 @@
   VisitStatus as PrismaVisitStatus
 } from "@prisma/client";
 import { unstable_noStore as noStore } from "next/cache";
+import { executeConnector } from "@/lib/export-connectors";
 import { prisma } from "@/lib/prisma";
 import { SKILL_CATALOG } from "@/lib/catalogs";
 import {
   ClosingExportPackage,
   ClosingWorkspaceRecord,
+  ExternalSyncStatus,
   ExportTargetSystem,
   IncidentSeverity,
   ProviderMetric,
@@ -157,6 +160,10 @@ function mapClosingStatus(value: PrismaClosingPeriodStatus) {
 
 function mapExportJobStatus(value: PrismaExportJobStatus) {
   return value.toLowerCase() as ClosingWorkspaceRecord["periods"][number]["exportJobs"][number]["status"];
+}
+
+function mapExternalSyncStatus(value: PrismaExternalSyncStatus) {
+  return value.toLowerCase() as ExternalSyncStatus;
 }
 
 function mapExportTarget(value: string) {
@@ -380,12 +387,17 @@ function mapClosingPeriod(
     targetSystem: mapExportTarget(job.targetSystem),
     format: job.format,
     status: mapExportJobStatus(job.status),
+    externalStatus: mapExternalSyncStatus(job.externalStatus),
     attemptCount: job.attemptCount,
     exportBatchId: (job.payload as { exportBatchId?: string } | null)?.exportBatchId ?? getExportBatchId(period.id),
     externalReference: job.externalReference ?? undefined,
     lastError: job.lastError ?? undefined,
+    queuedAt: job.queuedAt.toISOString(),
     lastAttemptAt: job.lastAttemptAt?.toISOString(),
     completedAt: job.completedAt?.toISOString(),
+    acknowledgedAt: job.acknowledgedAt?.toISOString(),
+    connectorCode: job.connectorCode ?? undefined,
+    connectorMessage: job.connectorMessage ?? undefined,
     createdAt: job.createdAt.toISOString(),
     updatedAt: job.updatedAt.toISOString()
   }));
@@ -533,6 +545,11 @@ export async function getProviderClosingWorkspace(
       syncJobsFailed: mappedPeriods.reduce(
         (total, period) =>
           total + period.exportJobs.filter((job) => job.status === "failed").length,
+        0
+      ),
+      syncJobsAwaitingAck: mappedPeriods.reduce(
+        (total, period) =>
+          total + period.exportJobs.filter((job) => job.externalStatus === "sent").length,
         0
       )
     }
@@ -697,54 +714,6 @@ function buildExportPayloadSummary(
   };
 }
 
-function buildExternalReference(targetSystem: ExportTargetSystem, periodId: string) {
-  const suffix = periodId.slice(-6).toUpperCase();
-
-  switch (targetSystem) {
-    case "manual_handoff":
-      return `MANUAL-${suffix}`;
-    case "mock_payroll_gateway":
-      return `MPG-${suffix}`;
-    case "qa_failure_simulation":
-      return undefined;
-  }
-}
-
-async function processExportJob(jobId: string, targetSystem: ExportTargetSystem, payload: ClosingExportPackage) {
-  await prisma.exportJob.update({
-    where: { id: jobId },
-    data: {
-      status: PrismaExportJobStatus.PROCESSING,
-      attemptCount: { increment: 1 },
-      lastAttemptAt: new Date(),
-      lastError: null,
-      payload: buildExportPayloadSummary(payload, targetSystem)
-    }
-  });
-
-  if (targetSystem === "qa_failure_simulation") {
-    return prisma.exportJob.update({
-      where: { id: jobId },
-      data: {
-        status: PrismaExportJobStatus.FAILED,
-        lastError: "Mock connector rejected the payload. Review mapping and retry.",
-        externalReference: null,
-        completedAt: null
-      }
-    });
-  }
-
-  return prisma.exportJob.update({
-    where: { id: jobId },
-    data: {
-      status: PrismaExportJobStatus.SUCCEEDED,
-      externalReference: buildExternalReference(targetSystem, payload.closingPeriod.id),
-      completedAt: new Date(),
-      lastError: null
-    }
-  });
-}
-
 export async function createClosingExportJob(
   periodId: string,
   providerId: string,
@@ -762,11 +731,90 @@ export async function createClosingExportJob(
       targetSystem,
       format: "json",
       status: PrismaExportJobStatus.PENDING,
+      externalStatus: PrismaExternalSyncStatus.NOT_SENT,
       payload: buildExportPayloadSummary(payload, targetSystem)
     }
   });
 
-  return processExportJob(job.id, targetSystem, payload);
+  return job;
+}
+
+export async function processClosingExportJob(jobId: string, providerId: string) {
+  const job = await prisma.exportJob.findFirst({
+    where: {
+      id: jobId,
+      closingPeriod: {
+        providerId
+      }
+    },
+    include: {
+      closingPeriod: {
+        select: {
+          id: true
+        }
+      }
+    }
+  });
+
+  if (!job) {
+    throw new Error("Export job not found for this provider.");
+  }
+
+  if (job.status === PrismaExportJobStatus.SUCCEEDED && job.externalStatus !== PrismaExternalSyncStatus.REJECTED) {
+    throw new Error("This export job was already processed.");
+  }
+
+  const payload = await getClosingExportPackage(job.closingPeriod.id, providerId);
+
+  if (!payload) {
+    throw new Error("Closing period is not ready for processing.");
+  }
+
+  await prisma.exportJob.update({
+    where: { id: job.id },
+    data: {
+      status: PrismaExportJobStatus.PROCESSING,
+      attemptCount: { increment: 1 },
+      lastAttemptAt: new Date(),
+      lastError: null,
+      payload: buildExportPayloadSummary(payload, mapExportTarget(job.targetSystem))
+    }
+  });
+
+  const result = executeConnector(mapExportTarget(job.targetSystem), payload);
+
+  if (result.jobStatus === "failed") {
+    return prisma.exportJob.update({
+      where: { id: job.id },
+      data: {
+        status: PrismaExportJobStatus.FAILED,
+        externalStatus: PrismaExternalSyncStatus.REJECTED,
+        connectorCode: result.connectorCode,
+        connectorMessage: result.connectorMessage,
+        lastError: result.lastError,
+        externalReference: null,
+        completedAt: null,
+        acknowledgedAt: null
+      }
+    });
+  }
+
+  return prisma.exportJob.update({
+    where: { id: job.id },
+    data: {
+      status: PrismaExportJobStatus.SUCCEEDED,
+      externalStatus:
+        result.externalStatus === "acknowledged"
+          ? PrismaExternalSyncStatus.ACKNOWLEDGED
+          : PrismaExternalSyncStatus.SENT,
+      externalReference: result.externalReference,
+      connectorCode: result.connectorCode,
+      connectorMessage: result.connectorMessage,
+      completedAt: new Date(),
+      acknowledgedAt: result.acknowledgedAt ?? null,
+      lastError: null
+    }
+  });
 }
 
 export async function retryClosingExportJob(jobId: string, providerId: string) {
@@ -796,7 +844,67 @@ export async function retryClosingExportJob(jobId: string, providerId: string) {
     throw new Error("Closing period is not ready for retry.");
   }
 
-  return processExportJob(job.id, mapExportTarget(job.targetSystem), payload);
+  await prisma.exportJob.update({
+    where: { id: job.id },
+    data: {
+      status: PrismaExportJobStatus.PENDING,
+      externalStatus: PrismaExternalSyncStatus.NOT_SENT,
+      lastError: null,
+      connectorCode: null,
+      connectorMessage: null,
+      externalReference: null,
+      completedAt: null,
+      acknowledgedAt: null,
+      payload: buildExportPayloadSummary(payload, mapExportTarget(job.targetSystem))
+    }
+  });
+
+  return processClosingExportJob(job.id, providerId);
+}
+
+export async function acknowledgeClosingExportJob(
+  jobId: string,
+  providerId: string,
+  resolution: "acknowledged" | "rejected"
+) {
+  const job = await prisma.exportJob.findFirst({
+    where: {
+      id: jobId,
+      closingPeriod: {
+        providerId
+      }
+    }
+  });
+
+  if (!job) {
+    throw new Error("Export job not found for this provider.");
+  }
+
+  if (job.status !== PrismaExportJobStatus.SUCCEEDED || job.externalStatus !== PrismaExternalSyncStatus.SENT) {
+    throw new Error("Only sent jobs can be resolved externally.");
+  }
+
+  if (resolution === "acknowledged") {
+    return prisma.exportJob.update({
+      where: { id: job.id },
+      data: {
+        externalStatus: PrismaExternalSyncStatus.ACKNOWLEDGED,
+        acknowledgedAt: new Date(),
+        connectorMessage: "Remote system acknowledged the delivery."
+      }
+    });
+  }
+
+  return prisma.exportJob.update({
+    where: { id: job.id },
+    data: {
+      status: PrismaExportJobStatus.FAILED,
+      externalStatus: PrismaExternalSyncStatus.REJECTED,
+      acknowledgedAt: null,
+      lastError: "Remote system rejected the payload after delivery.",
+      connectorMessage: "Remote system rejected the delivery."
+    }
+  });
 }
 
 export async function getProviderOrderFormData(): Promise<ProviderOrderFormData> {

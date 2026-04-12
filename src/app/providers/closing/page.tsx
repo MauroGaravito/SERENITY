@@ -3,6 +3,8 @@ import { OrderAuditTimeline } from "@/components/audit/order-audit-timeline";
 import {
   ClosingSyncForm,
   ClosingPeriodStatusForm,
+  ProcessClosingSyncForm,
+  ResolveClosingSyncForm,
   RetryClosingSyncForm,
   VisitExpenseForm,
   VisitSettlementForm
@@ -67,6 +69,11 @@ export default async function ProviderClosingPage({
           <p>Sync jobs failed</p>
           <strong>{workspace.summary.syncJobsFailed}</strong>
           <span>Exports that need retry before the period is marked exported</span>
+        </article>
+        <article className="metric-card metric-warning">
+          <p>Awaiting acknowledgement</p>
+          <strong>{workspace.summary.syncJobsAwaitingAck}</strong>
+          <span>Jobs already delivered but still waiting for external confirmation</span>
         </article>
       </section>
 
@@ -346,15 +353,33 @@ export default async function ProviderClosingPage({
                       <StatusBadge value={job.status} />
                     </div>
                     <p>Attempts: {job.attemptCount}</p>
+                    <p>Sync status: {job.externalStatus.replaceAll("_", " ")}</p>
                     <p>Batch: {job.exportBatchId ?? `serenity-${selectedPeriod.id}`}</p>
                     <p>
                       External ref: {job.externalReference ?? "Pending external acknowledgement"}
                     </p>
+                    <p>Queued: {formatDateTime(job.queuedAt)}</p>
                     <p>
                       Last attempt:{" "}
                       {job.lastAttemptAt ? formatDateTime(job.lastAttemptAt) : "Not attempted yet"}
                     </p>
-                    <p>{job.lastError ?? "No connector error recorded."}</p>
+                    <p>
+                      {job.acknowledgedAt
+                        ? `Acknowledged at ${formatDateTime(job.acknowledgedAt)}`
+                        : "No acknowledgement timestamp yet."}
+                    </p>
+                    <p>{job.connectorMessage ?? job.lastError ?? "No connector message recorded."}</p>
+                    {job.status === "pending" ? (
+                      <div className="top-gap">
+                        <ProcessClosingSyncForm jobId={job.id} />
+                      </div>
+                    ) : null}
+                    {job.status === "succeeded" && job.externalStatus === "sent" ? (
+                      <div className="inline-actions top-gap">
+                        <ResolveClosingSyncForm jobId={job.id} resolution="acknowledged" />
+                        <ResolveClosingSyncForm jobId={job.id} resolution="rejected" />
+                      </div>
+                    ) : null}
                     {job.status === "failed" ? (
                       <div className="top-gap">
                         <RetryClosingSyncForm jobId={job.id} />
@@ -381,8 +406,8 @@ export default async function ProviderClosingPage({
               <div className="note-block">
                 <strong>Current foundation</strong>
                 <p>
-                  Serenity can now generate a package, run a sync job, store attempts and keep
-                  the external reference without managing payroll directly.
+                  Serenity can now queue a job, process delivery, capture connector feedback and
+                  wait for external acknowledgement without managing payroll directly.
                 </p>
               </div>
               <div className="note-block">
@@ -395,7 +420,7 @@ export default async function ProviderClosingPage({
               <div className="note-block">
                 <strong>Exported gate</strong>
                 <p>
-                  A period can only move to exported after at least one successful sync job.
+                  A period can only move to exported after at least one acknowledged external sync.
                 </p>
               </div>
             </div>

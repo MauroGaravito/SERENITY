@@ -25,6 +25,7 @@ export type Tone = "neutral" | "warning" | "critical" | "positive";
 export type ClosingPeriodStatus = "open" | "locked" | "exported";
 export type ExpenseType = "mileage" | "travel" | "supplies" | "other";
 export type ExportJobStatus = "pending" | "processing" | "succeeded" | "failed";
+export type ExternalSyncStatus = "not_sent" | "sent" | "acknowledged" | "rejected";
 export type ExportTargetSystem =
   | "manual_handoff"
   | "mock_payroll_gateway"
@@ -146,12 +147,17 @@ export type ClosingPeriodRecord = {
     targetSystem: ExportTargetSystem;
     format: string;
     status: ExportJobStatus;
+    externalStatus: ExternalSyncStatus;
     attemptCount: number;
     exportBatchId?: string;
     externalReference?: string;
     lastError?: string;
+    queuedAt: string;
     lastAttemptAt?: string;
     completedAt?: string;
+    acknowledgedAt?: string;
+    connectorCode?: string;
+    connectorMessage?: string;
     createdAt: string;
     updatedAt: string;
   }>;
@@ -167,6 +173,7 @@ export type ClosingWorkspaceRecord = {
     approvedMinutesInFlight: number;
     syncJobsPending: number;
     syncJobsFailed: number;
+    syncJobsAwaitingAck: number;
   };
 };
 
@@ -256,12 +263,14 @@ export function getStatusTone(
     | ReviewOutcome
     | ClosingPeriodStatus
     | ExportJobStatus
+    | ExternalSyncStatus
 ) {
   switch (status) {
     case "approved":
     case "closed":
     case "exported":
     case "succeeded":
+    case "acknowledged":
       return "positive";
     case "under_review":
     case "partially_assigned":
@@ -269,11 +278,13 @@ export function getStatusTone(
     case "locked":
     case "pending":
     case "processing":
+    case "sent":
       return "warning";
     case "rejected":
     case "cancelled":
     case "no_show":
     case "failed":
+    case "rejected":
       return "critical";
     default:
       return "neutral";
