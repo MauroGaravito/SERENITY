@@ -31,6 +31,7 @@ export default async function ProviderOrderDetailPage({
 
   return (
     <ProviderShell
+      currentSection="orders"
       title={`${order.code} · ${order.title}`}
       subtitle="Validacion operativa del flujo provider: asignacion, estados de visita, revision y auditoria."
     >

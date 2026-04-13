@@ -21,6 +21,64 @@ import { getProviderClosingWorkspace } from "@/lib/providers-data";
 
 export const dynamic = "force-dynamic";
 
+type ClosingPeriodItem = Awaited<ReturnType<typeof getProviderClosingWorkspace>>["periods"][number];
+
+function getClosingWorkflow(period?: ClosingPeriodItem) {
+  if (!period) {
+    return {
+      summary: "Select a closing period to continue.",
+      nextAction: "Choose the period you want to reconcile and export."
+    };
+  }
+
+  if (period.status === "open") {
+    return {
+      summary: "This period is still being reconciled.",
+      nextAction:
+        period.unsettledVisitsCount > 0
+          ? `Complete settlement for ${period.unsettledVisitsCount} approved visit${period.unsettledVisitsCount === 1 ? "" : "s"}, then lock the period.`
+          : "All approved visits are settled. Lock the period to prepare the external handoff."
+    };
+  }
+
+  const queuedJobs = period.exportJobs.filter((job) => job.status === "queued").length;
+  const sentJobs = period.exportJobs.filter((job) => job.status === "sent").length;
+  const acknowledgedJobs = period.exportJobs.filter((job) => job.status === "acknowledged").length;
+
+  if (period.status === "locked" && queuedJobs > 0) {
+    return {
+      summary: "The period is ready for external handoff.",
+      nextAction: `Run ${queuedJobs} queued sync job${queuedJobs === 1 ? "" : "s"} to deliver the package.`
+    };
+  }
+
+  if (period.status === "locked" && sentJobs > 0) {
+    return {
+      summary: "The package was delivered and is awaiting remote confirmation.",
+      nextAction: `Check ${sentJobs} sent job${sentJobs === 1 ? "" : "s"} or wait for the internal runner to confirm acknowledgement.`
+    };
+  }
+
+  if (acknowledgedJobs > 0 && period.status !== "exported") {
+    return {
+      summary: "The handoff is acknowledged.",
+      nextAction: "Mark the period as exported when you are ready to close it operationally."
+    };
+  }
+
+  if (period.status === "exported") {
+    return {
+      summary: "This period already completed the operational handoff.",
+      nextAction: "Use the sync history and audit trail as reference for downstream billing."
+    };
+  }
+
+  return {
+    summary: "The period is locked but no sync was started yet.",
+    nextAction: "Queue an export job to begin the external handoff."
+  };
+}
+
 export default async function ProviderClosingPage({
   searchParams
 }: {
@@ -36,11 +94,17 @@ export default async function ProviderClosingPage({
   const exportAuditEvents = selectedPeriod
     ? await listClosingAuditEvents(selectedPeriod.id, session.organizationId)
     : [];
+  const workflow = getClosingWorkflow(selectedPeriod);
+  const queuedJobs = selectedPeriod?.exportJobs.filter((job) => job.status === "queued").length ?? 0;
+  const sentJobs = selectedPeriod?.exportJobs.filter((job) => job.status === "sent").length ?? 0;
+  const acknowledgedJobs =
+    selectedPeriod?.exportJobs.filter((job) => job.status === "acknowledged").length ?? 0;
 
   return (
     <ProviderShell
+      currentSection="closing"
       title="Operational closing"
-      subtitle="Consolida visitas aprobadas, minutos, gastos y estado de exportacion sin convertir Serenity en payroll."
+      subtitle="A clearer workflow for settlement, export preparation and external handoff."
     >
       <section className="metrics-grid metrics-grid-4">
         <article className="metric-card metric-neutral">
@@ -80,12 +144,109 @@ export default async function ProviderClosingPage({
         </article>
       </section>
 
+      {selectedPeriod ? (
+        <section className="ops-panel closing-guide-panel">
+          <div className="panel-heading">
+            <div>
+              <p className="card-tag">Workflow guide</p>
+              <h2>What to do next</h2>
+            </div>
+            <StatusBadge value={selectedPeriod.status} />
+          </div>
+          <div className="closing-guide-copy">
+            <strong>{workflow.summary}</strong>
+            <p>{workflow.nextAction}</p>
+          </div>
+          <div className="closing-step-grid">
+            <article
+              className={`closing-step-card ${
+                selectedPeriod.status === "open" ? "is-current" : "is-complete"
+              }`}
+            >
+              <span>Step 1</span>
+              <strong>Settle approved visits</strong>
+              <p>
+                {selectedPeriod.unsettledVisitsCount > 0
+                  ? `${selectedPeriod.unsettledVisitsCount} visit${selectedPeriod.unsettledVisitsCount === 1 ? "" : "s"} still need approved minutes and rates.`
+                  : "All approved visits inside this period are already settled."}
+              </p>
+            </article>
+            <article
+              className={`closing-step-card ${
+                selectedPeriod.status === "open" && selectedPeriod.unsettledVisitsCount === 0
+                  ? "is-current"
+                  : selectedPeriod.status !== "open"
+                    ? "is-complete"
+                    : ""
+              }`}
+            >
+              <span>Step 2</span>
+              <strong>Lock the period</strong>
+              <p>
+                {selectedPeriod.status === "open"
+                  ? "Locking freezes operational edits and unlocks the external handoff."
+                  : "The period is already locked for export activity."}
+              </p>
+            </article>
+            <article
+              className={`closing-step-card ${
+                selectedPeriod.status === "locked" && queuedJobs > 0
+                  ? "is-current"
+                  : queuedJobs === 0 && selectedPeriod.status !== "open"
+                    ? "is-complete"
+                    : ""
+              }`}
+            >
+              <span>Step 3</span>
+              <strong>Send the package</strong>
+              <p>
+                {queuedJobs > 0
+                  ? `${queuedJobs} queued sync job${queuedJobs === 1 ? "" : "s"} are waiting to be processed.`
+                  : "There are no queued jobs pending delivery right now."}
+              </p>
+            </article>
+            <article
+              className={`closing-step-card ${
+                sentJobs > 0 ? "is-current" : acknowledgedJobs > 0 ? "is-complete" : ""
+              }`}
+            >
+              <span>Step 4</span>
+              <strong>Confirm acknowledgement</strong>
+              <p>
+                {sentJobs > 0
+                  ? `${sentJobs} job${sentJobs === 1 ? "" : "s"} are waiting for remote confirmation.`
+                  : acknowledgedJobs > 0
+                    ? "At least one sync job is already acknowledged."
+                    : "No acknowledgement is available yet."}
+              </p>
+            </article>
+            <article
+              className={`closing-step-card ${
+                selectedPeriod.status === "exported"
+                  ? "is-complete"
+                  : acknowledgedJobs > 0
+                    ? "is-current"
+                    : ""
+              }`}
+            >
+              <span>Step 5</span>
+              <strong>Mark exported</strong>
+              <p>
+                {selectedPeriod.status === "exported"
+                  ? "This period is already marked as handed off externally."
+                  : "Once acknowledged, the period can be marked exported."}
+              </p>
+            </article>
+          </div>
+        </section>
+      ) : null}
+
       <section className="ops-two-column">
         <article className="ops-panel">
           <div className="panel-heading">
             <div>
-              <p className="card-tag">Closing periods</p>
-              <h2>Period workspace</h2>
+              <p className="card-tag">Step 1</p>
+              <h2>Select the closing period</h2>
             </div>
           </div>
           <div className="visit-list">
@@ -101,7 +262,7 @@ export default async function ProviderClosingPage({
                     {formatDateTime(item.startsAt)} - {formatDateTime(item.endsAt)}
                   </p>
                   <p>
-                    {item.approvedVisitsCount} approved visits · {item.unsettledVisitsCount} pending
+                    {item.approvedVisitsCount} approved visits / {item.unsettledVisitsCount} pending
                   </p>
                 </div>
                 <StatusBadge value={item.status} />
@@ -114,7 +275,7 @@ export default async function ProviderClosingPage({
           <article className="ops-panel">
             <div className="panel-heading">
               <div>
-                <p className="card-tag">Period summary</p>
+                <p className="card-tag">Current period</p>
                 <h2>{selectedPeriod.label}</h2>
               </div>
               <StatusBadge value={selectedPeriod.status} />
@@ -157,7 +318,7 @@ export default async function ProviderClosingPage({
               <ClosingPeriodStatusForm period={selectedPeriod} />
             </div>
             <div className="note-block top-gap">
-              <strong>Export readiness</strong>
+              <strong>Period status meaning</strong>
               <p>
                 {selectedPeriod.status === "open"
                   ? "Open periods still allow settlement edits and expense capture."
@@ -204,8 +365,8 @@ export default async function ProviderClosingPage({
           <article className="ops-panel">
             <div className="panel-heading">
               <div>
-                <p className="card-tag">Approved visits</p>
-                <h2>Settlement queue</h2>
+                <p className="card-tag">Step 2</p>
+                <h2>Settle approved visits</h2>
               </div>
             </div>
             <div className="visit-list">
@@ -218,13 +379,13 @@ export default async function ProviderClosingPage({
                   >
                     <div>
                       <strong>
-                        {item.orderCode} · {item.recipientName}
+                        {item.orderCode} / {item.recipientName}
                       </strong>
                       <p>
-                        {item.carerName ?? "No carer"} · {item.serviceType}
+                        {item.carerName ?? "No carer"} / {item.serviceType}
                       </p>
                       <p>
-                        {item.approvedMinutes ?? item.suggestedApprovedMinutes} approved min ·{" "}
+                        {item.approvedMinutes ?? item.suggestedApprovedMinutes} approved min /{" "}
                         {formatCurrency(item.payableCents ?? 0)}
                       </p>
                     </div>
@@ -241,9 +402,9 @@ export default async function ProviderClosingPage({
             <article className="ops-panel">
               <div className="panel-heading">
                 <div>
-                  <p className="card-tag">Visit settlement</p>
+                  <p className="card-tag">Selected visit</p>
                   <h2>
-                    {selectedVisit.orderCode} · {selectedVisit.orderTitle}
+                    {selectedVisit.orderCode} / {selectedVisit.orderTitle}
                   </h2>
                 </div>
                 <StatusBadge value={selectedVisit.status} />
@@ -302,7 +463,7 @@ export default async function ProviderClosingPage({
           <article className="ops-panel">
             <div className="panel-heading">
               <div>
-                <p className="card-tag">Expenses</p>
+                <p className="card-tag">Step 3</p>
                 <h2>Approved adjustments</h2>
               </div>
             </div>
@@ -319,7 +480,7 @@ export default async function ProviderClosingPage({
           <article className="ops-panel">
             <div className="panel-heading">
               <div>
-                <p className="card-tag">Expense trail</p>
+                <p className="card-tag">Adjustment trail</p>
                 <h2>What will travel externally</h2>
               </div>
             </div>
@@ -328,7 +489,7 @@ export default async function ProviderClosingPage({
                 selectedVisit.expenses.map((expense) => (
                   <div className="note-block" key={expense.id}>
                     <strong>
-                      {expense.type} · {formatCurrency(expense.amountCents, expense.currency)}
+                      {expense.type} / {formatCurrency(expense.amountCents, expense.currency)}
                     </strong>
                     <p>{expense.note ?? "No note recorded."}</p>
                     <p>{expense.evidenceUrl ?? "No evidence reference recorded."}</p>
@@ -347,8 +508,8 @@ export default async function ProviderClosingPage({
           <article className="ops-panel">
             <div className="panel-heading">
               <div>
-                <p className="card-tag">External sync</p>
-                <h2>Sync jobs</h2>
+                <p className="card-tag">Step 4</p>
+                <h2>Run and verify sync jobs</h2>
               </div>
             </div>
             <div className="sequence-list">
@@ -404,7 +565,7 @@ export default async function ProviderClosingPage({
                         {job.attempts.slice(0, 3).map((attempt) => (
                           <div className="note-block" key={attempt.id}>
                             <strong>
-                              {attempt.kind.replaceAll("_", " ")} ·{" "}
+                              {attempt.kind.replaceAll("_", " ")} /{" "}
                               {attempt.result.replaceAll("_", " ")}
                             </strong>
                             <p>
@@ -433,27 +594,27 @@ export default async function ProviderClosingPage({
           <article className="ops-panel">
             <div className="panel-heading">
               <div>
-                <p className="card-tag">Handoff rule</p>
-                <h2>What is still missing</h2>
+                <p className="card-tag">Step 5</p>
+                <h2>Export decision guide</h2>
               </div>
             </div>
             <div className="sequence-list">
               <div className="note-block">
-                <strong>Current foundation</strong>
+                <strong>What Serenity is doing now</strong>
                 <p>
-                  Serenity can now queue a job, process delivery, capture connector feedback and
-                  let an internal runner pick up scheduled jobs without managing payroll directly.
+                  Serenity can queue a job, process delivery, capture connector feedback and let an
+                  internal runner pick up scheduled jobs without managing payroll directly.
                 </p>
               </div>
               <div className="note-block">
-                <strong>Still outside the app</strong>
+                <strong>What stays outside Serenity</strong>
                 <p>
                   Payment execution, tax logic, superannuation and bank transfer remain in the
                   external finance platform.
                 </p>
               </div>
               <div className="note-block">
-                <strong>Exported gate</strong>
+                <strong>When to mark exported</strong>
                 <p>
                   A period can only move to exported after at least one acknowledged external sync.
                 </p>

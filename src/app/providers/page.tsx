@@ -16,6 +16,7 @@ export default async function ProvidersPage() {
 
   return (
     <ProviderShell
+      currentSection="dashboard"
       title="Operational command center"
       subtitle="La prestadora opera cobertura, ejecucion, revision y cierre desde un solo lugar."
     >

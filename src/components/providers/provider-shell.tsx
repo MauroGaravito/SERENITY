@@ -4,16 +4,18 @@ import { SessionBanner } from "@/components/auth/session-banner";
 import { getOptionalSession } from "@/lib/auth";
 
 const navItems = [
-  { href: "/providers", label: "Dashboard" },
-  { href: "/providers/orders", label: "Orders" },
-  { href: "/providers/closing", label: "Closing" }
+  { href: "/providers", label: "Dashboard", key: "dashboard" },
+  { href: "/providers/orders", label: "Orders", key: "orders" },
+  { href: "/providers/closing", label: "Closing", key: "closing" }
 ] as const;
 
 export async function ProviderShell({
+  currentSection,
   title,
   subtitle,
   children
 }: {
+  currentSection: (typeof navItems)[number]["key"];
   title: string;
   subtitle: string;
   children: ReactNode;
@@ -31,7 +33,11 @@ export async function ProviderShell({
         </p>
         <nav className="providers-nav">
           {navItems.map((item) => (
-            <Link className="providers-nav-link" href={item.href} key={item.href}>
+            <Link
+              className={`providers-nav-link ${currentSection === item.key ? "is-active" : ""}`}
+              href={item.href}
+              key={item.href}
+            >
               {item.label}
             </Link>
           ))}

@@ -353,6 +353,12 @@ ul {
   background: rgba(255, 255, 255, 0.06);
 }
 
+.providers-nav-link.is-active {
+  border-color: rgba(255, 255, 255, 0.22);
+  background: rgba(255, 255, 255, 0.18);
+  color: white;
+}
+
 .providers-main {
   display: grid;
   gap: 1rem;
@@ -461,6 +467,64 @@ ul {
 
 .ops-panel {
   padding: 1.4rem;
+}
+
+.closing-guide-panel {
+  display: grid;
+  gap: 1rem;
+}
+
+.closing-guide-copy {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.closing-guide-copy strong {
+  font-size: 1.2rem;
+  font-family: var(--font-display), sans-serif;
+}
+
+.closing-step-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0.85rem;
+}
+
+.closing-step-card {
+  padding: 1rem;
+  border-radius: 22px;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.58);
+  display: grid;
+  gap: 0.5rem;
+}
+
+.closing-step-card span {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  color: var(--muted);
+}
+
+.closing-step-card strong {
+  font-family: var(--font-display), sans-serif;
+  font-size: 1.1rem;
+  line-height: 1;
+}
+
+.closing-step-card p {
+  margin: 0;
+  color: var(--muted);
+}
+
+.closing-step-card.is-current {
+  border-color: rgba(15, 95, 87, 0.32);
+  background: rgba(218, 239, 236, 0.82);
+}
+
+.closing-step-card.is-complete {
+  border-color: rgba(24, 135, 92, 0.2);
+  background: rgba(207, 240, 225, 0.72);
 }
 
 .panel-heading {
@@ -919,7 +983,8 @@ ul {
   .ops-two-column,
   .ops-overview-grid,
   .ops-detail-grid,
-  .action-grid {
+  .action-grid,
+  .closing-step-grid {
     grid-template-columns: 1fr;
   }
 

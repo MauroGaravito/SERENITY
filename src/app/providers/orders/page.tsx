@@ -17,6 +17,7 @@ export default async function ProviderOrdersPage() {
 
   return (
     <ProviderShell
+      currentSection="orders"
       title="Service orders"
       subtitle="Lista operativa para coordinacion, cobertura y seguimiento de visitas."
     >
