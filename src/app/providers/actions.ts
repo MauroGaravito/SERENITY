@@ -4,6 +4,8 @@ import {
   AuditEventType,
   ClosingPeriodStatus,
   ExpenseType,
+  ExternalSyncStatus,
+  ExportJobStatus,
   PriorityLevel,
   ServiceOrderStatus,
   UserRole,
@@ -32,6 +34,29 @@ type ProviderMutationInput = {
   visitId: string;
   path: string;
 };
+
+function getVisibleExportJobStatus(
+  status: ExportJobStatus,
+  externalStatus: ExternalSyncStatus
+) {
+  if (status === "PENDING") {
+    return "queued";
+  }
+
+  if (status === "PROCESSING") {
+    return "processing";
+  }
+
+  if (status === "FAILED" || externalStatus === "REJECTED") {
+    return "failed";
+  }
+
+  if (externalStatus === "ACKNOWLEDGED") {
+    return "acknowledged";
+  }
+
+  return "sent";
+}
 
 function revalidateProviderPaths(path?: string) {
   if (path) {
@@ -110,7 +135,6 @@ async function getScopedExportJob(jobId: string, providerId: string) {
       id: true,
       targetSystem: true,
       status: true,
-      externalStatus: true,
       closingPeriodId: true,
       closingPeriod: {
         select: {
@@ -759,8 +783,7 @@ export async function syncClosingPeriodExternally(formData: FormData) {
       periodId: period.id,
       jobId: job.id,
       targetSystem,
-      status: job.status.toLowerCase(),
-      externalStatus: "not_sent"
+      status: getVisibleExportJobStatus(job.status, job.externalStatus)
     }
   });
 
@@ -783,7 +806,7 @@ export async function processClosingPeriodSync(formData: FormData) {
     actorUserId: session.userId,
     type: AuditEventType.ORDER_UPDATED,
     summary:
-      updatedJob.status === "SUCCEEDED"
+      getVisibleExportJobStatus(updatedJob.status, updatedJob.externalStatus) !== "failed"
         ? `Closing period ${job.closingPeriod.label} delivered to ${job.targetSystem}.`
         : `Closing period ${job.closingPeriod.label} delivery failed for ${job.targetSystem}.`,
     payload: {
@@ -791,8 +814,7 @@ export async function processClosingPeriodSync(formData: FormData) {
       periodId: job.closingPeriodId,
       jobId: job.id,
       targetSystem: job.targetSystem,
-      status: updatedJob.status.toLowerCase(),
-      externalStatus: updatedJob.externalStatus.toLowerCase(),
+      status: getVisibleExportJobStatus(updatedJob.status, updatedJob.externalStatus),
       externalReference: updatedJob.externalReference ?? null,
       error: updatedJob.lastError ?? null
     }
@@ -817,7 +839,7 @@ export async function retryClosingPeriodSync(formData: FormData) {
     actorUserId: session.userId,
     type: AuditEventType.ORDER_UPDATED,
     summary:
-      updatedJob.status === "SUCCEEDED"
+      getVisibleExportJobStatus(updatedJob.status, updatedJob.externalStatus) !== "failed"
         ? `Retry succeeded for ${job.closingPeriod.label} sync.`
         : `Retry failed for ${job.closingPeriod.label} sync.`,
     payload: {
@@ -825,7 +847,7 @@ export async function retryClosingPeriodSync(formData: FormData) {
       periodId: job.closingPeriodId,
       jobId: job.id,
       targetSystem: job.targetSystem,
-      status: updatedJob.status.toLowerCase(),
+      status: getVisibleExportJobStatus(updatedJob.status, updatedJob.externalStatus),
       externalReference: updatedJob.externalReference ?? null,
       error: updatedJob.lastError ?? null
     }
@@ -861,8 +883,7 @@ export async function resolveClosingPeriodSync(formData: FormData) {
       periodId: job.closingPeriodId,
       jobId: job.id,
       targetSystem: job.targetSystem,
-      status: updatedJob.status.toLowerCase(),
-      externalStatus: updatedJob.externalStatus.toLowerCase(),
+      status: getVisibleExportJobStatus(updatedJob.status, updatedJob.externalStatus),
       externalReference: updatedJob.externalReference ?? null,
       error: updatedJob.lastError ?? null
     }

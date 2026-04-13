@@ -353,7 +353,7 @@ export default async function ProviderClosingPage({
                       <StatusBadge value={job.status} />
                     </div>
                     <p>Attempts: {job.attemptCount}</p>
-                    <p>Sync status: {job.externalStatus.replaceAll("_", " ")}</p>
+                    <p>Sync status: {job.status.replaceAll("_", " ")}</p>
                     <p>Batch: {job.exportBatchId ?? `serenity-${selectedPeriod.id}`}</p>
                     <p>
                       External ref: {job.externalReference ?? "Pending external acknowledgement"}
@@ -369,12 +369,12 @@ export default async function ProviderClosingPage({
                         : "No acknowledgement timestamp yet."}
                     </p>
                     <p>{job.connectorMessage ?? job.lastError ?? "No connector message recorded."}</p>
-                    {job.status === "pending" ? (
+                    {job.status === "queued" ? (
                       <div className="top-gap">
                         <ProcessClosingSyncForm jobId={job.id} />
                       </div>
                     ) : null}
-                    {job.status === "succeeded" && job.externalStatus === "sent" ? (
+                    {job.status === "sent" ? (
                       <div className="inline-actions top-gap">
                         <ResolveClosingSyncForm jobId={job.id} resolution="acknowledged" />
                         <ResolveClosingSyncForm jobId={job.id} resolution="rejected" />

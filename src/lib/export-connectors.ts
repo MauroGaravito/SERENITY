@@ -2,8 +2,7 @@ import type { ClosingExportPackage, ExportTargetSystem } from "@/lib/providers";
 
 export type ConnectorExecutionResult =
   | {
-      jobStatus: "succeeded";
-      externalStatus: "acknowledged" | "sent";
+      jobStatus: "acknowledged" | "sent";
       externalReference: string;
       connectorCode: string;
       connectorMessage: string;
@@ -11,7 +10,6 @@ export type ConnectorExecutionResult =
     }
   | {
       jobStatus: "failed";
-      externalStatus: "rejected";
       connectorCode: string;
       connectorMessage: string;
       lastError: string;
@@ -37,7 +35,6 @@ export function executeConnector(
   if (targetSystem === "qa_failure_simulation") {
     return {
       jobStatus: "failed",
-      externalStatus: "rejected",
       connectorCode: "QA_CONNECTOR_REJECTED",
       connectorMessage: "Mock connector rejected the payload during delivery.",
       lastError: "Mock connector rejected the payload during delivery."
@@ -46,8 +43,7 @@ export function executeConnector(
 
   if (targetSystem === "manual_handoff") {
     return {
-      jobStatus: "succeeded",
-      externalStatus: "acknowledged",
+      jobStatus: "acknowledged",
       externalReference: buildExternalReference(targetSystem, payload.closingPeriod.id),
       connectorCode: "MANUAL_REGISTERED",
       connectorMessage: "Manual handoff register completed and acknowledged immediately.",
@@ -56,8 +52,7 @@ export function executeConnector(
   }
 
   return {
-    jobStatus: "succeeded",
-    externalStatus: "sent",
+    jobStatus: "sent",
     externalReference: buildExternalReference(targetSystem, payload.closingPeriod.id),
     connectorCode: "PAYLOAD_ACCEPTED",
     connectorMessage: "Payload accepted by connector and awaiting external acknowledgement."

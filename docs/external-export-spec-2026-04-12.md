@@ -27,13 +27,19 @@ Hoy Serenity ya soporta:
 - descarga de export package en `csv`
 - auditoria de descarga del export package
 - export jobs explicitos
-- estados `pending`, `processing`, `succeeded` y `failed`
-- estados externos `not_sent`, `sent`, `acknowledged` y `rejected`
+- un estado visible unico por job:
+  - `queued`
+  - `processing`
+  - `sent`
+  - `acknowledged`
+  - `failed`
 - numero de intentos por job
 - referencia externa mock cuando el sync fue exitoso
 - procesamiento de entrega por job
 - confirmacion o rechazo externo simulado
 - retry de jobs fallidos
+
+Internamente, Serenity todavia conserva metadata tecnica compatible para el conector y la migracion futura, pero la UI y la operacion trabajan con un solo estado visible.
 
 ## Regla de exportabilidad
 
@@ -41,7 +47,7 @@ Un periodo solo se puede exportar cuando:
 
 1. esta en estado `locked` o `exported`
 2. todas las visitas aprobadas dentro del periodo ya tienen settlement
-3. existe al menos un `export job` con `externalStatus = acknowledged`
+3. existe al menos un `export job` visible como `acknowledged`
 
 Un periodo `open` no debe exponer paquete de exportacion.
 
@@ -201,7 +207,6 @@ Cada sync job tambien crea trazabilidad operativa con:
 - `jobId`
 - `targetSystem`
 - `status`
-- `externalStatus`
 - `externalReference` cuando existe
 - `error` cuando falla
 
@@ -214,7 +219,6 @@ Cada job guarda:
 - `targetSystem`
 - `format`
 - `status`
-- `externalStatus`
 - `attemptCount`
 - `externalReference`
 - `lastError`
@@ -248,7 +252,7 @@ Esta especificacion actual todavia no cubre:
 La siguiente capa sobre esta especificacion deberia incluir:
 
 1. ejecucion asincrona real por job
-2. confirmacion remota y `external status`
+2. confirmacion remota real del sistema receptor
 3. politicas de retry mas robustas
 4. mensajes de error mas estructurados
 5. conectores por plataforma externa

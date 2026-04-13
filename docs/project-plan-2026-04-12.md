@@ -211,7 +211,7 @@ No incluye:
 
 Estado actual:
 
-- iniciada con export jobs, queue, delivery, acuse externo mock y retry
+- iniciada con export jobs, ciclo visible simplificado de sync, acuse externo mock y retry
 
 ## Prioridad recomendada
 
@@ -260,7 +260,7 @@ Estimacion aproximada al 2026-04-12:
 - reglas de exportacion externa
 - formato inicial de export package
 - trazabilidad basica de exportacion
-- sync jobs con queue, delivery, acuse externo mock y retry
+- sync jobs con estado visible simplificado, acuse externo mock y retry
 
 ### Todavia faltante
 

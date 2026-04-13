@@ -266,7 +266,7 @@ La vista actual muestra:
 - estado de exportacion del periodo
 - export batch id
 - jobs de sync por periodo
-- `external status` por job
+- un estado visible unico por job
 - referencia externa cuando la entrega fue aceptada
 - trazabilidad basica de descarga y sync
 
@@ -298,8 +298,7 @@ El `json` es la referencia principal para integracion futura y contiene:
 Cuando el periodo ya esta `locked` o `exported`, Serenity tambien permite:
 
 - crear un `export job`
-- ver su estado interno (`pending`, `processing`, `succeeded`, `failed`)
-- ver su estado externo (`not_sent`, `sent`, `acknowledged`, `rejected`)
+- ver su estado visible (`queued`, `processing`, `sent`, `acknowledged`, `failed`)
 - procesar entrega de un job encolado
 - registrar confirmacion o rechazo remoto
 - guardar numero de intentos

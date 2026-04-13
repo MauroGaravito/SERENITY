@@ -16,8 +16,8 @@ import { SKILL_CATALOG } from "@/lib/catalogs";
 import {
   ClosingExportPackage,
   ClosingWorkspaceRecord,
-  ExternalSyncStatus,
   ExportTargetSystem,
+  ExportJobLifecycleStatus,
   IncidentSeverity,
   ProviderMetric,
   ReviewOutcome,
@@ -158,12 +158,27 @@ function mapClosingStatus(value: PrismaClosingPeriodStatus) {
   return value.toLowerCase() as ClosingWorkspaceRecord["periods"][number]["status"];
 }
 
-function mapExportJobStatus(value: PrismaExportJobStatus) {
-  return value.toLowerCase() as ClosingWorkspaceRecord["periods"][number]["exportJobs"][number]["status"];
-}
+function deriveExportJobStatus(
+  value: PrismaExportJobStatus,
+  externalStatus: PrismaExternalSyncStatus
+): ExportJobLifecycleStatus {
+  if (value === PrismaExportJobStatus.PENDING) {
+    return "queued";
+  }
 
-function mapExternalSyncStatus(value: PrismaExternalSyncStatus) {
-  return value.toLowerCase() as ExternalSyncStatus;
+  if (value === PrismaExportJobStatus.PROCESSING) {
+    return "processing";
+  }
+
+  if (value === PrismaExportJobStatus.FAILED || externalStatus === PrismaExternalSyncStatus.REJECTED) {
+    return "failed";
+  }
+
+  if (externalStatus === PrismaExternalSyncStatus.ACKNOWLEDGED) {
+    return "acknowledged";
+  }
+
+  return "sent";
 }
 
 function mapExportTarget(value: string) {
@@ -386,8 +401,7 @@ function mapClosingPeriod(
     id: job.id,
     targetSystem: mapExportTarget(job.targetSystem),
     format: job.format,
-    status: mapExportJobStatus(job.status),
-    externalStatus: mapExternalSyncStatus(job.externalStatus),
+    status: deriveExportJobStatus(job.status, job.externalStatus),
     attemptCount: job.attemptCount,
     exportBatchId: (job.payload as { exportBatchId?: string } | null)?.exportBatchId ?? getExportBatchId(period.id),
     externalReference: job.externalReference ?? undefined,
@@ -538,7 +552,7 @@ export async function getProviderClosingWorkspace(
         (total, period) =>
           total +
           period.exportJobs.filter(
-            (job) => job.status === "pending" || job.status === "processing"
+            (job) => job.status === "queued" || job.status === "processing"
           ).length,
         0
       ),
@@ -549,7 +563,7 @@ export async function getProviderClosingWorkspace(
       ),
       syncJobsAwaitingAck: mappedPeriods.reduce(
         (total, period) =>
-          total + period.exportJobs.filter((job) => job.externalStatus === "sent").length,
+          total + period.exportJobs.filter((job) => job.status === "sent").length,
         0
       )
     }
@@ -760,7 +774,10 @@ export async function processClosingExportJob(jobId: string, providerId: string)
     throw new Error("Export job not found for this provider.");
   }
 
-  if (job.status === PrismaExportJobStatus.SUCCEEDED && job.externalStatus !== PrismaExternalSyncStatus.REJECTED) {
+  if (
+    job.status === PrismaExportJobStatus.SUCCEEDED &&
+    job.externalStatus !== PrismaExternalSyncStatus.REJECTED
+  ) {
     throw new Error("This export job was already processed.");
   }
 
@@ -804,7 +821,7 @@ export async function processClosingExportJob(jobId: string, providerId: string)
     data: {
       status: PrismaExportJobStatus.SUCCEEDED,
       externalStatus:
-        result.externalStatus === "acknowledged"
+        result.jobStatus === "acknowledged"
           ? PrismaExternalSyncStatus.ACKNOWLEDGED
           : PrismaExternalSyncStatus.SENT,
       externalReference: result.externalReference,

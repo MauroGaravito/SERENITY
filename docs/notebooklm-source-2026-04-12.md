@@ -363,7 +363,7 @@ Este documento sirve bien para responder preguntas como:
 Las principales limitaciones actuales son:
 
 - el cierre financiero no procesa pagos aunque ya tiene cierre operativo visible,
-- la exportacion ya tiene queue, delivery y acuse externo mock, pero no una integracion remota completa,
+- la exportacion ya tiene un ciclo visible `queued -> processing -> sent -> acknowledged/failed`, pero no una integracion remota completa,
 - la experiencia del carer ya cubre disponibilidad y credenciales de forma basica, pero no con backoffice completo,
 - la evidencia no es carga real de archivos,
 - el perfil del carer todavia necesita alertas y reglas mas robustas,
