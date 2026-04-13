@@ -30,6 +30,7 @@ export type ExportJobLifecycleStatus =
   | "sent"
   | "acknowledged"
   | "failed";
+export type ExportJobAttemptKind = "delivery" | "status_check";
 export type ExportTargetSystem =
   | "manual_handoff"
   | "mock_payroll_gateway"
@@ -163,6 +164,17 @@ export type ClosingPeriodRecord = {
     connectorMessage?: string;
     createdAt: string;
     updatedAt: string;
+    attempts: Array<{
+      id: string;
+      kind: ExportJobAttemptKind;
+      result: ExportJobLifecycleStatus;
+      startedAt: string;
+      completedAt: string;
+      connectorCode?: string;
+      connectorMessage?: string;
+      errorMessage?: string;
+      createdAt: string;
+    }>;
   }>;
   visits: ClosingVisitRecord[];
 };

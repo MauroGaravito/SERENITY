@@ -701,7 +701,7 @@ async function main() {
     }
   });
 
-  await prisma.exportJob.create({
+  const manualExportJob = await prisma.exportJob.create({
     data: {
       closingPeriodId: closingPeriodTwo.id,
       targetSystem: "manual_handoff",
@@ -730,7 +730,7 @@ async function main() {
     }
   });
 
-  await prisma.exportJob.create({
+  const payrollExportJob = await prisma.exportJob.create({
     data: {
       closingPeriodId: closingPeriodTwo.id,
       targetSystem: "mock_payroll_gateway",
@@ -758,7 +758,7 @@ async function main() {
     }
   });
 
-  await prisma.exportJob.create({
+  const failedExportJob = await prisma.exportJob.create({
     data: {
       closingPeriodId: closingPeriodTwo.id,
       targetSystem: "qa_failure_simulation",
@@ -776,6 +776,51 @@ async function main() {
       connectorCode: "QA_CONNECTOR_REJECTED",
       connectorMessage: "Mock connector rejected the payload during delivery."
     }
+  });
+
+  await prisma.exportJobAttempt.createMany({
+    data: [
+      {
+        exportJobId: manualExportJob.id,
+        kind: "DELIVERY",
+        result: "ACKNOWLEDGED",
+        startedAt: new Date("2026-04-12T02:05:00.000Z"),
+        completedAt: new Date("2026-04-12T02:06:00.000Z"),
+        connectorCode: "MANUAL_REGISTERED",
+        connectorMessage: "Manual handoff register completed and acknowledged immediately.",
+        responsePayload: {
+          jobStatus: "acknowledged",
+          connectorCode: "MANUAL_REGISTERED"
+        }
+      },
+      {
+        exportJobId: payrollExportJob.id,
+        kind: "DELIVERY",
+        result: "SENT",
+        startedAt: new Date("2026-04-12T02:15:00.000Z"),
+        completedAt: new Date("2026-04-12T02:16:00.000Z"),
+        connectorCode: "PAYLOAD_ACCEPTED",
+        connectorMessage: "Payload accepted by connector and awaiting external acknowledgement.",
+        responsePayload: {
+          jobStatus: "sent",
+          connectorCode: "PAYLOAD_ACCEPTED"
+        }
+      },
+      {
+        exportJobId: failedExportJob.id,
+        kind: "DELIVERY",
+        result: "FAILED",
+        startedAt: new Date("2026-04-12T02:45:00.000Z"),
+        completedAt: new Date("2026-04-12T02:45:30.000Z"),
+        connectorCode: "QA_CONNECTOR_REJECTED",
+        connectorMessage: "Mock connector rejected the payload during delivery.",
+        errorMessage: "Mock connector rejected the payload. Review mapping and retry.",
+        responsePayload: {
+          jobStatus: "failed",
+          connectorCode: "QA_CONNECTOR_REJECTED"
+        }
+      }
+    ]
   });
 
   await prisma.auditEvent.createMany({

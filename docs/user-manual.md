@@ -202,6 +202,8 @@ En `/providers/closing` puedes:
 - marcar un periodo como `locked`
 - encolar un `sync job` hacia un target externo mock o manual
 - procesar la entrega del job
+- correr la cola de jobs pendientes por lote
+- chequear jobs `sent` sin resolver uno por uno
 - registrar `acknowledged` o `rejected` cuando el sistema externo responde
 - reintentar un `sync job` fallido
 - marcar un periodo como `exported`
@@ -268,6 +270,7 @@ La vista actual muestra:
 - jobs de sync por periodo
 - un estado visible unico por job
 - referencia externa cuando la entrega fue aceptada
+- historial de intentos por job
 - trazabilidad basica de descarga y sync
 
 Regla clave actual:
@@ -299,9 +302,12 @@ Cuando el periodo ya esta `locked` o `exported`, Serenity tambien permite:
 
 - crear un `export job`
 - ver su estado visible (`queued`, `processing`, `sent`, `acknowledged`, `failed`)
+- correr jobs encolados desde un runner manual por lote
+- chequear estado remoto de jobs `sent`
 - procesar entrega de un job encolado
 - registrar confirmacion o rechazo remoto
 - guardar numero de intentos
+- guardar historial de intentos
 - guardar referencia externa mock
 - registrar error de conector para retry
 

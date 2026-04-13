@@ -1,11 +1,14 @@
 import Link from "next/link";
 import { OrderAuditTimeline } from "@/components/audit/order-audit-timeline";
 import {
+  CheckClosingSyncForm,
+  CheckClosingSyncQueueForm,
   ClosingSyncForm,
   ClosingPeriodStatusForm,
   ProcessClosingSyncForm,
   ResolveClosingSyncForm,
   RetryClosingSyncForm,
+  RunClosingSyncQueueForm,
   VisitExpenseForm,
   VisitSettlementForm
 } from "@/components/providers/closing-forms";
@@ -185,6 +188,10 @@ export default async function ProviderClosingPage({
                 </div>
                 <div className="top-gap">
                   <ClosingSyncForm periodId={selectedPeriod.id} />
+                </div>
+                <div className="inline-actions top-gap">
+                  <RunClosingSyncQueueForm periodId={selectedPeriod.id} />
+                  <CheckClosingSyncQueueForm periodId={selectedPeriod.id} />
                 </div>
               </>
             ) : null}
@@ -376,6 +383,7 @@ export default async function ProviderClosingPage({
                     ) : null}
                     {job.status === "sent" ? (
                       <div className="inline-actions top-gap">
+                        <CheckClosingSyncForm jobId={job.id} />
                         <ResolveClosingSyncForm jobId={job.id} resolution="acknowledged" />
                         <ResolveClosingSyncForm jobId={job.id} resolution="rejected" />
                       </div>
@@ -383,6 +391,27 @@ export default async function ProviderClosingPage({
                     {job.status === "failed" ? (
                       <div className="top-gap">
                         <RetryClosingSyncForm jobId={job.id} />
+                      </div>
+                    ) : null}
+                    {job.attempts.length > 0 ? (
+                      <div className="sequence-list top-gap">
+                        {job.attempts.slice(0, 3).map((attempt) => (
+                          <div className="note-block" key={attempt.id}>
+                            <strong>
+                              {attempt.kind.replaceAll("_", " ")} ·{" "}
+                              {attempt.result.replaceAll("_", " ")}
+                            </strong>
+                            <p>
+                              {formatDateTime(attempt.startedAt)} -{" "}
+                              {formatDateTime(attempt.completedAt)}
+                            </p>
+                            <p>
+                              {attempt.connectorMessage ??
+                                attempt.errorMessage ??
+                                "No attempt message recorded."}
+                            </p>
+                          </div>
+                        ))}
                       </div>
                     ) : null}
                   </div>

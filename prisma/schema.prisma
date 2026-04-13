@@ -101,6 +101,17 @@ enum ExternalSyncStatus {
   REJECTED
 }
 
+enum ExportJobAttemptKind {
+  DELIVERY
+  STATUS_CHECK
+}
+
+enum ExportJobAttemptResult {
+  SENT
+  ACKNOWLEDGED
+  FAILED
+}
+
 enum ExpenseType {
   MILEAGE
   TRAVEL
@@ -433,6 +444,25 @@ model ExportJob {
   createdAt         DateTime        @default(now())
   updatedAt         DateTime        @updatedAt
   closingPeriod     ClosingPeriod   @relation(fields: [closingPeriodId], references: [id])
+  attempts          ExportJobAttempt[]
 
   @@index([closingPeriodId, createdAt])
+}
+
+model ExportJobAttempt {
+  id               String                 @id @default(cuid())
+  exportJobId      String
+  kind             ExportJobAttemptKind
+  result           ExportJobAttemptResult
+  startedAt        DateTime
+  completedAt      DateTime
+  connectorCode    String?
+  connectorMessage String?
+  errorMessage     String?
+  requestPayload   Json?
+  responsePayload  Json?
+  createdAt        DateTime               @default(now())
+  exportJob        ExportJob              @relation(fields: [exportJobId], references: [id])
+
+  @@index([exportJobId, createdAt])
 }

@@ -34,6 +34,9 @@ Hoy Serenity ya soporta:
   - `acknowledged`
   - `failed`
 - numero de intentos por job
+- ejecucion por lote de jobs encolados
+- chequeo remoto separado para jobs `sent`
+- historial de intentos por job
 - referencia externa mock cuando el sync fue exitoso
 - procesamiento de entrega por job
 - confirmacion o rechazo externo simulado
@@ -210,6 +213,16 @@ Cada sync job tambien crea trazabilidad operativa con:
 - `externalReference` cuando existe
 - `error` cuando falla
 
+Cada intento del job ahora tambien puede conservar:
+
+- `kind`
+- `result`
+- `startedAt`
+- `completedAt`
+- `connectorCode`
+- `connectorMessage`
+- `errorMessage`
+
 ## Sync jobs actuales
 
 La base actual de sync trabaja con jobs asociados al `closingPeriod`.
@@ -229,6 +242,7 @@ Cada job guarda:
 - `connectorCode`
 - `connectorMessage`
 - `payload`
+- `attempts[]`
 
 Targets demo actuales:
 
@@ -251,7 +265,7 @@ Esta especificacion actual todavia no cubre:
 
 La siguiente capa sobre esta especificacion deberia incluir:
 
-1. ejecucion asincrona real por job
+1. ejecucion desacoplada por worker, cron o heartbeat
 2. confirmacion remota real del sistema receptor
 3. politicas de retry mas robustas
 4. mensajes de error mas estructurados

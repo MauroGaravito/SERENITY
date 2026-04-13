@@ -211,7 +211,7 @@ No incluye:
 
 Estado actual:
 
-- iniciada con export jobs, ciclo visible simplificado de sync, acuse externo mock y retry
+- iniciada con export jobs, ciclo visible simplificado, runner por lote, chequeo remoto mock y retry
 
 ## Prioridad recomendada
 
@@ -235,11 +235,11 @@ Se puede considerar que Serenity llego al limite usable planeado cuando:
 
 ## Estimacion de avance actual
 
-Estimacion aproximada al 2026-04-12:
+Estimacion aproximada al 2026-04-13:
 
-**79% del alcance objetivo total**
+**84% del alcance objetivo total**
 
-## Como se calcula ese 79%
+## Como se calcula ese 84%
 
 ### Ya bastante avanzado
 
@@ -260,7 +260,7 @@ Estimacion aproximada al 2026-04-12:
 - reglas de exportacion externa
 - formato inicial de export package
 - trazabilidad basica de exportacion
-- sync jobs con estado visible simplificado, acuse externo mock y retry
+- sync jobs con estado visible simplificado, runner por lote, historial de intentos y acuse externo mock
 
 ### Todavia faltante
 
@@ -270,7 +270,7 @@ Estimacion aproximada al 2026-04-12:
 - seed demo optimizado para cierre completo
 
 ## Interpretacion del porcentaje
-El 79% no significa que falte poco.
+El 84% no significa que falte poco.
 
 Significa que:
 

@@ -158,7 +158,7 @@ Ya existe un scaffold tecnico inicial con:
 - rutas por actor (`/centers`, `/providers`, `/carers`),
 - catalogos cerrados iniciales para `service types` y `skills`,
 - workspace inicial de `closing` para periodos, settlements y gastos basicos,
-- capa de sync externa con `export jobs` y ciclo visible `queued -> processing -> sent -> acknowledged/failed`,
+- capa de sync externa con `export jobs`, cola ejecutable por lote, chequeo remoto y ciclo visible `queued -> processing -> sent -> acknowledged/failed`,
 - esquema de dominio inicial en `prisma/schema.prisma`,
 - arquitectura y modelo documentados.
 

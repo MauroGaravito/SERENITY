@@ -3,8 +3,11 @@
 import { useFormStatus } from "react-dom";
 import {
   addVisitExpense,
+  checkClosingPeriodSync,
+  checkClosingPeriodSyncQueue,
   processClosingPeriodSync,
   resolveClosingPeriodSync,
+  runClosingPeriodSyncQueue,
   saveVisitSettlement,
   retryClosingPeriodSync,
   syncClosingPeriodExternally,
@@ -200,6 +203,45 @@ export function ProcessClosingSyncForm({
     <form action={processClosingPeriodSync}>
       <input name="jobId" type="hidden" value={jobId} />
       <PendingButton idleLabel="Process job" pendingLabel="Processing..." />
+    </form>
+  );
+}
+
+export function RunClosingSyncQueueForm({
+  periodId
+}: {
+  periodId: string;
+}) {
+  return (
+    <form action={runClosingPeriodSyncQueue}>
+      <input name="periodId" type="hidden" value={periodId} />
+      <PendingButton idleLabel="Run queued jobs" pendingLabel="Running queue..." />
+    </form>
+  );
+}
+
+export function CheckClosingSyncQueueForm({
+  periodId
+}: {
+  periodId: string;
+}) {
+  return (
+    <form action={checkClosingPeriodSyncQueue}>
+      <input name="periodId" type="hidden" value={periodId} />
+      <PendingButton idleLabel="Check sent jobs" pendingLabel="Checking..." />
+    </form>
+  );
+}
+
+export function CheckClosingSyncForm({
+  jobId
+}: {
+  jobId: string;
+}) {
+  return (
+    <form action={checkClosingPeriodSync}>
+      <input name="jobId" type="hidden" value={jobId} />
+      <PendingButton idleLabel="Check remote status" pendingLabel="Checking..." />
     </form>
   );
 }

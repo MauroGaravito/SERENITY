@@ -15,6 +15,25 @@ export type ConnectorExecutionResult =
       lastError: string;
     };
 
+export type ConnectorStatusCheckResult =
+  | {
+      jobStatus: "acknowledged";
+      connectorCode: string;
+      connectorMessage: string;
+      acknowledgedAt: Date;
+    }
+  | {
+      jobStatus: "sent";
+      connectorCode: string;
+      connectorMessage: string;
+    }
+  | {
+      jobStatus: "failed";
+      connectorCode: string;
+      connectorMessage: string;
+      lastError: string;
+    };
+
 function buildExternalReference(targetSystem: ExportTargetSystem, periodId: string) {
   const suffix = periodId.slice(-6).toUpperCase();
 
@@ -56,5 +75,32 @@ export function executeConnector(
     externalReference: buildExternalReference(targetSystem, payload.closingPeriod.id),
     connectorCode: "PAYLOAD_ACCEPTED",
     connectorMessage: "Payload accepted by connector and awaiting external acknowledgement."
+  };
+}
+
+export function checkConnectorStatus(targetSystem: ExportTargetSystem): ConnectorStatusCheckResult {
+  if (targetSystem === "qa_failure_simulation") {
+    return {
+      jobStatus: "failed",
+      connectorCode: "QA_STATUS_CHECK_FAILED",
+      connectorMessage: "Connector status check returned a simulated remote rejection.",
+      lastError: "Connector status check returned a simulated remote rejection."
+    };
+  }
+
+  if (targetSystem === "manual_handoff") {
+    return {
+      jobStatus: "acknowledged",
+      connectorCode: "MANUAL_ALREADY_ACKNOWLEDGED",
+      connectorMessage: "Manual handoff jobs are considered acknowledged once reviewed.",
+      acknowledgedAt: new Date()
+    };
+  }
+
+  return {
+    jobStatus: "acknowledged",
+    connectorCode: "PAYLOAD_ACKNOWLEDGED",
+    connectorMessage: "Remote payroll gateway acknowledged the payload after status check.",
+    acknowledgedAt: new Date()
   };
 }

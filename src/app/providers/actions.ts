@@ -21,8 +21,11 @@ import {
 import { logAuditEvent } from "@/lib/audit";
 import {
   acknowledgeClosingExportJob,
+  checkClosingExportJobStatus,
   createClosingExportJob,
   processClosingExportJob,
+  runQueuedClosingExportJobs,
+  runSentClosingExportChecks,
   retryClosingExportJob,
   syncServiceOrderStatus,
   toPrismaReviewOutcome,
@@ -135,6 +138,7 @@ async function getScopedExportJob(jobId: string, providerId: string) {
       id: true,
       targetSystem: true,
       status: true,
+      externalStatus: true,
       closingPeriodId: true,
       closingPeriod: {
         select: {
@@ -823,6 +827,64 @@ export async function processClosingPeriodSync(formData: FormData) {
   revalidateProviderPaths(`/providers/closing?period=${job.closingPeriodId}`);
 }
 
+export async function runClosingPeriodSyncQueue(formData: FormData) {
+  const session = await requireProviderSession();
+  const periodId = requiredString(formData.get("periodId"), "periodId");
+  const period = await getScopedClosingPeriod(periodId, session.organizationId);
+
+  if (!period) {
+    throw new Error("Closing period not found for this provider.");
+  }
+
+  const result = await runQueuedClosingExportJobs(session.organizationId, period.id);
+
+  await logAuditEvent({
+    organizationId: session.organizationId,
+    actorUserId: session.userId,
+    type: AuditEventType.ORDER_UPDATED,
+    summary: `Sync runner processed ${result.processedCount} queued jobs for ${period.label}.`,
+    payload: {
+      scope: "closing_sync_runner",
+      periodId: period.id,
+      processedCount: result.processedCount,
+      acknowledgedCount: result.acknowledgedCount,
+      sentCount: result.sentCount,
+      failedCount: result.failedCount
+    }
+  });
+
+  revalidateProviderPaths(`/providers/closing?period=${period.id}`);
+}
+
+export async function checkClosingPeriodSyncQueue(formData: FormData) {
+  const session = await requireProviderSession();
+  const periodId = requiredString(formData.get("periodId"), "periodId");
+  const period = await getScopedClosingPeriod(periodId, session.organizationId);
+
+  if (!period) {
+    throw new Error("Closing period not found for this provider.");
+  }
+
+  const result = await runSentClosingExportChecks(session.organizationId, period.id);
+
+  await logAuditEvent({
+    organizationId: session.organizationId,
+    actorUserId: session.userId,
+    type: AuditEventType.ORDER_UPDATED,
+    summary: `Sync status check ran for ${result.checkedCount} sent jobs in ${period.label}.`,
+    payload: {
+      scope: "closing_sync_status_runner",
+      periodId: period.id,
+      checkedCount: result.checkedCount,
+      acknowledgedCount: result.acknowledgedCount,
+      failedCount: result.failedCount,
+      stillPendingCount: result.stillPendingCount
+    }
+  });
+
+  revalidateProviderPaths(`/providers/closing?period=${period.id}`);
+}
+
 export async function retryClosingPeriodSync(formData: FormData) {
   const session = await requireProviderSession();
   const jobId = requiredString(formData.get("jobId"), "jobId");
@@ -880,6 +942,41 @@ export async function resolveClosingPeriodSync(formData: FormData) {
         : `Remote rejection received for ${job.closingPeriod.label}.`,
     payload: {
       scope: "closing_sync_acknowledgement",
+      periodId: job.closingPeriodId,
+      jobId: job.id,
+      targetSystem: job.targetSystem,
+      status: getVisibleExportJobStatus(updatedJob.status, updatedJob.externalStatus),
+      externalReference: updatedJob.externalReference ?? null,
+      error: updatedJob.lastError ?? null
+    }
+  });
+
+  revalidateProviderPaths(`/providers/closing?period=${job.closingPeriodId}`);
+}
+
+export async function checkClosingPeriodSync(formData: FormData) {
+  const session = await requireProviderSession();
+  const jobId = requiredString(formData.get("jobId"), "jobId");
+  const job = await getScopedExportJob(jobId, session.organizationId);
+
+  if (!job) {
+    throw new Error("Export job not found for this provider.");
+  }
+
+  const updatedJob = await checkClosingExportJobStatus(job.id, session.organizationId);
+
+  await logAuditEvent({
+    organizationId: session.organizationId,
+    actorUserId: session.userId,
+    type: AuditEventType.ORDER_UPDATED,
+    summary:
+      getVisibleExportJobStatus(updatedJob.status, updatedJob.externalStatus) === "acknowledged"
+        ? `Remote status check acknowledged ${job.closingPeriod.label}.`
+        : getVisibleExportJobStatus(updatedJob.status, updatedJob.externalStatus) === "failed"
+          ? `Remote status check failed for ${job.closingPeriod.label}.`
+          : `Remote status check kept ${job.closingPeriod.label} in flight.`,
+    payload: {
+      scope: "closing_sync_status_check",
       periodId: job.closingPeriodId,
       jobId: job.id,
       targetSystem: job.targetSystem,
