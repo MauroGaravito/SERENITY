@@ -85,10 +85,15 @@ async function getScopedVisit(visitId: string, providerId: string) {
     },
     select: {
       id: true,
+      status: true,
+      assignedCarerId: true,
+      exceptionReason: true,
       serviceOrderId: true,
       serviceOrder: {
         select: {
-          providerId: true
+          providerId: true,
+          code: true,
+          coordinatorNotes: true
         }
       }
     }
@@ -222,6 +227,88 @@ export async function assignCarerToVisit({
 
   await syncServiceOrderStatus(visit.serviceOrderId);
   revalidateProviderPaths(path);
+}
+
+export async function requestVisitReplacement({
+  visitId,
+  path,
+  reason
+}: ProviderMutationInput & { reason?: string }) {
+  const session = await requireProviderSession();
+  const providerId = session.organizationId;
+  const visit = await getScopedVisit(visitId, providerId);
+
+  if (!visit) {
+    throw new Error("Visit not found for this provider.");
+  }
+
+  await prisma.visit.update({
+    where: { id: visit.id },
+    data: {
+      assignedCarerId: null,
+      status: PrismaVisitStatus.SCHEDULED,
+      exceptionReason: reason ?? "Replacement coverage required."
+    }
+  });
+
+  await logAuditEvent({
+    organizationId: providerId,
+    actorUserId: session.userId,
+    serviceOrderId: visit.serviceOrderId,
+    visitId: visit.id,
+    type: AuditEventType.ORDER_UPDATED,
+    summary: `Replacement requested for ${visit.serviceOrder.code}.`,
+    payload: {
+      scope: "replacement_requested",
+      previousStatus: visit.status.toLowerCase(),
+      reason: reason ?? null
+    }
+  });
+
+  await syncServiceOrderStatus(visit.serviceOrderId);
+  revalidateProviderPaths(path);
+}
+
+export async function logOperationalEscalation(formData: FormData) {
+  const session = await requireProviderSession();
+  const orderId = requiredString(formData.get("orderId"), "orderId");
+  const severity = requiredString(formData.get("severity"), "severity");
+  const reason = requiredString(formData.get("reason"), "reason");
+  const path = optionalString(formData.get("path"));
+  const order = await getScopedOrder(orderId, session.organizationId);
+
+  if (!order) {
+    throw new Error("Order not found for this provider.");
+  }
+
+  const currentOrder = await prisma.serviceOrder.findUnique({
+    where: { id: order.id },
+    select: { coordinatorNotes: true }
+  });
+
+  const escalationLine = `Escalation (${severity.toUpperCase()}): ${reason}`;
+
+  await prisma.serviceOrder.update({
+    where: { id: order.id },
+    data: {
+      coordinatorNotes: [currentOrder?.coordinatorNotes, escalationLine].filter(Boolean).join("\n")
+    }
+  });
+
+  await logAuditEvent({
+    organizationId: session.organizationId,
+    actorUserId: session.userId,
+    serviceOrderId: order.id,
+    type: AuditEventType.ORDER_UPDATED,
+    summary: `Operational escalation logged for ${order.code}.`,
+    payload: {
+      scope: "operational_escalation",
+      severity,
+      reason
+    }
+  });
+
+  revalidateProviderPaths(path ?? `/providers/orders/${order.id}`);
 }
 
 export async function updateVisitStatus({

@@ -135,14 +135,90 @@ function getChecklistCompletion(items: ReturnType<typeof getChecklistItems>) {
   return Math.round((completedItems / items.length) * 100);
 }
 
+function getReadinessStatus(record: CarerWorkspaceRow): CarerWorkspaceRecord["readinessStatus"] {
+  const hasExpiredCredential = record.credentials.some(
+    (credential) => credential.status === CredentialStatus.EXPIRED
+  );
+  const hasExpiringCredential = record.credentials.some((credential) => {
+    const daysToExpiry = getDaysToExpiry(credential.expiresAt);
+    return typeof daysToExpiry === "number" && daysToExpiry >= 0 && daysToExpiry <= 45;
+  });
+
+  if (hasExpiredCredential) {
+    return "restricted";
+  }
+
+  if (hasExpiringCredential || record.availabilityBlocks.length === 0) {
+    return "attention_needed";
+  }
+
+  return "ready";
+}
+
+function getWorkspaceAlerts(record: CarerWorkspaceRow): CarerWorkspaceRecord["alerts"] {
+  const alerts: CarerWorkspaceRecord["alerts"] = [];
+
+  for (const credential of record.credentials) {
+    const daysToExpiry = getDaysToExpiry(credential.expiresAt);
+
+    if (credential.status === CredentialStatus.EXPIRED) {
+      alerts.push({
+        id: `credential-expired-${credential.id}`,
+        tone: "critical",
+        title: `${credential.name} expired`,
+        detail: "This credential is currently blocking some assignments."
+      });
+      continue;
+    }
+
+    if (typeof daysToExpiry === "number" && daysToExpiry >= 0 && daysToExpiry <= 45) {
+      alerts.push({
+        id: `credential-expiring-${credential.id}`,
+        tone: "warning",
+        title: `${credential.name} expires soon`,
+        detail: `${daysToExpiry} days remaining before operational eligibility is affected.`
+      });
+    }
+  }
+
+  if (record.availabilityBlocks.length === 0) {
+    alerts.push({
+      id: "availability-missing",
+      tone: "warning",
+      title: "No availability blocks recorded",
+      detail: "Provider matching is weaker until working blocks are declared."
+    });
+  }
+
+  if (record.visits.some((visit) => visit.status === PrismaVisitStatus.CONFIRMED)) {
+    alerts.push({
+      id: "confirmed-visit-ready",
+      tone: "neutral",
+      title: "Confirmed visit ready to start",
+      detail: "You already have at least one visit that can move into field execution."
+    });
+  }
+
+  return alerts;
+}
+
 function mapWorkspace(record: CarerWorkspaceRow): CarerWorkspaceRecord {
+  const readinessStatus = getReadinessStatus(record);
+  const alerts = getWorkspaceAlerts(record);
+  const opportunityLimits = alerts
+    .filter((alert) => alert.tone !== "neutral")
+    .map((alert) => alert.title);
+
   return {
     carerId: record.id,
     carerName: `${record.firstName} ${record.lastName}`,
     availability: record.availabilityNote ?? "Availability to be confirmed",
+    readinessStatus,
     verifiedSkills: record.credentials
       .filter((credential) => credential.status === CredentialStatus.VALID)
       .map((credential) => credential.name),
+    opportunityLimits,
+    alerts,
     credentials: record.credentials.map((credential) => {
       const daysToExpiry = getDaysToExpiry(credential.expiresAt);
 

@@ -526,6 +526,17 @@ async function main() {
     }
   });
 
+  await prisma.visit.create({
+    data: {
+      serviceOrderId: orderOne.id,
+      assignedCarerId: sofia.id,
+      status: VisitStatus.CANCELLED,
+      scheduledStart: new Date("2026-04-15T20:00:00.000Z"),
+      scheduledEnd: new Date("2026-04-15T22:00:00.000Z"),
+      exceptionReason: "Carer illness reported. Replacement decision pending."
+    }
+  });
+
   const visitThree = await prisma.visit.create({
     data: {
       serviceOrderId: orderTwo.id,
@@ -559,6 +570,17 @@ async function main() {
       scheduledStart: new Date("2026-04-05T10:00:00.000Z"),
       scheduledEnd: new Date("2026-04-05T20:00:00.000Z"),
       exceptionReason: "Not assigned yet."
+    }
+  });
+
+  await prisma.visit.create({
+    data: {
+      serviceOrderId: orderThree.id,
+      assignedCarerId: grace.id,
+      status: VisitStatus.NO_SHOW,
+      scheduledStart: new Date("2026-04-12T06:00:00.000Z"),
+      scheduledEnd: new Date("2026-04-12T09:00:00.000Z"),
+      exceptionReason: "Assigned carer did not arrive. Escalation and replacement needed."
     }
   });
 
@@ -883,7 +905,7 @@ async function main() {
     reviewer: reviewer.fullName,
     demoPassword: DEMO_PASSWORD,
     orders: 3,
-    visits: 5
+    visits: 7
   });
 }
 

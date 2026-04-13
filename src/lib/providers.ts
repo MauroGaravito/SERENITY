@@ -36,12 +36,21 @@ export type ExportTargetSystem =
   | "mock_payroll_gateway"
   | "qa_failure_simulation";
 
+export type CoverageStatus =
+  | "covered"
+  | "at_risk"
+  | "uncovered"
+  | "needs_replacement";
+
 export type CarerOption = {
   id: string;
   name: string;
   credentials: string[];
   availability: string;
   rating: number;
+  isEligible: boolean;
+  availabilityMatch: boolean;
+  eligibilityReasons: string[];
 };
 
 export type VisitReview = {
@@ -64,6 +73,7 @@ export type VisitRecord = {
   scheduledStart: string;
   scheduledEnd: string;
   status: VisitStatus;
+  coverageStatus: CoverageStatus;
   assignedCarerId?: string;
   assignedCarerName?: string;
   checklistCompletion: number;
@@ -88,6 +98,9 @@ export type ServiceOrderRecord = {
   frequency: string;
   plannedDurationMin: number;
   coverageRisk: "stable" | "warning" | "critical";
+  coverageStatus: CoverageStatus;
+  pendingAction: string;
+  escalationSummary?: string;
   instructions: string;
   notesForCoordinator: string;
   visits: VisitRecord[];
@@ -132,6 +145,20 @@ export type ClosingVisitRecord = {
   expenses: ExpenseRecord[];
 };
 
+export type ClosingExcludedVisitRecord = {
+  id: string;
+  orderCode: string;
+  orderTitle: string;
+  recipientName: string;
+  serviceType: string;
+  carerName?: string;
+  status: VisitStatus;
+  scheduledStart: string;
+  scheduledEnd: string;
+  exclusionReason: string;
+  nextStep: string;
+};
+
 export type ClosingPeriodRecord = {
   id: string;
   label: string;
@@ -142,6 +169,7 @@ export type ClosingPeriodRecord = {
   approvedVisitsCount: number;
   settledVisitsCount: number;
   unsettledVisitsCount: number;
+  excludedVisitsCount: number;
   approvedMinutesTotal: number;
   billableCentsTotal: number;
   payableCentsTotal: number;
@@ -178,6 +206,7 @@ export type ClosingPeriodRecord = {
     }>;
   }>;
   visits: ClosingVisitRecord[];
+  excludedVisits: ClosingExcludedVisitRecord[];
 };
 
 export type ClosingWorkspaceRecord = {
@@ -279,12 +308,18 @@ export function getStatusTone(
     | ReviewOutcome
     | ClosingPeriodStatus
     | ExportJobLifecycleStatus
+    | CoverageStatus
+    | "ready"
+    | "restricted"
+    | "attention_needed"
 ) {
   switch (status) {
     case "approved":
     case "closed":
     case "exported":
     case "acknowledged":
+    case "covered":
+    case "ready":
       return "positive";
     case "under_review":
     case "partially_assigned":
@@ -293,11 +328,16 @@ export function getStatusTone(
     case "queued":
     case "processing":
     case "sent":
+    case "at_risk":
+    case "attention_needed":
       return "warning";
     case "rejected":
     case "cancelled":
     case "no_show":
     case "failed":
+    case "uncovered":
+    case "needs_replacement":
+    case "restricted":
       return "critical";
     default:
       return "neutral";

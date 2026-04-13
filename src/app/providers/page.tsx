@@ -2,16 +2,21 @@
 import { ProviderShell } from "@/components/providers/provider-shell";
 import { StatusBadge } from "@/components/providers/status-badge";
 import { PROVIDER_ROLES, requireOrganizationUser } from "@/lib/auth";
-import { getProviderMetrics, listProviderOrders } from "@/lib/providers-data";
+import {
+  getProviderMetrics,
+  listProviderActionQueue,
+  listProviderOrders
+} from "@/lib/providers-data";
 
 export const dynamic = "force-dynamic";
 
 export default async function ProvidersPage() {
   const session = await requireOrganizationUser(PROVIDER_ROLES);
   const providerId = session.organizationId;
-  const [metrics, orders] = await Promise.all([
+  const [metrics, orders, actionQueue] = await Promise.all([
     getProviderMetrics(providerId),
-    listProviderOrders(providerId)
+    listProviderOrders(providerId),
+    listProviderActionQueue(providerId)
   ]);
 
   return (
@@ -44,19 +49,21 @@ export default async function ProvidersPage() {
           <div className="order-rows">
             {orders.map((order) => (
               <Link className="order-row" href={`/providers/orders/${order.id}`} key={order.id}>
-                <div>
-                  <strong>
-                    {order.code} · {order.title}
-                  </strong>
-                  <p>
-                    {order.centerName} · {order.facilityName}
-                  </p>
-                </div>
-                <div className="order-row-meta">
-                  <StatusBadge value={order.status} />
-                  <span className={`risk-pill risk-${order.coverageRisk}`}>
-                    {order.coverageRisk} risk
-                  </span>
+              <div>
+                <strong>
+                  {order.code} · {order.title}
+                </strong>
+                <p>
+                  {order.centerName} · {order.facilityName}
+                </p>
+                <p>{order.pendingAction}</p>
+              </div>
+              <div className="order-row-meta">
+                <StatusBadge value={order.status} />
+                <StatusBadge value={order.coverageStatus} />
+                <span className={`risk-pill risk-${order.coverageRisk}`}>
+                  {order.coverageRisk} risk
+                </span>
                 </div>
               </Link>
             ))}
@@ -71,18 +78,17 @@ export default async function ProvidersPage() {
             </div>
           </div>
           <div className="sequence-list">
-            <div>
-              <strong>1. Review transport escort visit</strong>
-              <p>Move under-review visits to a final decision before closure.</p>
-            </div>
-            <div>
-              <strong>2. Assign uncovered visits</strong>
-              <p>Any visit without a carer is a direct coverage risk for operations.</p>
-            </div>
-            <div>
-              <strong>3. Escalate critical overnight coverage</strong>
-              <p>Critical orders should never sit open without assignment strategy.</p>
-            </div>
+            {actionQueue.map((item, index) => (
+              <div key={item.id}>
+                <strong>
+                  {index + 1}. {item.code} · {item.title}
+                </strong>
+                <p>{item.pendingAction}</p>
+                <p>
+                  {item.nextVisitLabel} · {item.coverageStatus.replaceAll("_", " ")}
+                </p>
+              </div>
+            ))}
           </div>
         </article>
       </section>

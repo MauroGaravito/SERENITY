@@ -132,7 +132,15 @@ const providerOrderInclude = {
         where: { isActive: true },
         include: {
           credentials: {
-            where: { status: CredentialStatus.VALID }
+            orderBy: [{ status: "asc" }, { expiresAt: "asc" }, { name: "asc" }]
+          },
+          availabilityBlocks: {
+            where: {
+              endsAt: {
+                gte: new Date(Date.now() - 1000 * 60 * 60 * 24)
+              }
+            },
+            orderBy: [{ startsAt: "asc" }]
           }
         },
         orderBy: [{ rating: "desc" }, { lastName: "asc" }]
@@ -238,47 +246,171 @@ function isVisitInsidePeriod(
 }
 
 function deriveCoverageRisk(order: ProviderOrderRow): ServiceOrderRecord["coverageRisk"] {
-  const hasUnassignedVisit = order.visits.some((visit) => !visit.assignedCarerId);
-  const hasReviewBlocker = order.visits.some(
-    (visit) =>
-      visit.status === PrismaVisitStatus.UNDER_REVIEW ||
-      visit.status === PrismaVisitStatus.REJECTED
-  );
+  const coverageStatus = deriveOrderCoverageStatus(order);
 
-  if (order.priority === "CRITICAL" || hasUnassignedVisit) {
-    return order.priority === "CRITICAL" ? "critical" : "warning";
+  if (
+    order.priority === "CRITICAL" ||
+    coverageStatus === "needs_replacement" ||
+    coverageStatus === "uncovered"
+  ) {
+    return "critical";
   }
 
-  if (hasReviewBlocker) {
+  if (
+    coverageStatus === "at_risk" ||
+    order.visits.some(
+      (visit) =>
+        visit.status === PrismaVisitStatus.UNDER_REVIEW ||
+        visit.status === PrismaVisitStatus.REJECTED
+    )
+  ) {
     return "warning";
   }
 
   return "stable";
 }
 
+function hasAvailabilityCoverage(
+  blocks: Array<{ startsAt: Date; endsAt: Date; isWorking: boolean }>,
+  visit: { scheduledStart: Date; scheduledEnd: Date }
+) {
+  const workingBlocks = blocks.filter((block) => block.isWorking);
+
+  if (workingBlocks.length === 0) {
+    return true;
+  }
+
+  return workingBlocks.some(
+    (block) => block.startsAt <= visit.scheduledStart && block.endsAt >= visit.scheduledEnd
+  );
+}
+
+function deriveVisitCoverageStatus(
+  visit: ProviderOrderRow["visits"][number]
+): ServiceOrderRecord["visits"][number]["coverageStatus"] {
+  if (
+    visit.status === PrismaVisitStatus.NO_SHOW ||
+    (visit.status === PrismaVisitStatus.CANCELLED && Boolean(visit.assignedCarerId))
+  ) {
+    return "needs_replacement";
+  }
+
+  if (!visit.assignedCarerId) {
+    const hoursToVisit = (visit.scheduledStart.getTime() - Date.now()) / (1000 * 60 * 60);
+    return hoursToVisit <= 24 ? "needs_replacement" : "uncovered";
+  }
+
+  if (
+    visit.status === PrismaVisitStatus.UNDER_REVIEW ||
+    visit.status === PrismaVisitStatus.REJECTED ||
+    visit.status === PrismaVisitStatus.COMPLETED
+  ) {
+    return "at_risk";
+  }
+
+  return "covered";
+}
+
+function deriveOrderCoverageStatus(order: ProviderOrderRow): ServiceOrderRecord["coverageStatus"] {
+  const visitStatuses = order.visits.map(deriveVisitCoverageStatus);
+
+  if (visitStatuses.includes("needs_replacement")) {
+    return "needs_replacement";
+  }
+
+  if (visitStatuses.includes("uncovered")) {
+    return "uncovered";
+  }
+
+  if (visitStatuses.includes("at_risk")) {
+    return "at_risk";
+  }
+
+  return "covered";
+}
+
+function derivePendingAction(order: ProviderOrderRow) {
+  const visits = order.visits;
+
+  if (visits.some((visit) => deriveVisitCoverageStatus(visit) === "needs_replacement")) {
+    return "Replacement coverage must be coordinated now.";
+  }
+
+  if (visits.some((visit) => !visit.assignedCarerId)) {
+    return "Assign the uncovered visit before the next service window.";
+  }
+
+  if (visits.some((visit) => visit.status === PrismaVisitStatus.UNDER_REVIEW)) {
+    return "Move under-review visits to a final decision before closing.";
+  }
+
+  if (visits.some((visit) => visit.status === PrismaVisitStatus.COMPLETED)) {
+    return "Push completed visits into review so they can be approved.";
+  }
+
+  return "Monitor execution and keep the order ready for closing.";
+}
+
+function getCredentialReason(
+  credentials: Array<{ name: string; status: CredentialStatus }>,
+  skill: string
+) {
+  const matching = credentials.filter(
+    (credential) => credential.name.toLowerCase() === skill.toLowerCase()
+  );
+
+  if (matching.some((credential) => credential.status === CredentialStatus.EXPIRED)) {
+    return `Expired credential for ${skill}`;
+  }
+
+  if (matching.some((credential) => credential.status === CredentialStatus.PENDING)) {
+    return `Pending verification for ${skill}`;
+  }
+
+  if (matching.some((credential) => credential.status === CredentialStatus.REJECTED)) {
+    return `Rejected credential for ${skill}`;
+  }
+
+  return `Missing skill ${skill}`;
+}
+
 function mapOrder(order: ProviderOrderRow): ServiceOrderRecord {
   const requiredSkills = order.requiredSkills;
   const requiredLanguage = order.requiredLanguage?.toLowerCase();
-  const eligibleCarers = order.provider.carers
-    .filter((carer) => {
-      const credentialNames = carer.credentials.map((credential) => credential.name.toLowerCase());
-      const matchesSkills = requiredSkills.every((skill) =>
-        credentialNames.includes(skill.toLowerCase())
-      );
-      const matchesLanguage =
-        !requiredLanguage ||
-        !carer.primaryLanguage ||
-        carer.primaryLanguage.toLowerCase() === requiredLanguage;
+  const primaryVisit = order.visits.find((visit) => !visit.assignedCarerId) ?? order.visits[0];
+  const eligibleCarers = order.provider.carers.map((carer) => {
+    const validCredentials = carer.credentials.filter(
+      (credential) => credential.status === CredentialStatus.VALID
+    );
+    const credentialNames = validCredentials.map((credential) => credential.name.toLowerCase());
+    const missingSkills = requiredSkills.filter(
+      (skill) => !credentialNames.includes(skill.toLowerCase())
+    );
+    const availabilityMatch = primaryVisit
+      ? hasAvailabilityCoverage(carer.availabilityBlocks, primaryVisit)
+      : true;
+    const matchesLanguage =
+      !requiredLanguage ||
+      !carer.primaryLanguage ||
+      carer.primaryLanguage.toLowerCase() === requiredLanguage;
+    const eligibilityReasons = [
+      ...missingSkills.map((skill) => getCredentialReason(carer.credentials, skill)),
+      ...(availabilityMatch ? [] : ["No availability block covering the visit window"]),
+      ...(matchesLanguage ? [] : [`Language mismatch for ${order.requiredLanguage}`])
+    ];
 
-      return matchesSkills && matchesLanguage;
-    })
-    .map((carer) => ({
+    return {
       id: carer.id,
       name: `${carer.firstName} ${carer.lastName}`,
-      credentials: carer.credentials.map((credential) => credential.name),
+      credentials: validCredentials.map((credential) => credential.name),
       availability: carer.availabilityNote ?? "Availability to be confirmed",
-      rating: carer.rating
-    }));
+      rating: carer.rating,
+      isEligible: eligibilityReasons.length === 0,
+      availabilityMatch,
+      eligibilityReasons
+    };
+  });
+  const coverageStatus = deriveOrderCoverageStatus(order);
 
   return {
     id: order.id,
@@ -295,6 +427,12 @@ function mapOrder(order: ProviderOrderRow): ServiceOrderRecord {
     frequency: order.recurrenceRule ?? "One-off order",
     plannedDurationMin: order.plannedDurationMin,
     coverageRisk: deriveCoverageRisk(order),
+    coverageStatus,
+    pendingAction: derivePendingAction(order),
+    escalationSummary:
+      order.coordinatorNotes?.includes("Escalation") || order.priority === "CRITICAL"
+        ? order.coordinatorNotes ?? "Critical order requiring escalation."
+        : undefined,
     instructions: order.instructions ?? "No operating instructions yet.",
     notesForCoordinator: order.coordinatorNotes ?? "No coordinator notes yet.",
     eligibleCarers,
@@ -308,6 +446,7 @@ function mapOrder(order: ProviderOrderRow): ServiceOrderRecord {
       scheduledStart: visit.scheduledStart.toISOString(),
       scheduledEnd: visit.scheduledEnd.toISOString(),
       status: toLowerSnake(visit.status) as ServiceOrderRecord["visits"][number]["status"],
+      coverageStatus: deriveVisitCoverageStatus(visit),
       assignedCarerId: visit.assignedCarerId ?? undefined,
       assignedCarerName: visit.assignedCarer
         ? `${visit.assignedCarer.firstName} ${visit.assignedCarer.lastName}`
@@ -365,6 +504,9 @@ export async function getProviderMetrics(providerId: string): Promise<ProviderMe
   const approved = visits.filter((visit) => visit.status === "approved").length;
   const underReview = visits.filter((visit) => visit.status === "under_review").length;
   const unassigned = visits.filter((visit) => !visit.assignedCarerId).length;
+  const replacementNeeded = visits.filter(
+    (visit) => visit.coverageStatus === "needs_replacement"
+  ).length;
   const criticalOrders = orders.filter((order) => order.coverageRisk === "critical").length;
 
   return [
@@ -381,10 +523,10 @@ export async function getProviderMetrics(providerId: string): Promise<ProviderMe
       detail: "Need approval before closure"
     },
     {
-      label: "Unassigned visits",
+      label: "Coverage gaps",
       value: String(unassigned),
       tone: unassigned > 0 ? "critical" : "neutral",
-      detail: "Open risk in the next operational window"
+      detail: "Visits still waiting for a confirmed carer"
     },
     {
       label: "Approved visits",
@@ -393,12 +535,38 @@ export async function getProviderMetrics(providerId: string): Promise<ProviderMe
       detail: "Already ready for closing period"
     },
     {
+      label: "Replacement required",
+      value: String(replacementNeeded),
+      tone: replacementNeeded > 0 ? "critical" : "positive",
+      detail: "Assigned coverage broke and needs reassignment"
+    },
+    {
       label: "Critical coverage",
       value: String(criticalOrders),
       tone: criticalOrders > 0 ? "critical" : "positive",
       detail: "Orders needing escalation now"
     }
   ];
+}
+
+export async function listProviderActionQueue(providerId: string) {
+  const orders = await listProviderOrders(providerId);
+
+  return orders
+    .map((order) => ({
+      id: order.id,
+      code: order.code,
+      title: order.title,
+      coverageStatus: order.coverageStatus,
+      coverageRisk: order.coverageRisk,
+      pendingAction: order.pendingAction,
+      nextVisitLabel: order.visits[0]?.label ?? "No visits scheduled"
+    }))
+    .sort((left, right) => {
+      const riskWeight = { critical: 0, warning: 1, stable: 2 };
+      return riskWeight[left.coverageRisk] - riskWeight[right.coverageRisk];
+    })
+    .slice(0, 4);
 }
 
 function mapClosingPeriod(
@@ -420,6 +588,19 @@ function mapClosingPeriod(
       evidenceUrl: string | null;
       createdAt: Date;
     }>;
+    serviceOrder: {
+      code: string;
+      title: string;
+      recipient: { firstName: string; lastName: string };
+      serviceType: { name: string };
+    };
+  }>,
+  periodVisits: Array<{
+    id: string;
+    scheduledStart: Date;
+    scheduledEnd: Date;
+    status: PrismaVisitStatus;
+    assignedCarer: { firstName: string; lastName: string } | null;
     serviceOrder: {
       code: string;
       title: string;
@@ -502,6 +683,46 @@ function mapClosingPeriod(
         }))
       };
     });
+  const excludedVisits = periodVisits
+    .filter((visit) => visit.status !== PrismaVisitStatus.APPROVED)
+    .filter((visit) => isVisitInsidePeriod(visit, period))
+    .map((visit) => ({
+      id: visit.id,
+      orderCode: visit.serviceOrder.code,
+      orderTitle: visit.serviceOrder.title,
+      recipientName: `${visit.serviceOrder.recipient.firstName} ${visit.serviceOrder.recipient.lastName}`,
+      serviceType: visit.serviceOrder.serviceType.name,
+      carerName: visit.assignedCarer
+        ? `${visit.assignedCarer.firstName} ${visit.assignedCarer.lastName}`
+        : undefined,
+      status: toLowerSnake(visit.status) as ClosingWorkspaceRecord["periods"][number]["excludedVisits"][number]["status"],
+      scheduledStart: visit.scheduledStart.toISOString(),
+      scheduledEnd: visit.scheduledEnd.toISOString(),
+      exclusionReason:
+        visit.status === PrismaVisitStatus.UNDER_REVIEW
+          ? "Review is still pending, so the visit cannot enter settlement yet."
+          : visit.status === PrismaVisitStatus.REJECTED
+            ? "The visit was rejected and must be corrected before it can be settled."
+            : visit.status === PrismaVisitStatus.CANCELLED
+              ? "Cancelled visits do not move into settlement."
+              : visit.status === PrismaVisitStatus.NO_SHOW
+                ? "No-show visits require operational handling, not settlement."
+                : visit.status === PrismaVisitStatus.COMPLETED
+                  ? "Completed visits still need to be submitted and approved."
+                  : "This visit is not yet in an approvable state for settlement.",
+      nextStep:
+        visit.status === PrismaVisitStatus.UNDER_REVIEW
+          ? "Reviewer must approve or reject the visit."
+          : visit.status === PrismaVisitStatus.REJECTED
+            ? "Coordinator should rework evidence or service execution before resubmitting."
+            : visit.status === PrismaVisitStatus.CANCELLED
+              ? "Leave it out of the period and manage replacement or cancellation follow-up."
+              : visit.status === PrismaVisitStatus.NO_SHOW
+                ? "Log replacement or escalation instead of settling it."
+                : visit.status === PrismaVisitStatus.COMPLETED
+                  ? "Move the visit to under review so it can be approved."
+                  : "Advance the visit through the operational workflow first."
+    }));
 
   const settledVisitsCount = visits.filter((visit) => Boolean(visit.settlementId)).length;
   const unsettledVisitsCount = visits.length - settledVisitsCount;
@@ -530,6 +751,7 @@ function mapClosingPeriod(
     approvedVisitsCount: visits.length,
     settledVisitsCount,
     unsettledVisitsCount,
+    excludedVisitsCount: excludedVisits.length,
     approvedMinutesTotal,
     billableCentsTotal,
     payableCentsTotal,
@@ -538,7 +760,8 @@ function mapClosingPeriod(
       ? latestSuccessfulExport.completedAt.toISOString()
       : undefined,
     exportJobs,
-    visits
+    visits,
+    excludedVisits
   };
 }
 
@@ -547,7 +770,7 @@ export async function getProviderClosingWorkspace(
 ): Promise<ClosingWorkspaceRecord> {
   noStore();
 
-  const [periods, approvedVisits] = await Promise.all([
+  const [periods, approvedVisits, periodVisits] = await Promise.all([
     prisma.closingPeriod.findMany({
       where: { providerId },
       include: closingPeriodInclude,
@@ -571,10 +794,27 @@ export async function getProviderClosingWorkspace(
         }
       },
       orderBy: { scheduledStart: "desc" }
+    }),
+    prisma.visit.findMany({
+      where: {
+        serviceOrder: { providerId }
+      },
+      include: {
+        assignedCarer: true,
+        serviceOrder: {
+          include: {
+            recipient: true,
+            serviceType: true
+          }
+        }
+      },
+      orderBy: { scheduledStart: "desc" }
     })
   ]);
 
-  const mappedPeriods = periods.map((period) => mapClosingPeriod(period, approvedVisits));
+  const mappedPeriods = periods.map((period) =>
+    mapClosingPeriod(period, approvedVisits, periodVisits)
+  );
 
   return {
     periods: mappedPeriods,

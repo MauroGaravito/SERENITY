@@ -147,7 +147,7 @@ Incluye:
 
 Estado actual:
 
-- iniciada en base operativa
+- avanzada con disponibilidad, credenciales, readiness y alertas visibles
 
 Dependencia:
 
@@ -169,7 +169,7 @@ Incluye:
 
 Estado actual:
 
-- parcialmente iniciado de forma simple
+- avanzado con cobertura visible, reemplazos manuales, escalamiento operativo y matching explicable
 
 ### Fase D. Operational Closure
 
@@ -237,7 +237,7 @@ Se puede considerar que Serenity llego al limite usable planeado cuando:
 
 Estimacion aproximada al 2026-04-13:
 
-**88% del alcance objetivo total**
+**92% del alcance objetivo total**
 
 ## Como se calcula ese 88%
 
@@ -252,12 +252,24 @@ Estimacion aproximada al 2026-04-13:
 - base de Fase 2 del carer
 - auditoria
 - workspace inicial de cierre operativo
+- control de cobertura y reemplazos
+- readiness operativa del carer
+- excepciones visibles en demo
+- cierre operativo con exclusiones de settlement visibles
 
 ### Parcialmente avanzado
 
 - matching
 - carer execution flow como demo
 - reglas de exportacion externa
+
+## Siguiente paso recomendado
+
+Antes de volver a la capa de integracion externa, conviene cerrar la validacion operativa:
+
+1. levantar Postgres local y volver a correr `db:seed`
+2. recorrer provider y carer con la nueva demo
+3. pulir `closing` para dejar mas claro que queda fuera de settlement por excepcion
 - formato inicial de export package
 - trazabilidad basica de exportacion
 - sync jobs con estado visible simplificado, runner programable, historial de intentos y acuse externo mock

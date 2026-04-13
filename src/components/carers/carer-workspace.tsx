@@ -64,9 +64,7 @@ export function CarerWorkspace({
 
     return visitDate === today;
   });
-  const validCredentials = workspace.credentials.filter(
-    (credential) => credential.status === "valid"
-  ).length;
+
   const expiringSoon = workspace.credentials.filter((credential) => credential.isExpiringSoon).length;
 
   return (
@@ -77,8 +75,8 @@ export function CarerWorkspace({
         <span className="eyebrow">Carer execution</span>
         <h1>Assigned visits and field execution</h1>
         <p>
-          La vista del cuidador ahora permite seguir visitas asignadas, completar
-          checklist, registrar evidencia y reportar incidencias basicas.
+          El cuidador ya puede ejecutar visitas, mantener su perfil operativo y
+          ver con claridad que esta limitando o habilitando nuevas asignaciones.
         </p>
       </section>
 
@@ -94,9 +92,9 @@ export function CarerWorkspace({
           <span>Visits scheduled for today in Australia/Sydney</span>
         </article>
         <article className="metric-card metric-warning">
-          <p>Valid credentials</p>
-          <strong>{validCredentials}</strong>
-          <span>Credentials currently ready for operational matching</span>
+          <p>Readiness</p>
+          <strong>{workspace.readinessStatus.replaceAll("_", " ")}</strong>
+          <span>Operational readiness summary for provider matching</span>
         </article>
         <article className="metric-card metric-critical">
           <p>Expiring soon</p>
@@ -146,17 +144,53 @@ export function CarerWorkspace({
           <div className="panel-heading">
             <div>
               <p className="card-tag">Profile readiness</p>
-              <h2>Verified skills</h2>
+              <h2>Verified skills and limits</h2>
             </div>
           </div>
-          <div className="pill-row">
+          <div className="stacked-statuses">
+            <StatusBadge value={workspace.readinessStatus} />
+          </div>
+          <div className="pill-row top-gap">
             {workspace.verifiedSkills.map((credential) => (
               <span className="skill-pill" key={credential}>
                 {credential}
               </span>
             ))}
           </div>
+          <div className="sequence-list top-gap">
+            {workspace.opportunityLimits.length > 0 ? (
+              workspace.opportunityLimits.map((limit) => (
+                <div className="note-block" key={limit}>
+                  <strong>Current limit</strong>
+                  <p>{limit}</p>
+                </div>
+              ))
+            ) : (
+              <p className="panel-copy">No current operational limits are blocking this carer.</p>
+            )}
+          </div>
         </article>
+      </section>
+
+      <section className="ops-panel">
+        <div className="panel-heading">
+          <div>
+            <p className="card-tag">Operational alerts</p>
+            <h2>What needs attention</h2>
+          </div>
+        </div>
+        <div className="sequence-list">
+          {workspace.alerts.length > 0 ? (
+            workspace.alerts.map((alert) => (
+              <div className={`note-block alert-block alert-${alert.tone}`} key={alert.id}>
+                <strong>{alert.title}</strong>
+                <p>{alert.detail}</p>
+              </div>
+            ))
+          ) : (
+            <p className="panel-copy">No alerts right now.</p>
+          )}
+        </div>
       </section>
 
       <section className="ops-two-column">

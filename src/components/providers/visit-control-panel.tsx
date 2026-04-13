@@ -4,6 +4,8 @@ import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
   assignCarerToVisit,
+  logOperationalEscalation,
+  requestVisitReplacement,
   reviewVisit,
   updateVisitStatus
 } from "@/app/providers/actions";
@@ -50,10 +52,20 @@ export function VisitControlPanel({
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [selectedVisitId, setSelectedVisitId] = useState(order.visits[0]?.id ?? "");
+  const [escalationSeverity, setEscalationSeverity] = useState("high");
+  const [escalationReason, setEscalationReason] = useState("");
 
   const selectedVisit = useMemo(
     () => order.visits.find((visit) => visit.id === selectedVisitId) ?? order.visits[0],
     [order.visits, selectedVisitId]
+  );
+  const eligibleCarers = useMemo(
+    () => order.eligibleCarers.filter((carer) => carer.isEligible),
+    [order.eligibleCarers]
+  );
+  const restrictedCarers = useMemo(
+    () => order.eligibleCarers.filter((carer) => !carer.isEligible),
+    [order.eligibleCarers]
   );
 
   if (!selectedVisit) {
@@ -94,6 +106,31 @@ export function VisitControlPanel({
         path: `/providers/orders/${order.id}`
       })
     );
+  }
+
+  function handleReplacementRequest() {
+    runMutation(() =>
+      requestVisitReplacement({
+        visitId: selectedVisit.id,
+        path: `/providers/orders/${order.id}`,
+        reason: "Replacement coverage required after operational exception."
+      })
+    );
+  }
+
+  function handleEscalation() {
+    if (!escalationReason.trim()) {
+      setError("Add a reason before logging the escalation.");
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append("orderId", order.id);
+    formData.append("severity", escalationSeverity);
+    formData.append("reason", escalationReason);
+    formData.append("path", `/providers/orders/${order.id}`);
+
+    runMutation(() => logOperationalEscalation(formData));
   }
 
   function handleReview(outcome: ReviewOutcome) {
@@ -175,7 +212,7 @@ export function VisitControlPanel({
             <div className="action-card">
               <h3>Assign carer</h3>
               <div className="stacked-options">
-                {order.eligibleCarers.map((carer) => (
+                {eligibleCarers.length > 0 ? eligibleCarers.map((carer) => (
                   <button
                     className="mini-action"
                     disabled={isPending}
@@ -188,14 +225,21 @@ export function VisitControlPanel({
                       {carer.availability} · {carer.rating.toFixed(1)}
                     </small>
                   </button>
-                ))}
+                )) : <p className="panel-copy">No carer currently clears the matching rules.</p>}
               </div>
             </div>
 
             <div className="action-card">
               <h3>Visit status</h3>
               <div className="inline-actions">
-                {(["confirmed", "in_progress", "completed", "under_review"] as const).map(
+                {([
+                  "confirmed",
+                  "in_progress",
+                  "completed",
+                  "under_review",
+                  "cancelled",
+                  "no_show"
+                ] as const).map(
                   (status) => (
                     <button
                       className="mini-action"
@@ -208,6 +252,14 @@ export function VisitControlPanel({
                     </button>
                   )
                 )}
+                <button
+                  className="mini-action reject"
+                  disabled={isPending}
+                  onClick={handleReplacementRequest}
+                  type="button"
+                >
+                  Request replacement
+                </button>
               </div>
             </div>
 
@@ -266,6 +318,57 @@ export function VisitControlPanel({
               No review captured yet. This visit is still on the operational lane.
             </p>
           )}
+          {restrictedCarers.length > 0 ? (
+            <div className="top-gap">
+              <strong>Restricted carers</strong>
+              <div className="sequence-list top-gap">
+                {restrictedCarers.map((carer) => (
+                  <div className="note-block" key={carer.id}>
+                    <strong>{carer.name}</strong>
+                    <p>{carer.eligibilityReasons.join(" · ")}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : null}
+          <div className="top-gap escalation-panel">
+            <strong>Operational escalation</strong>
+            <p>Use this when coverage risk or service impact needs an explicit coordination note.</p>
+            <div className="form-grid top-gap">
+              <label>
+                <span>Severity</span>
+                <select
+                  disabled={isPending}
+                  onChange={(event) => setEscalationSeverity(event.target.value)}
+                  value={escalationSeverity}
+                >
+                  <option value="medium">Medium</option>
+                  <option value="high">High</option>
+                  <option value="critical">Critical</option>
+                </select>
+              </label>
+              <label className="form-grid-span-2">
+                <span>Reason</span>
+                <input
+                  disabled={isPending}
+                  onChange={(event) => setEscalationReason(event.target.value)}
+                  placeholder="Describe why this order needs escalation"
+                  type="text"
+                  value={escalationReason}
+                />
+              </label>
+            </div>
+            <div className="top-gap">
+              <button
+                className="primary-link"
+                disabled={isPending}
+                onClick={handleEscalation}
+                type="button"
+              >
+                Log escalation
+              </button>
+            </div>
+          </div>
         </article>
       </div>
     </section>

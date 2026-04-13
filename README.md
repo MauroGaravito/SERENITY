@@ -160,8 +160,25 @@ Ya existe un scaffold tecnico inicial con:
 - catalogos cerrados iniciales para `service types` y `skills`,
 - workspace inicial de `closing` para periodos, settlements y gastos basicos,
 - capa de sync externa con `export jobs`, cola programable por tiempo, endpoint interno seguro, chequeo remoto y ciclo visible `queued -> processing -> sent -> acknowledged/failed`,
+- capa operativa reforzada con estados de cobertura, reemplazo manual, escalamiento operativo, matching explicable y readiness del carer,
+- `closing` con visitas excluidas del settlement y motivos visibles,
 - esquema de dominio inicial en `prisma/schema.prisma`,
 - arquitectura y modelo documentados.
+
+## Operational Readiness
+
+La capa operativa ya cubre:
+
+- cobertura visible por orden y visita,
+- reemplazo manual desde provider,
+- escalamiento operativo con auditoria,
+- assignment pool con razones de inelegibilidad,
+- readiness del carer con alertas y limites,
+- excepciones demo `cancelled` y `no_show`.
+
+Plan detallado de esta capa:
+
+- `docs/operational-readiness-plan-2026-04-13.md`
 
 ## Catalogos cerrados iniciales
 

@@ -84,7 +84,52 @@ function deriveCoverageRisk(order: CenterOrderRow): ServiceOrderRecord["coverage
   return "stable";
 }
 
+function deriveVisitCoverageStatus(
+  visit: CenterOrderRow["visits"][number]
+): ServiceOrderRecord["visits"][number]["coverageStatus"] {
+  if (
+    visit.status === PrismaVisitStatus.NO_SHOW ||
+    (visit.status === PrismaVisitStatus.CANCELLED && Boolean(visit.assignedCarerId))
+  ) {
+    return "needs_replacement";
+  }
+
+  if (!visit.assignedCarerId) {
+    return "uncovered";
+  }
+
+  if (
+    visit.status === PrismaVisitStatus.UNDER_REVIEW ||
+    visit.status === PrismaVisitStatus.REJECTED ||
+    visit.status === PrismaVisitStatus.COMPLETED
+  ) {
+    return "at_risk";
+  }
+
+  return "covered";
+}
+
+function deriveOrderCoverageStatus(order: CenterOrderRow): ServiceOrderRecord["coverageStatus"] {
+  const statuses = order.visits.map(deriveVisitCoverageStatus);
+
+  if (statuses.includes("needs_replacement")) {
+    return "needs_replacement";
+  }
+
+  if (statuses.includes("uncovered")) {
+    return "uncovered";
+  }
+
+  if (statuses.includes("at_risk")) {
+    return "at_risk";
+  }
+
+  return "covered";
+}
+
 function mapOrder(order: CenterOrderRow): ServiceOrderRecord {
+  const coverageStatus = deriveOrderCoverageStatus(order);
+
   return {
     id: order.id,
     code: order.code,
@@ -100,6 +145,15 @@ function mapOrder(order: CenterOrderRow): ServiceOrderRecord {
     frequency: order.recurrenceRule ?? "One-off order",
     plannedDurationMin: order.plannedDurationMin,
     coverageRisk: deriveCoverageRisk(order),
+    coverageStatus,
+    pendingAction:
+      coverageStatus === "needs_replacement"
+        ? "Provider needs to replace broken coverage."
+        : coverageStatus === "uncovered"
+          ? "Provider still needs to assign coverage."
+          : coverageStatus === "at_risk"
+            ? "Provider still needs to clear review or exception handling."
+            : "Order is operationally covered.",
     instructions: order.instructions ?? "No operating instructions yet.",
     notesForCoordinator: order.coordinatorNotes ?? "No provider handoff note yet.",
     eligibleCarers: [],
@@ -113,6 +167,7 @@ function mapOrder(order: CenterOrderRow): ServiceOrderRecord {
       scheduledStart: visit.scheduledStart.toISOString(),
       scheduledEnd: visit.scheduledEnd.toISOString(),
       status: toLowerSnake(visit.status) as ServiceOrderRecord["visits"][number]["status"],
+      coverageStatus: deriveVisitCoverageStatus(visit),
       assignedCarerId: visit.assignedCarerId ?? undefined,
       assignedCarerName: visit.assignedCarer
         ? `${visit.assignedCarer.firstName} ${visit.assignedCarer.lastName}`

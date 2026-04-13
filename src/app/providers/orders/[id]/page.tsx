@@ -42,7 +42,10 @@ export default async function ProviderOrderDetailPage({
               <p className="card-tag">Order summary</p>
               <h2>{order.recipientName}</h2>
             </div>
-            <StatusBadge value={order.status} />
+            <div className="stacked-statuses">
+              <StatusBadge value={order.status} />
+              <StatusBadge value={order.coverageStatus} />
+            </div>
           </div>
           <dl className="meta-grid">
             <div>
@@ -69,6 +72,10 @@ export default async function ProviderOrderDetailPage({
               <dt>Required language</dt>
               <dd>{order.requiredLanguage ?? "Not specified"}</dd>
             </div>
+            <div>
+              <dt>Pending action</dt>
+              <dd>{order.pendingAction}</dd>
+            </div>
           </dl>
         </article>
 
@@ -84,6 +91,12 @@ export default async function ProviderOrderDetailPage({
             <strong>Coordinator note</strong>
             <p>{order.notesForCoordinator}</p>
           </div>
+          {order.escalationSummary ? (
+            <div className="note-block">
+              <strong>Escalation summary</strong>
+              <p>{order.escalationSummary}</p>
+            </div>
+          ) : null}
           <div className="pill-row">
             {order.requiredSkills.map((skill) => (
               <span className="skill-pill" key={skill}>
@@ -108,8 +121,8 @@ export default async function ProviderOrderDetailPage({
         <article className="ops-panel">
           <div className="panel-heading">
             <div>
-              <p className="card-tag">Eligible carers</p>
-              <h2>Assignment pool</h2>
+              <p className="card-tag">Coverage pool</p>
+              <h2>Assignment and restrictions</h2>
             </div>
           </div>
           <div className="sequence-list">
@@ -119,7 +132,11 @@ export default async function ProviderOrderDetailPage({
                 <p>
                   {carer.availability} · rating {carer.rating.toFixed(1)}
                 </p>
-                <p>{carer.credentials.join(" · ")}</p>
+                <p>
+                  {carer.isEligible
+                    ? `Eligible · ${carer.credentials.join(" · ")}`
+                    : carer.eligibilityReasons.join(" · ")}
+                </p>
               </div>
             ))}
           </div>
@@ -139,7 +156,10 @@ export default async function ProviderOrderDetailPage({
                 <p>
                   {formatDateTime(visit.scheduledStart)} - {formatDateTime(visit.scheduledEnd)}
                 </p>
-                <p>{visit.assignedCarerName ?? "No carer assigned yet"}</p>
+                <p>
+                  {visit.assignedCarerName ?? "No carer assigned yet"} ·{" "}
+                  {visit.coverageStatus.replaceAll("_", " ")}
+                </p>
               </div>
             ))}
           </div>

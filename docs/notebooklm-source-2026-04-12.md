@@ -105,6 +105,7 @@ Puede hoy:
 - ver ordenes de servicio,
 - ver periodos de cierre,
 - guardar settlements por visita aprobada,
+- ver que visitas quedan fuera del settlement y por que,
 - registrar gastos basicos por visita aprobada,
 - mover periodos a `locked` y `exported`,
 - descargar export package en `json` y `csv`,
@@ -119,6 +120,10 @@ Puede hoy:
 - editar ordenes,
 - agregar visitas,
 - asignar carers elegibles,
+- ver razones de inelegibilidad por carer,
+- pedir reemplazo cuando se rompe la cobertura,
+- registrar escalamiento operativo,
+- ver cobertura como `covered`, `at_risk`, `uncovered` o `needs_replacement`,
 - cambiar estados operativos de visitas,
 - ver auditoria, evidencia, checklist e incidentes.
 
@@ -176,13 +181,16 @@ Puede hoy:
 - agregar evidencia basica por referencia o URL,
 - reportar incidencias simples,
 - ver sus skills verificadas,
+- ver readiness del perfil,
+- ver alertas dentro de la UI,
+- ver que limita nuevas asignaciones,
 - editar su nota de disponibilidad,
 - registrar bloques de disponibilidad,
 - gestionar credenciales con estado y vencimiento visible.
 
 No puede hoy:
 
-- recibir alertas de vencimiento,
+- recibir alertas fuera de la UI,
 - subir archivos reales,
 - gestionar gastos o kilometraje,
 - ver un backoffice completo.
@@ -369,7 +377,7 @@ Las principales limitaciones actuales son:
 - la exportacion ya tiene un ciclo visible `queued -> processing -> sent -> acknowledged/failed`, cola programable, endpoint interno e historial de intentos, pero no una integracion remota completa,
 - la experiencia del carer ya cubre disponibilidad y credenciales de forma basica, pero no con backoffice completo,
 - la evidencia no es carga real de archivos,
-- el perfil del carer todavia necesita alertas y reglas mas robustas,
+- el perfil del carer ya tiene alertas in-app, pero todavia necesita validacion demo y mas robustez,
 - el producto no intenta cubrir EMR clinico ni contabilidad avanzada.
 
 ## Que falta despues de este bloque
@@ -387,8 +395,8 @@ La base de Fase 2 ya fue iniciada.
 
 Lo siguiente dentro de esta fase deberia enfocarse en:
 
-- alertas de vencimiento,
-- perfil profesional basico.
+- validacion end-to-end con base levantada,
+- pulido final de restricciones y perfil profesional basico.
 
 ## Mensaje corto de posicionamiento para demos
 
@@ -404,7 +412,7 @@ Su mayor fortaleza actual esta en:
 
 - coordinacion provider,
 - visibilidad center,
-- primera capa operativa del carer,
+- capa operativa del carer con readiness y alertas,
 - primera capa de cierre operativo,
 - capa operativa de sync externo,
 - y uso de catalogos cerrados para ordenar servicios y skills.

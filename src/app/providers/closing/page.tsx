@@ -35,7 +35,9 @@ function getClosingWorkflow(period?: ClosingPeriodItem) {
     return {
       summary: "This period is still being reconciled.",
       nextAction:
-        period.unsettledVisitsCount > 0
+        period.excludedVisitsCount > 0
+          ? `${period.excludedVisitsCount} visit${period.excludedVisitsCount === 1 ? "" : "s"} are excluded from settlement and need an operational decision.`
+          : period.unsettledVisitsCount > 0
           ? `Complete settlement for ${period.unsettledVisitsCount} approved visit${period.unsettledVisitsCount === 1 ? "" : "s"}, then lock the period.`
           : "All approved visits are settled. Lock the period to prepare the external handoff."
     };
@@ -262,7 +264,7 @@ export default async function ProviderClosingPage({
                     {formatDateTime(item.startsAt)} - {formatDateTime(item.endsAt)}
                   </p>
                   <p>
-                    {item.approvedVisitsCount} approved visits / {item.unsettledVisitsCount} pending
+                    {item.approvedVisitsCount} approved / {item.unsettledVisitsCount} pending / {item.excludedVisitsCount} excluded
                   </p>
                 </div>
                 <StatusBadge value={item.status} />
@@ -284,6 +286,10 @@ export default async function ProviderClosingPage({
               <div>
                 <dt>Approved visits</dt>
                 <dd>{selectedPeriod.approvedVisitsCount}</dd>
+              </div>
+              <div>
+                <dt>Excluded visits</dt>
+                <dd>{selectedPeriod.excludedVisitsCount}</dd>
               </div>
               <div>
                 <dt>Settled visits</dt>
@@ -327,6 +333,14 @@ export default async function ProviderClosingPage({
                     : "Exported periods were already marked as handed off to an external system."}
               </p>
             </div>
+            {selectedPeriod.excludedVisitsCount > 0 ? (
+              <div className="note-block top-gap">
+                <strong>Excluded from settlement</strong>
+                <p>
+                  {selectedPeriod.excludedVisitsCount} visit{selectedPeriod.excludedVisitsCount === 1 ? "" : "s"} in this period are outside settlement because they are not approved yet or represent an exception such as `cancelled` or `no_show`.
+                </p>
+              </div>
+            ) : null}
             {selectedPeriod.status !== "open" ? (
               <>
                 <div className="note-block top-gap">
@@ -455,6 +469,41 @@ export default async function ProviderClosingPage({
               </div>
             </article>
           ) : null}
+        </section>
+      ) : null}
+
+      {selectedPeriod ? (
+        <section className="ops-panel">
+          <div className="panel-heading">
+            <div>
+              <p className="card-tag">Settlement exclusions</p>
+              <h2>Visits outside this closing package</h2>
+            </div>
+          </div>
+          <div className="sequence-list">
+            {selectedPeriod.excludedVisits.length > 0 ? (
+              selectedPeriod.excludedVisits.map((visit) => (
+                <div className="note-block" key={visit.id}>
+                  <div className="split-row">
+                    <strong>
+                      {visit.orderCode} / {visit.recipientName}
+                    </strong>
+                    <StatusBadge value={visit.status} />
+                  </div>
+                  <p>
+                    {visit.carerName ?? "No carer"} / {visit.serviceType} /{" "}
+                    {formatDateTime(visit.scheduledStart)} - {formatDateTime(visit.scheduledEnd)}
+                  </p>
+                  <p>{visit.exclusionReason}</p>
+                  <p>Next step: {visit.nextStep}</p>
+                </div>
+              ))
+            ) : (
+              <p className="panel-copy">
+                Every visit inside this period is already in an approvable state for settlement.
+              </p>
+            )}
+          </div>
         </section>
       ) : null}
 

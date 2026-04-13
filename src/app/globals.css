@@ -617,6 +617,12 @@ ul {
   align-items: center;
 }
 
+.stacked-statuses {
+  display: grid;
+  gap: 0.55rem;
+  justify-items: start;
+}
+
 .split-row {
   display: flex;
   align-items: center;
@@ -707,6 +713,20 @@ ul {
   border-radius: 20px;
   border: 1px solid var(--line);
   background: rgba(255, 255, 255, 0.6);
+}
+
+.alert-block.alert-warning {
+  border-color: rgba(241, 181, 70, 0.35);
+  background: rgba(255, 242, 210, 0.7);
+}
+
+.alert-block.alert-critical {
+  border-color: rgba(186, 53, 42, 0.24);
+  background: rgba(255, 232, 228, 0.74);
+}
+
+.alert-block.alert-neutral {
+  border-color: rgba(19, 60, 58, 0.14);
 }
 
 .credential-card {
@@ -812,6 +832,11 @@ ul {
 .action-card h3 {
   margin: 0 0 0.8rem;
   font-size: 1rem;
+}
+
+.escalation-panel {
+  display: grid;
+  gap: 0.35rem;
 }
 
 .mini-action {

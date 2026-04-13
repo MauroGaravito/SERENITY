@@ -87,10 +87,12 @@ La demo actual ya usa catalogos cerrados para `service types` y `skills`.
   - una visita `approved` asignada a `Liam Ortega`
   - una visita `confirmed` asignada a `Liam Ortega`
   - una visita `scheduled` sin asignar
+  - una visita `cancelled` para demo de reemplazo
 - `SR-2402`
   - una visita `under_review` asignada a `Emily Tran`
 - `SR-2403`
   - una visita `scheduled` sin asignar
+  - una visita `no_show` para demo de cobertura rota
 
 ## Reglas de acceso actuales
 
@@ -116,6 +118,7 @@ La demo actual ya usa catalogos cerrados para `service types` y `skills`.
 - Ver la cola de ordenes que requieren accion.
 - Ver periodos de cierre operativo.
 - Ver visitas aprobadas listas para settlement.
+- Ver que visitas quedan excluidas del settlement y que paso operativo falta.
 - Registrar minutos aprobados, billable y payable por visita.
 - Registrar gastos o kilometraje basicos para visitas aprobadas.
 - Mover un periodo entre `open`, `locked` y `exported`.
@@ -123,11 +126,15 @@ La demo actual ya usa catalogos cerrados para `service types` y `skills`.
 - Editar una orden existente.
 - Agregar visitas a una orden.
 - Asignar un cuidador elegible a una visita.
+- Pedir reemplazo de una visita cuando la cobertura falla.
+- Registrar escalamiento operativo en la orden.
 - Cambiar el estado operativo de una visita:
   - `confirmed`
   - `in_progress`
   - `completed`
   - `under_review`
+  - `cancelled`
+  - `no_show`
 - Ver incidentes, evidencia, checklist y auditoria.
 
 ### Que no puede hacer hoy
@@ -153,11 +160,9 @@ Usa `SR-2401`.
   - skills requeridos: `Personal hygiene support`, `Manual handling`, `Medication prompt`
   - una visita aprobada con `Liam Ortega`
   - una visita futura sin asignar
-- En `Eligible carers` deberias ver opciones coherentes como:
-  - `Liam Ortega`
-  - `Anika Perera`
-  - `Sofia Bennett`
+- En `Coverage pool` veras carers elegibles y carers restringidos con razones visibles.
 - En `Visit control` puedes seleccionar la visita sin cobertura y asignarla.
+- Tambien puedes pedir `Request replacement` y dejar una nota de escalamiento.
 
 #### Ejemplo 2: orden critica abierta
 
@@ -197,6 +202,7 @@ En `/providers/closing` puedes:
 
 - ver periodos de cierre
 - revisar visitas aprobadas por periodo
+- revisar visitas excluidas del settlement con motivo y siguiente paso
 - guardar settlement por visita
 - registrar gastos basicos
 - marcar un periodo como `locked`
@@ -430,6 +436,9 @@ Hoy `/carers` ya funciona como workspace ejecutable para el carer.
 - checklist editable
 - evidencia basica
 - reporte simple de incidencia
+- readiness visible del perfil
+- alertas visibles en UI
+- limites operativos explicados en pantalla
 - nota de disponibilidad editable
 - bloques de disponibilidad
 - credenciales con estado y vencimiento
@@ -471,6 +480,7 @@ La semilla actual ya deja visible tanto ejecucion como perfil operativo del care
   - credencial valida adicional `NDIS Worker Screening`
   - credencial `pending` `First Aid Certificate`
   - credencial `expired` `Police Check`
+  - readiness restringida por credencial expirada
 - `Emily Tran`
   - rating `4.8`
   - skills de `Transport escort`, `Community participation`, `Social engagement`

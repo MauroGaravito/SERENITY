@@ -32,13 +32,13 @@ export default async function ProviderOrdersPage() {
         </div>
 
         <div className="orders-table">
-          <div className="orders-table-head">
-            <span>Order</span>
-            <span>Recipient</span>
-            <span>Visits</span>
-            <span>Risk</span>
-            <span>Status</span>
-          </div>
+        <div className="orders-table-head">
+          <span>Order</span>
+          <span>Recipient</span>
+          <span>Action</span>
+          <span>Risk</span>
+          <span>Status</span>
+        </div>
 
           {orders.map((order) => (
             <Link className="orders-table-row" href={`/providers/orders/${order.id}`} key={order.id}>
@@ -51,8 +51,8 @@ export default async function ProviderOrdersPage() {
                 <p>{order.centerName}</p>
               </div>
               <div>
-                <strong>{order.visits.length}</strong>
-                <p>{order.frequency}</p>
+                <strong>{order.coverageStatus.replaceAll("_", " ")}</strong>
+                <p>{order.pendingAction}</p>
               </div>
               <div>
                 <span className={`risk-pill risk-${order.coverageRisk}`}>
@@ -60,7 +60,10 @@ export default async function ProviderOrdersPage() {
                 </span>
               </div>
               <div>
-                <StatusBadge value={order.status} />
+                <div className="stacked-statuses">
+                  <StatusBadge value={order.status} />
+                  <StatusBadge value={order.coverageStatus} />
+                </div>
               </div>
             </Link>
           ))}

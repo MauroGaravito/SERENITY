@@ -33,6 +33,13 @@ export type CarerCredentialRecord = {
   isExpiringSoon: boolean;
 };
 
+export type CarerAlert = {
+  id: string;
+  tone: "neutral" | "warning" | "critical";
+  title: string;
+  detail: string;
+};
+
 export type CarerAvailabilityBlockRecord = {
   id: string;
   startsAt: string;
@@ -65,7 +72,10 @@ export type CarerWorkspaceRecord = {
   carerId: string;
   carerName: string;
   availability: string;
+  readinessStatus: "ready" | "restricted" | "attention_needed";
   verifiedSkills: string[];
+  opportunityLimits: string[];
+  alerts: CarerAlert[];
   credentials: CarerCredentialRecord[];
   availabilityBlocks: CarerAvailabilityBlockRecord[];
   visits: CarerAssignedVisit[];
