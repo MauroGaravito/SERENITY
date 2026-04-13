@@ -32,6 +32,7 @@ function normalizeEmail(email) {
 
 async function resetDatabase() {
   await prisma.auditEvent.deleteMany();
+  await prisma.exportJobAttempt.deleteMany();
   await prisma.exportJob.deleteMany();
   await prisma.visitSettlement.deleteMany();
   await prisma.closingPeriod.deleteMany();
@@ -722,6 +723,7 @@ async function main() {
         }
       },
       queuedAt: new Date("2026-04-12T02:00:00.000Z"),
+      nextAttemptAt: null,
       lastAttemptAt: new Date("2026-04-12T02:05:00.000Z"),
       completedAt: new Date("2026-04-12T02:06:00.000Z"),
       acknowledgedAt: new Date("2026-04-12T02:06:00.000Z"),
@@ -751,6 +753,7 @@ async function main() {
         }
       },
       queuedAt: new Date("2026-04-12T02:10:00.000Z"),
+      nextAttemptAt: new Date("2026-04-12T02:21:00.000Z"),
       lastAttemptAt: new Date("2026-04-12T02:15:00.000Z"),
       completedAt: new Date("2026-04-12T02:16:00.000Z"),
       connectorCode: "PAYLOAD_ACCEPTED",
@@ -772,6 +775,7 @@ async function main() {
         targetSystem: "qa_failure_simulation"
       },
       queuedAt: new Date("2026-04-12T02:40:00.000Z"),
+      nextAttemptAt: null,
       lastAttemptAt: new Date("2026-04-12T02:45:00.000Z"),
       connectorCode: "QA_CONNECTOR_REJECTED",
       connectorMessage: "Mock connector rejected the payload during delivery."

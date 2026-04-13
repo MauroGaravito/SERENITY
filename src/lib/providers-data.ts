@@ -217,6 +217,10 @@ function getExportBatchId(periodId: string) {
   return `serenity-${periodId}`;
 }
 
+function getNextSyncCheckTime(from = new Date()) {
+  return new Date(from.getTime() + 5 * 60 * 1000);
+}
+
 function durationInMinutes(start?: Date | null, end?: Date | null) {
   if (!start || !end) {
     return 0;
@@ -435,6 +439,7 @@ function mapClosingPeriod(
     externalReference: job.externalReference ?? undefined,
     lastError: job.lastError ?? undefined,
     queuedAt: job.queuedAt.toISOString(),
+    nextAttemptAt: job.nextAttemptAt?.toISOString(),
     lastAttemptAt: job.lastAttemptAt?.toISOString(),
     completedAt: job.completedAt?.toISOString(),
     acknowledgedAt: job.acknowledgedAt?.toISOString(),
@@ -825,6 +830,7 @@ export async function createClosingExportJob(
       format: "json",
       status: PrismaExportJobStatus.PENDING,
       externalStatus: PrismaExternalSyncStatus.NOT_SENT,
+      nextAttemptAt: new Date(),
       payload: buildExportPayloadSummary(payload, targetSystem)
     }
   });
@@ -878,6 +884,7 @@ export async function processClosingExportJob(jobId: string, providerId: string)
       status: PrismaExportJobStatus.PROCESSING,
       attemptCount: { increment: 1 },
       lastAttemptAt: startedAt,
+      nextAttemptAt: null,
       lastError: null,
       payload: buildExportPayloadSummary(payload, mapExportTarget(job.targetSystem))
     }
@@ -935,6 +942,8 @@ export async function processClosingExportJob(jobId: string, providerId: string)
       connectorMessage: result.connectorMessage,
       completedAt,
       acknowledgedAt: result.acknowledgedAt ?? null,
+      nextAttemptAt:
+        result.jobStatus === "acknowledged" ? null : getNextSyncCheckTime(completedAt),
       lastError: null
     }
   });
@@ -1001,6 +1010,7 @@ export async function retryClosingExportJob(jobId: string, providerId: string) {
       externalReference: null,
       completedAt: null,
       acknowledgedAt: null,
+      nextAttemptAt: new Date(),
       payload: buildExportPayloadSummary(payload, mapExportTarget(job.targetSystem))
     }
   });
@@ -1036,6 +1046,7 @@ export async function acknowledgeClosingExportJob(
       data: {
         externalStatus: PrismaExternalSyncStatus.ACKNOWLEDGED,
         acknowledgedAt: new Date(),
+        nextAttemptAt: null,
         connectorMessage: "Remote system acknowledged the delivery."
       }
     });
@@ -1047,6 +1058,7 @@ export async function acknowledgeClosingExportJob(
       status: PrismaExportJobStatus.FAILED,
       externalStatus: PrismaExternalSyncStatus.REJECTED,
       acknowledgedAt: null,
+      nextAttemptAt: null,
       lastError: "Remote system rejected the payload after delivery.",
       connectorMessage: "Remote system rejected the delivery."
     }
@@ -1087,7 +1099,8 @@ export async function checkClosingExportJobStatus(jobId: string, providerId: str
         connectorCode: result.connectorCode,
         connectorMessage: result.connectorMessage,
         lastError: result.lastError,
-        acknowledgedAt: null
+        acknowledgedAt: null,
+        nextAttemptAt: null
       }
     });
 
@@ -1112,6 +1125,15 @@ export async function checkClosingExportJobStatus(jobId: string, providerId: str
   }
 
   if (result.jobStatus === "sent") {
+    const nextAttemptAt = getNextSyncCheckTime(completedAt);
+
+    const updatedJob = await prisma.exportJob.update({
+      where: { id: job.id },
+      data: {
+        nextAttemptAt
+      }
+    });
+
     await createExportJobAttempt({
       exportJobId: job.id,
       kind: PrismaExportJobAttemptKind.STATUS_CHECK,
@@ -1127,7 +1149,7 @@ export async function checkClosingExportJobStatus(jobId: string, providerId: str
       }
     });
 
-    return job;
+    return updatedJob;
   }
 
   const updatedJob = await prisma.exportJob.update({
@@ -1137,6 +1159,7 @@ export async function checkClosingExportJobStatus(jobId: string, providerId: str
       connectorCode: result.connectorCode,
       connectorMessage: result.connectorMessage,
       acknowledgedAt: result.acknowledgedAt,
+      nextAttemptAt: null,
       lastError: null
     }
   });
@@ -1193,6 +1216,86 @@ export async function runQueuedClosingExportJobs(
     sentCount: results.filter((job) => job.externalStatus === PrismaExternalSyncStatus.SENT).length,
     failedCount: results.filter((job) => job.status === PrismaExportJobStatus.FAILED).length
   };
+}
+
+export async function runScheduledClosingExportCycle(limit = 10) {
+  const now = new Date();
+  const dueJobs = await prisma.exportJob.findMany({
+    where: {
+      nextAttemptAt: {
+        lte: now
+      },
+      OR: [
+        {
+          status: PrismaExportJobStatus.PENDING
+        },
+        {
+          status: PrismaExportJobStatus.SUCCEEDED,
+          externalStatus: PrismaExternalSyncStatus.SENT
+        }
+      ]
+    },
+    include: {
+      closingPeriod: {
+        select: {
+          id: true,
+          providerId: true,
+          label: true
+        }
+      }
+    },
+    orderBy: [{ nextAttemptAt: "asc" }, { queuedAt: "asc" }],
+    take: limit
+  });
+
+  const summary = {
+    scanned: dueJobs.length,
+    processedQueued: 0,
+    checkedSent: 0,
+    acknowledged: 0,
+    stillPending: 0,
+    failed: 0
+  };
+
+  for (const job of dueJobs) {
+    if (job.status === PrismaExportJobStatus.PENDING) {
+      const updatedJob = await processClosingExportJob(job.id, job.closingPeriod.providerId);
+      summary.processedQueued += 1;
+
+      if (updatedJob.externalStatus === PrismaExternalSyncStatus.ACKNOWLEDGED) {
+        summary.acknowledged += 1;
+      } else if (updatedJob.externalStatus === PrismaExternalSyncStatus.SENT) {
+        summary.stillPending += 1;
+      } else {
+        summary.failed += 1;
+      }
+
+      continue;
+    }
+
+    const updatedJob = await checkClosingExportJobStatus(job.id, job.closingPeriod.providerId);
+    summary.checkedSent += 1;
+
+    if (updatedJob.externalStatus === PrismaExternalSyncStatus.ACKNOWLEDGED) {
+      summary.acknowledged += 1;
+    } else if (
+      updatedJob.status === PrismaExportJobStatus.SUCCEEDED &&
+      updatedJob.externalStatus === PrismaExternalSyncStatus.SENT
+    ) {
+      const nextAttemptAt = getNextSyncCheckTime();
+      await prisma.exportJob.update({
+        where: { id: updatedJob.id },
+        data: {
+          nextAttemptAt
+        }
+      });
+      summary.stillPending += 1;
+    } else {
+      summary.failed += 1;
+    }
+  }
+
+  return summary;
 }
 
 export async function runSentClosingExportChecks(

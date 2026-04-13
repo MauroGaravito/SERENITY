@@ -157,6 +157,7 @@ export type ClosingPeriodRecord = {
     externalReference?: string;
     lastError?: string;
     queuedAt: string;
+    nextAttemptAt?: string;
     lastAttemptAt?: string;
     completedAt?: string;
     acknowledgedAt?: string;

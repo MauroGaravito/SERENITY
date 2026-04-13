@@ -37,6 +37,8 @@ Hoy Serenity ya soporta:
 - ejecucion por lote de jobs encolados
 - chequeo remoto separado para jobs `sent`
 - historial de intentos por job
+- programacion basica por `nextAttemptAt`
+- endpoint interno seguro para ejecutar la cola
 - referencia externa mock cuando el sync fue exitoso
 - procesamiento de entrega por job
 - confirmacion o rechazo externo simulado
@@ -236,6 +238,7 @@ Cada job guarda:
 - `externalReference`
 - `lastError`
 - `queuedAt`
+- `nextAttemptAt`
 - `lastAttemptAt`
 - `completedAt`
 - `acknowledgedAt`
@@ -249,6 +252,21 @@ Targets demo actuales:
 - `mock_payroll_gateway`
 - `manual_handoff`
 - `qa_failure_simulation`
+
+## Runner interno actual
+
+La app ahora expone un endpoint interno para ejecutar la cola sin sesion de usuario:
+
+- `POST /api/internal/export-jobs/run`
+
+Requiere:
+
+- header `x-serenity-sync-secret`
+- o header `Authorization: Bearer ...`
+
+La clave se define con:
+
+- `INTERNAL_SYNC_SECRET`
 
 ## Lo que aun no hace
 

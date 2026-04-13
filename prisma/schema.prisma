@@ -435,6 +435,7 @@ model ExportJob {
   externalReference String?
   lastError         String?
   queuedAt          DateTime        @default(now())
+  nextAttemptAt     DateTime?
   payload           Json?
   lastAttemptAt     DateTime?
   completedAt       DateTime?

@@ -271,6 +271,7 @@ La vista actual muestra:
 - un estado visible unico por job
 - referencia externa cuando la entrega fue aceptada
 - historial de intentos por job
+- siguiente intento programado cuando el job sigue en vuelo
 - trazabilidad basica de descarga y sync
 
 Regla clave actual:
@@ -308,6 +309,7 @@ Cuando el periodo ya esta `locked` o `exported`, Serenity tambien permite:
 - registrar confirmacion o rechazo remoto
 - guardar numero de intentos
 - guardar historial de intentos
+- programar el siguiente chequeo con `nextAttemptAt`
 - guardar referencia externa mock
 - registrar error de conector para retry
 

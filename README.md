@@ -149,6 +149,7 @@ Ese enfoque tiene mejor coherencia, menor dispersion y una narrativa comercial m
 - Dokploy notes and current reverse proxy shape: `docs/dokploy-deployment.md`
 - Dokploy compose file: `docker-compose.prod.yml`
 - Container build: `Dockerfile`
+- Internal sync runner endpoint: `POST /api/internal/export-jobs/run`
 
 ## Estado actual
 
@@ -158,7 +159,7 @@ Ya existe un scaffold tecnico inicial con:
 - rutas por actor (`/centers`, `/providers`, `/carers`),
 - catalogos cerrados iniciales para `service types` y `skills`,
 - workspace inicial de `closing` para periodos, settlements y gastos basicos,
-- capa de sync externa con `export jobs`, cola ejecutable por lote, chequeo remoto y ciclo visible `queued -> processing -> sent -> acknowledged/failed`,
+- capa de sync externa con `export jobs`, cola programable por tiempo, endpoint interno seguro, chequeo remoto y ciclo visible `queued -> processing -> sent -> acknowledged/failed`,
 - esquema de dominio inicial en `prisma/schema.prisma`,
 - arquitectura y modelo documentados.
 

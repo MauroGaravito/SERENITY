@@ -211,7 +211,7 @@ No incluye:
 
 Estado actual:
 
-- iniciada con export jobs, ciclo visible simplificado, runner por lote, chequeo remoto mock y retry
+- iniciada con export jobs, ciclo visible simplificado, runner programable, endpoint interno seguro, chequeo remoto mock y retry
 
 ## Prioridad recomendada
 
@@ -237,9 +237,9 @@ Se puede considerar que Serenity llego al limite usable planeado cuando:
 
 Estimacion aproximada al 2026-04-13:
 
-**84% del alcance objetivo total**
+**88% del alcance objetivo total**
 
-## Como se calcula ese 84%
+## Como se calcula ese 88%
 
 ### Ya bastante avanzado
 
@@ -260,7 +260,7 @@ Estimacion aproximada al 2026-04-13:
 - reglas de exportacion externa
 - formato inicial de export package
 - trazabilidad basica de exportacion
-- sync jobs con estado visible simplificado, runner por lote, historial de intentos y acuse externo mock
+- sync jobs con estado visible simplificado, runner programable, historial de intentos y acuse externo mock
 
 ### Todavia faltante
 
@@ -270,7 +270,7 @@ Estimacion aproximada al 2026-04-13:
 - seed demo optimizado para cierre completo
 
 ## Interpretacion del porcentaje
-El 84% no significa que falte poco.
+El 88% no significa que falte poco.
 
 Significa que:
 
@@ -328,7 +328,7 @@ Lo siguiente mas sensato ya no es seguir ampliando UI operativa general.
 
 Lo correcto ahora es:
 
-1. pasar de sync mock a ejecucion asincrona real
+1. mover el runner a cron, worker o heartbeat real
 2. guardar confirmacion remota real del sistema receptor
 3. endurecer manejo de errores y reintentos
 4. definir conectores especificos por partner

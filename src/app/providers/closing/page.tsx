@@ -367,6 +367,12 @@ export default async function ProviderClosingPage({
                     </p>
                     <p>Queued: {formatDateTime(job.queuedAt)}</p>
                     <p>
+                      Next scheduled attempt:{" "}
+                      {job.nextAttemptAt
+                        ? formatDateTime(job.nextAttemptAt)
+                        : "No automatic follow-up scheduled."}
+                    </p>
+                    <p>
                       Last attempt:{" "}
                       {job.lastAttemptAt ? formatDateTime(job.lastAttemptAt) : "Not attempted yet"}
                     </p>
@@ -436,7 +442,7 @@ export default async function ProviderClosingPage({
                 <strong>Current foundation</strong>
                 <p>
                   Serenity can now queue a job, process delivery, capture connector feedback and
-                  wait for external acknowledgement without managing payroll directly.
+                  let an internal runner pick up scheduled jobs without managing payroll directly.
                 </p>
               </div>
               <div className="note-block">
