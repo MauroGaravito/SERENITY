@@ -249,9 +249,33 @@ Cada job guarda:
 
 Targets demo actuales:
 
+- `xero_custom_connection`
 - `mock_payroll_gateway`
 - `manual_handoff`
 - `qa_failure_simulation`
+
+## Primer partner elegido
+
+El primer partner elegido para cerrar la capa de integracion es:
+
+- `Xero`
+
+Implementacion actual:
+
+- target `xero_custom_connection`
+- modo `sandbox`
+- modo `auth_only`
+- modo `direct_post`
+
+## Regla de acknowledgement para Xero
+
+La regla actual de Serenity para `xero_custom_connection` es:
+
+1. se considera handoff exitoso cuando el endpoint devuelve `HTTP 2xx`
+2. la respuesta debe incluir una referencia externa estable
+3. con esas dos condiciones el job pasa a `acknowledged`
+
+Esto evita introducir un segundo ciclo de polling innecesario para la primera integracion real.
 
 ## Runner interno actual
 
@@ -276,8 +300,8 @@ Esta especificacion actual todavia no cubre:
 - callback o webhook remoto real
 - versionado por partner externo
 - multiples formatos por partner
-- mapeos especificos por proveedor de payroll
-- secretos o autenticacion real hacia conectores externos
+- mapeo final del closing package hacia un objeto real de Xero
+- decision del endpoint final de `direct_post`
 
 ## Siguiente evolucion recomendada
 

@@ -101,6 +101,7 @@ La unidad central es la **prestacion de servicio verificable**:
 - `docs/user-manual.md`: manual de usuario basado en la semilla demo actual.
 - `docs/app-scope-2026-04-12.md`: alcance actual de la app para demos.
 - `docs/external-export-spec-2026-04-12.md`: especificacion inicial de exportacion externa.
+- `docs/integration-closure-plan-2026-04-14.md`: plan para cerrar la capa de integracion externa con Xero como primer partner.
 - `SECURITY.md`: postura minima de seguridad para dependencias e installs.
 
 ## Decision de enfoque
@@ -162,6 +163,7 @@ Ya existe un scaffold tecnico inicial con:
 - capa de sync externa con `export jobs`, cola programable por tiempo, endpoint interno seguro, chequeo remoto y ciclo visible `queued -> processing -> sent -> acknowledged/failed`,
 - capa operativa reforzada con estados de cobertura, reemplazo manual, escalamiento operativo, matching explicable y readiness del carer,
 - `closing` con visitas excluidas del settlement y motivos visibles,
+- foundation de `xero_custom_connection` con modos `sandbox`, `auth_only` y `direct_post`,
 - esquema de dominio inicial en `prisma/schema.prisma`,
 - arquitectura y modelo documentados.
 

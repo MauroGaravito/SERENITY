@@ -33,6 +33,7 @@ export type ExportJobLifecycleStatus =
 export type ExportJobAttemptKind = "delivery" | "status_check";
 export type ExportTargetSystem =
   | "manual_handoff"
+  | "xero_custom_connection"
   | "mock_payroll_gateway"
   | "qa_failure_simulation";
 

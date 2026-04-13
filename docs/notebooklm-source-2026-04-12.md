@@ -116,6 +116,7 @@ Puede hoy:
 - exponer un endpoint interno seguro para que un cron ejecute esa cola,
 - registrar confirmacion o rechazo externo,
 - reintentar sync jobs fallidos,
+- usar `xero_custom_connection` como primer partner objetivo de integracion,
 - crear ordenes,
 - editar ordenes,
 - agregar visitas,
@@ -375,6 +376,7 @@ Las principales limitaciones actuales son:
 
 - el cierre financiero no procesa pagos aunque ya tiene cierre operativo visible,
 - la exportacion ya tiene un ciclo visible `queued -> processing -> sent -> acknowledged/failed`, cola programable, endpoint interno e historial de intentos, pero no una integracion remota completa,
+- `Xero` ya es el primer partner elegido para la capa de integracion, pero todavia faltan credenciales reales y el endpoint final de handoff,
 - la experiencia del carer ya cubre disponibilidad y credenciales de forma basica, pero no con backoffice completo,
 - la evidencia no es carga real de archivos,
 - el perfil del carer ya tiene alertas in-app, pero todavia necesita validacion demo y mas robustez,

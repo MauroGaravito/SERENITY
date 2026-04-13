@@ -477,6 +477,7 @@ function parseExpenseType(value: string) {
 function parseExportTargetSystem(value: string): ExportTargetSystem {
   switch (value) {
     case "manual_handoff":
+    case "xero_custom_connection":
     case "mock_payroll_gateway":
     case "qa_failure_simulation":
       return value;

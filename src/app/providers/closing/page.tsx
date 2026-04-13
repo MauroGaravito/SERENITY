@@ -656,6 +656,13 @@ export default async function ProviderClosingPage({
                 </p>
               </div>
               <div className="note-block">
+                <strong>Xero acknowledgement rule</strong>
+                <p>
+                  For `xero_custom_connection`, Serenity treats a successful `2xx` response plus an
+                  external reference as an immediate acknowledgement.
+                </p>
+              </div>
+              <div className="note-block">
                 <strong>What stays outside Serenity</strong>
                 <p>
                   Payment execution, tax logic, superannuation and bank transfer remain in the

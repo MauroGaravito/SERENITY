@@ -1130,7 +1130,7 @@ export async function processClosingExportJob(jobId: string, providerId: string)
     }
   });
 
-  const result = executeConnector(mapExportTarget(job.targetSystem), payload);
+  const result = await executeConnector(mapExportTarget(job.targetSystem), payload);
   const completedAt = new Date();
 
   if (result.jobStatus === "failed") {
@@ -1327,7 +1327,7 @@ export async function checkClosingExportJobStatus(jobId: string, providerId: str
   }
 
   const startedAt = new Date();
-  const result = checkConnectorStatus(mapExportTarget(job.targetSystem));
+  const result = await checkConnectorStatus(mapExportTarget(job.targetSystem));
   const completedAt = new Date();
 
   if (result.jobStatus === "failed") {

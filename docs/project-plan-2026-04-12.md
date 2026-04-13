@@ -211,7 +211,7 @@ No incluye:
 
 Estado actual:
 
-- iniciada con export jobs, ciclo visible simplificado, runner programable, endpoint interno seguro, chequeo remoto mock y retry
+- avanzada con export jobs, runner programable, endpoint interno seguro, chequeo remoto, retry y foundation de `xero_custom_connection`
 
 ## Prioridad recomendada
 
@@ -237,7 +237,7 @@ Se puede considerar que Serenity llego al limite usable planeado cuando:
 
 Estimacion aproximada al 2026-04-13:
 
-**92% del alcance objetivo total**
+**94% del alcance objetivo total**
 
 ## Como se calcula ese 88%
 
@@ -262,23 +262,24 @@ Estimacion aproximada al 2026-04-13:
 - matching
 - carer execution flow como demo
 - reglas de exportacion externa
+- adapter real inicial orientado a Xero
 
 ## Siguiente paso recomendado
 
-Antes de volver a la capa de integracion externa, conviene cerrar la validacion operativa:
+Lo correcto ahora es cerrar la capa de integracion externa en este orden:
 
-1. levantar Postgres local y volver a correr `db:seed`
-2. recorrer provider y carer con la nueva demo
-3. pulir `closing` para dejar mas claro que queda fuera de settlement por excepcion
-- formato inicial de export package
-- trazabilidad basica de exportacion
-- sync jobs con estado visible simplificado, runner programable, historial de intentos y acuse externo mock
+1. crear credenciales reales de `Xero Custom Connection`
+2. validar `auth_only`
+3. decidir el endpoint real de `direct_post`
+4. correr el primer handoff real con `2xx + external reference`
 
 ### Todavia faltante
 
 - alertas de vencimiento
 - reemplazos y escalamiento mas robustos
-- sincronizacion externa real con confirmacion remota
+- autenticacion real contra Xero
+- handoff real de `direct_post`
+- decision del objeto o endpoint final en Xero/middleware
 - seed demo optimizado para cierre completo
 
 ## Interpretacion del porcentaje

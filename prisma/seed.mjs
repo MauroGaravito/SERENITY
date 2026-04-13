@@ -783,6 +783,36 @@ async function main() {
     }
   });
 
+  const xeroExportJob = await prisma.exportJob.create({
+    data: {
+      closingPeriodId: closingPeriodTwo.id,
+      targetSystem: "xero_custom_connection",
+      format: "json",
+      status: "SUCCEEDED",
+      externalStatus: "ACKNOWLEDGED",
+      attemptCount: 1,
+      externalReference: `XERO-${closingPeriodTwo.id.slice(-6).toUpperCase()}-SANDBOX`,
+      payload: {
+        exportBatchId: `serenity-${closingPeriodTwo.id}`,
+        targetSystem: "xero_custom_connection",
+        totals: {
+          visits: 1,
+          approvedMinutes: 142,
+          billableCents: 17200,
+          payableCents: 11100,
+          expenseCents: 0
+        }
+      },
+      queuedAt: new Date("2026-04-12T02:20:00.000Z"),
+      nextAttemptAt: null,
+      lastAttemptAt: new Date("2026-04-12T02:22:00.000Z"),
+      completedAt: new Date("2026-04-12T02:23:00.000Z"),
+      acknowledgedAt: new Date("2026-04-12T02:23:00.000Z"),
+      connectorCode: "XERO_SANDBOX_ACK",
+      connectorMessage: "Xero custom connection adapter acknowledged the payload in sandbox mode."
+    }
+  });
+
   const failedExportJob = await prisma.exportJob.create({
     data: {
       closingPeriodId: closingPeriodTwo.id,
@@ -830,6 +860,19 @@ async function main() {
         responsePayload: {
           jobStatus: "sent",
           connectorCode: "PAYLOAD_ACCEPTED"
+        }
+      },
+      {
+        exportJobId: xeroExportJob.id,
+        kind: "DELIVERY",
+        result: "ACKNOWLEDGED",
+        startedAt: new Date("2026-04-12T02:22:00.000Z"),
+        completedAt: new Date("2026-04-12T02:23:00.000Z"),
+        connectorCode: "XERO_SANDBOX_ACK",
+        connectorMessage: "Xero custom connection adapter acknowledged the payload in sandbox mode.",
+        responsePayload: {
+          jobStatus: "acknowledged",
+          connectorCode: "XERO_SANDBOX_ACK"
         }
       },
       {

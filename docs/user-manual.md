@@ -206,7 +206,7 @@ En `/providers/closing` puedes:
 - guardar settlement por visita
 - registrar gastos basicos
 - marcar un periodo como `locked`
-- encolar un `sync job` hacia un target externo mock o manual
+- encolar un `sync job` hacia un target externo mock, manual o `xero_custom_connection`
 - procesar la entrega del job
 - correr la cola de jobs pendientes por lote
 - chequear jobs `sent` sin resolver uno por uno
@@ -319,10 +319,20 @@ Cuando el periodo ya esta `locked` o `exported`, Serenity tambien permite:
 - guardar referencia externa mock
 - registrar error de conector para retry
 
+La base actual de `Xero` soporta:
+
+- `sandbox`
+- `auth_only`
+- `direct_post`
+
+Regla de acknowledgement actual para `xero_custom_connection`:
+
+- `HTTP 2xx + externalReference estable = acknowledged`
+
 La implementacion actual sigue siendo una capa de handoff:
 
 - no ejecuta pagos
-- no confirma recepcion remota real
+- solo confirma recepcion remota real cuando exista `direct_post` con credenciales y endpoint reales
 - no sincroniza de vuelta desde payroll
 
 ## Perfil: Center manager

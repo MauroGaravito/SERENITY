@@ -169,7 +169,8 @@ export function ClosingSyncForm({
       <div className="form-grid">
         <label className="form-grid-span-2">
           <span>External target</span>
-          <select defaultValue="mock_payroll_gateway" name="targetSystem">
+          <select defaultValue="xero_custom_connection" name="targetSystem">
+            <option value="xero_custom_connection">Xero custom connection</option>
             <option value="mock_payroll_gateway">Mock payroll gateway</option>
             <option value="manual_handoff">Manual handoff register</option>
             <option value="qa_failure_simulation">QA failure simulation</option>
