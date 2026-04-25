@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useMemo, useState } from "react";
 import { useFormStatus } from "react-dom";
@@ -20,6 +20,7 @@ export function ProviderOrderForm({
 }: {
   formData: ProviderOrderFormData;
 }) {
+  const [isOpen, setIsOpen] = useState(false);
   const [selectedCenterId, setSelectedCenterId] = useState(formData.centers[0]?.id ?? "");
   const preferredServiceType =
     formData.serviceTypes.find((serviceType) => serviceType.code === "PERSONAL_CARE") ??
@@ -42,6 +43,7 @@ export function ProviderOrderForm({
       setSelectedFacilityId(facilities[0]?.id ?? "");
     }
   }, [facilities, selectedFacilityId]);
+
   const selectedServiceType = useMemo(
     () =>
       formData.serviceTypes.find((serviceType) => serviceType.id === selectedServiceTypeId) ??
@@ -57,162 +59,192 @@ export function ProviderOrderForm({
   }, [selectedServiceType]);
 
   return (
-    <form action={createServiceOrder} className="ops-panel order-form-panel">
-      <div className="panel-heading">
+    <>
+      <section className="orders-action-bar">
         <div>
           <p className="card-tag">New demand</p>
-          <h2>Create service order</h2>
+          <h2>New service demand</h2>
+          <p className="panel-copy">
+            Capture a new request without leaving the active orders workspace.
+          </p>
         </div>
-      </div>
-      <div className="form-grid">
-        <label>
-          <span>Center</span>
-          <select
-            name="centerId"
-            onChange={(event) => {
-              const nextCenterId = event.target.value;
-              setSelectedCenterId(nextCenterId);
-              const nextFacility =
-                formData.centers.find((center) => center.id === nextCenterId)?.facilities[0];
-              setSelectedFacilityId(nextFacility?.id ?? "");
-            }}
-            value={selectedCenterId}
-          >
-            {formData.centers.map((center) => (
-              <option key={center.id} value={center.id}>
-                {center.name}
-              </option>
-            ))}
-          </select>
-        </label>
+        <button className="primary-link" onClick={() => setIsOpen(true)} type="button">
+          New order
+        </button>
+      </section>
 
-        <label>
-          <span>Facility</span>
-          <select
-            name="facilityId"
-            onChange={(event) => setSelectedFacilityId(event.target.value)}
-            value={selectedFacilityId}
-          >
-            {facilities.map((facility) => (
-              <option key={facility.id} value={facility.id}>
-                {facility.name}
-              </option>
-            ))}
-          </select>
-        </label>
+      {isOpen ? (
+        <div
+          aria-modal="true"
+          className="modal-backdrop"
+          onClick={() => setIsOpen(false)}
+          role="dialog"
+        >
+          <div className="modal-panel order-modal-panel" onClick={(event) => event.stopPropagation()}>
+            <form action={createServiceOrder} className="order-form-panel">
+              <div className="panel-heading">
+                <div>
+                  <p className="card-tag">New demand</p>
+                  <h2>Create service order</h2>
+                </div>
+                <button className="ghost-link modal-close-button" onClick={() => setIsOpen(false)} type="button">
+                  Close
+                </button>
+              </div>
 
-        <label>
-          <span>Recipient</span>
-          <select key={selectedFacilityId} name="recipientId" defaultValue={recipients[0]?.id ?? ""}>
-            {recipients.map((recipient) => (
-              <option key={recipient.id} value={recipient.id}>
-                {recipient.name}
-              </option>
-            ))}
-          </select>
-        </label>
+              <div className="form-grid">
+                <label>
+                  <span>Center</span>
+                  <select
+                    name="centerId"
+                    onChange={(event) => {
+                      const nextCenterId = event.target.value;
+                      setSelectedCenterId(nextCenterId);
+                      const nextFacility =
+                        formData.centers.find((center) => center.id === nextCenterId)?.facilities[0];
+                      setSelectedFacilityId(nextFacility?.id ?? "");
+                    }}
+                    value={selectedCenterId}
+                  >
+                    {formData.centers.map((center) => (
+                      <option key={center.id} value={center.id}>
+                        {center.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
 
-        <label>
-          <span>Service type</span>
-          <select
-            name="serviceTypeId"
-            onChange={(event) => setSelectedServiceTypeId(event.target.value)}
-            value={selectedServiceTypeId}
-          >
-            {formData.serviceTypes.map((serviceType) => (
-              <option key={serviceType.id} value={serviceType.id}>
-                {serviceType.name}
-              </option>
-            ))}
-          </select>
-        </label>
+                <label>
+                  <span>Facility</span>
+                  <select
+                    name="facilityId"
+                    onChange={(event) => setSelectedFacilityId(event.target.value)}
+                    value={selectedFacilityId}
+                  >
+                    {facilities.map((facility) => (
+                      <option key={facility.id} value={facility.id}>
+                        {facility.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
 
-        <label>
-          <span>Title</span>
-          <input name="title" placeholder="Morning personal care support" required type="text" />
-        </label>
+                <label>
+                  <span>Recipient</span>
+                  <select key={selectedFacilityId} name="recipientId" defaultValue={recipients[0]?.id ?? ""}>
+                    {recipients.map((recipient) => (
+                      <option key={recipient.id} value={recipient.id}>
+                        {recipient.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
 
-        <label>
-          <span>Priority</span>
-          <select defaultValue="medium" name="priority">
-            <option value="low">Low</option>
-            <option value="medium">Medium</option>
-            <option value="high">High</option>
-            <option value="critical">Critical</option>
-          </select>
-        </label>
+                <label>
+                  <span>Service type</span>
+                  <select
+                    name="serviceTypeId"
+                    onChange={(event) => setSelectedServiceTypeId(event.target.value)}
+                    value={selectedServiceTypeId}
+                  >
+                    {formData.serviceTypes.map((serviceType) => (
+                      <option key={serviceType.id} value={serviceType.id}>
+                        {serviceType.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
 
-        <label>
-          <span>Scheduled start</span>
-          <input defaultValue="2026-04-06T07:00" name="scheduledStart" required type="datetime-local" />
-        </label>
+                <label>
+                  <span>Title</span>
+                  <input name="title" placeholder="Morning personal care support" required type="text" />
+                </label>
 
-        <label>
-          <span>Scheduled end</span>
-          <input defaultValue="2026-04-06T09:00" name="scheduledEnd" required type="datetime-local" />
-        </label>
+                <label>
+                  <span>Priority</span>
+                  <select defaultValue="medium" name="priority">
+                    <option value="low">Low</option>
+                    <option value="medium">Medium</option>
+                    <option value="high">High</option>
+                    <option value="critical">Critical</option>
+                  </select>
+                </label>
 
-        <label>
-          <span>Planned duration (min)</span>
-          <input
-            min="15"
-            name="plannedDurationMin"
-            onChange={(event) => setPlannedDurationMin(event.target.value)}
-            required
-            step="15"
-            type="number"
-            value={plannedDurationMin}
-          />
-        </label>
+                <label>
+                  <span>Scheduled start</span>
+                  <input defaultValue="2026-04-06T07:00" name="scheduledStart" required type="datetime-local" />
+                </label>
 
-        <label>
-          <span>Recurrence</span>
-          <input defaultValue="Mon-Fri, 07:00-09:00" name="recurrenceRule" required type="text" />
-        </label>
+                <label>
+                  <span>Scheduled end</span>
+                  <input defaultValue="2026-04-06T09:00" name="scheduledEnd" required type="datetime-local" />
+                </label>
 
-        <label>
-          <span>Required language</span>
-          <input name="requiredLanguage" placeholder="English" type="text" />
-        </label>
-      </div>
+                <label>
+                  <span>Planned duration (min)</span>
+                  <input
+                    min="15"
+                    name="plannedDurationMin"
+                    onChange={(event) => setPlannedDurationMin(event.target.value)}
+                    required
+                    step="15"
+                    type="number"
+                    value={plannedDurationMin}
+                  />
+                </label>
 
-      <fieldset className="form-block">
-        <legend>Required skills</legend>
-        <div className="pill-row checkbox-pill-row">
-          {formData.skills.map((skill) => {
-            const defaultChecked = ["Manual handling", "Personal hygiene support"].includes(skill);
+                <label>
+                  <span>Recurrence</span>
+                  <input defaultValue="Mon-Fri, 07:00-09:00" name="recurrenceRule" required type="text" />
+                </label>
 
-            return (
-              <label className="checkbox-pill" key={skill}>
-                <input defaultChecked={defaultChecked} name="requiredSkills" type="checkbox" value={skill} />
-                <span>{skill}</span>
+                <label>
+                  <span>Required language</span>
+                  <input name="requiredLanguage" placeholder="English" type="text" />
+                </label>
+              </div>
+
+              <fieldset className="form-block">
+                <legend>Required skills</legend>
+                <div className="pill-row checkbox-pill-row">
+                  {formData.skills.map((skill) => {
+                    const defaultChecked = ["Manual handling", "Personal hygiene support"].includes(skill);
+
+                    return (
+                      <label className="checkbox-pill" key={skill}>
+                        <input defaultChecked={defaultChecked} name="requiredSkills" type="checkbox" value={skill} />
+                        <span>{skill}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </fieldset>
+
+              <label className="form-block">
+                <span>Instructions</span>
+                <textarea
+                  name="instructions"
+                  placeholder="Operational instructions for the field visit"
+                  rows={4}
+                />
               </label>
-            );
-          })}
+
+              <label className="form-block">
+                <span>Coordinator notes</span>
+                <textarea
+                  name="coordinatorNotes"
+                  placeholder="Internal notes for assignment and follow-up"
+                  rows={3}
+                />
+              </label>
+
+              <div className="form-actions">
+                <SubmitButton />
+              </div>
+            </form>
+          </div>
         </div>
-      </fieldset>
-
-      <label className="form-block">
-        <span>Instructions</span>
-        <textarea
-          name="instructions"
-          placeholder="Operational instructions for the field visit"
-          rows={4}
-        />
-      </label>
-
-      <label className="form-block">
-        <span>Coordinator notes</span>
-        <textarea
-          name="coordinatorNotes"
-          placeholder="Internal notes for assignment and follow-up"
-          rows={3}
-        />
-      </label>
-
-      <div className="form-actions">
-        <SubmitButton />
-      </div>
-    </form>
+      ) : null}
+    </>
   );
 }

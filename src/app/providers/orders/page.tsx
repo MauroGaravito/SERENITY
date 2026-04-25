@@ -4,16 +4,89 @@ import { ProviderShell } from "@/components/providers/provider-shell";
 import { StatusBadge } from "@/components/providers/status-badge";
 import { PROVIDER_ROLES, requireOrganizationUser } from "@/lib/auth";
 import { getProviderOrderFormData, listProviderOrders } from "@/lib/providers-data";
+import { ServiceOrderRecord } from "@/lib/providers";
 
 export const dynamic = "force-dynamic";
 
-export default async function ProviderOrdersPage() {
+type OrdersSearchParams = {
+  risk?: string;
+  priority?: string;
+  status?: string;
+};
+
+function isOrderRisk(value: string): value is ServiceOrderRecord["coverageRisk"] {
+  return ["critical", "warning", "stable"].includes(value);
+}
+
+function isOrderPriority(value: string): value is ServiceOrderRecord["priority"] {
+  return ["critical", "high", "medium", "low"].includes(value);
+}
+
+function isOrderStatus(value: string): value is ServiceOrderRecord["status"] {
+  return [
+    "draft",
+    "open",
+    "partially_assigned",
+    "assigned",
+    "active",
+    "completed",
+    "closed",
+    "cancelled"
+  ].includes(value);
+}
+
+function getFilterLabel(searchParams: OrdersSearchParams) {
+  if (searchParams.risk && isOrderRisk(searchParams.risk)) {
+    return `${searchParams.risk} risk`;
+  }
+
+  if (searchParams.priority && isOrderPriority(searchParams.priority)) {
+    return `${searchParams.priority} priority`;
+  }
+
+  if (searchParams.status && isOrderStatus(searchParams.status)) {
+    return `${searchParams.status.replaceAll("_", " ")} status`;
+  }
+
+  return "all active provider demand";
+}
+
+function filterOrders(orders: ServiceOrderRecord[], searchParams: OrdersSearchParams) {
+  return orders.filter((order) => {
+    if (searchParams.risk && isOrderRisk(searchParams.risk)) {
+      return order.coverageRisk === searchParams.risk;
+    }
+
+    if (searchParams.priority && isOrderPriority(searchParams.priority)) {
+      return order.priority === searchParams.priority;
+    }
+
+    if (searchParams.status && isOrderStatus(searchParams.status)) {
+      if (searchParams.status === "open") {
+        return ["open", "partially_assigned", "assigned"].includes(order.status);
+      }
+
+      return order.status === searchParams.status;
+    }
+
+    return true;
+  });
+}
+
+export default async function ProviderOrdersPage({
+  searchParams
+}: {
+  searchParams: Promise<OrdersSearchParams>;
+}) {
   const session = await requireOrganizationUser(PROVIDER_ROLES);
   const providerId = session.organizationId;
+  const params = await searchParams;
   const [orders, formData] = await Promise.all([
     listProviderOrders(providerId),
     getProviderOrderFormData()
   ]);
+  const filteredOrders = filterOrders(orders, params);
+  const filterLabel = getFilterLabel(params);
 
   return (
     <ProviderShell
@@ -27,8 +100,16 @@ export default async function ProviderOrdersPage() {
         <div className="panel-heading">
           <div>
             <p className="card-tag">Orders</p>
-            <h2>All active provider demand</h2>
+            <h2>{filterLabel}</h2>
+            <p className="panel-copy">
+              Showing {filteredOrders.length} of {orders.length} orders.
+            </p>
           </div>
+          {(params.risk || params.priority || params.status) ? (
+            <Link className="inline-link" href="/providers/orders">
+              Clear filter
+            </Link>
+          ) : null}
         </div>
 
         <div className="orders-table">
@@ -40,7 +121,7 @@ export default async function ProviderOrdersPage() {
           <span>Status</span>
         </div>
 
-          {orders.map((order) => (
+          {filteredOrders.map((order) => (
             <Link className="orders-table-row" href={`/providers/orders/${order.id}`} key={order.id}>
               <div>
                 <strong>{order.code}</strong>

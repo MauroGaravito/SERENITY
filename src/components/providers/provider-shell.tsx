@@ -6,7 +6,9 @@ import { getOptionalSession } from "@/lib/auth";
 const navItems = [
   { href: "/providers", label: "Dashboard", key: "dashboard" },
   { href: "/providers/orders", label: "Orders", key: "orders" },
-  { href: "/providers/closing", label: "Closing", key: "closing" }
+  { href: "/providers/closing", label: "Closing", key: "closing" },
+  { href: "/providers/export", label: "External export", key: "export" },
+  { href: "/providers/audit", label: "Audit trail", key: "audit" }
 ] as const;
 
 export async function ProviderShell({
