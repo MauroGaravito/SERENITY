@@ -230,6 +230,16 @@ Usa `SR-2403`.
 
 En `/providers/orders` puedes crear una orden nueva desde el boton `New order`. El formulario abre en modal para que la lista de ordenes siga siendo visible y no obligue al usuario a bajar por toda la pantalla.
 
+El formulario esta organizado por secciones para reducir errores:
+
+- detalles de demanda,
+- agenda inicial,
+- requisitos de elegibilidad,
+- instrucciones para campo,
+- notas internas provider.
+
+Cuando la orden se crea correctamente, Serenity abre el detalle de la orden para continuar con cobertura, asignacion y control de visitas.
+
 Campos disponibles:
 
 - centro
@@ -246,6 +256,14 @@ Campos disponibles:
 - skills requeridos desde catalogo cerrado
 - instrucciones
 - notas de coordinacion
+
+Validaciones actuales:
+
+- al menos un skill requerido,
+- fecha de fin posterior a fecha de inicio,
+- duracion planificada positiva,
+- duracion planificada menor o igual a la ventana programada,
+- sede y recipient deben pertenecer al centro seleccionado.
 
 En el detalle de la orden puedes:
 
@@ -311,6 +329,10 @@ Usa `SR-2402`.
 - Desde `Review outcome` puedes:
   - `Approve`
   - `Reject`
+
+Regla actual:
+
+- `Approve` solo se habilita si la visita tiene checklist completo y al menos una evidencia capturada.
 
 ### Caso ya resuelto en la semilla
 
@@ -522,6 +544,9 @@ Hoy `/carers` ya funciona como workspace ejecutable para el carer.
 - bloques de disponibilidad
 - credenciales con estado y vencimiento
 - skills verificadas derivadas de credenciales validas
+- readiness del perfil con impacto operativo
+- senales separadas de readiness: positivas, atencion y bloqueos
+- readiness de ejecucion por visita antes de enviar a review
 
 ### Que no puede hacer todavia
 
@@ -547,6 +572,20 @@ Usa `liam@serenity.local`.
   - reportar una incidencia si quieres
   - `Complete visit`
   - `Submit for review`
+
+Reglas actuales del carer:
+
+- `Submit for review` requiere checklist completo cuando existe template.
+- `Submit for review` requiere al menos una evidencia capturada.
+- El bloque de readiness de ejecucion explica que falta antes de enviar la visita.
+
+Readiness del perfil:
+
+- `ready`: tiene skills verificadas y disponibilidad declarada.
+- `attention_needed`: puede operar parcialmente, pero hay advertencias como credenciales pendientes, credenciales por vencer o falta de bloques de disponibilidad.
+- `restricted`: existen bloqueos como credenciales vencidas o rechazadas que afectan matching.
+
+Provider ve razones compatibles en el coverage pool, de modo que el cuidador y el coordinador leen la misma logica de elegibilidad desde superficies distintas.
 
 ### Datos sembrados relevantes
 

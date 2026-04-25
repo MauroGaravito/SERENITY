@@ -109,6 +109,10 @@ export default async function CenterOrderDetailPage({
                 </p>
                 <p>{visit.assignedCarerName ?? "Coverage still unassigned"}</p>
                 <p>{visit.notes}</p>
+                <p>
+                  Checklist {visit.checklistCompletion}% · Evidence {visit.evidenceCount} ·
+                  Incidents {visit.incidents.length}
+                </p>
               </div>
             ))}
           </div>
@@ -125,13 +129,41 @@ export default async function CenterOrderDetailPage({
             {order.visits.map((visit) => (
               <div className="note-block" key={`${visit.id}-trace`}>
                 <strong>{visit.label}</strong>
-                {visit.incident ? (
-                  <p>
-                    Incident: {visit.incident.category} · {visit.incident.severity} · {visit.incident.summary}
-                  </p>
-                ) : (
-                  <p>No incident recorded.</p>
-                )}
+                <div className="compact-sequence-list top-gap">
+                  {visit.checklistItems.length > 0 ? (
+                    visit.checklistItems.map((item) => (
+                      <p key={item.label}>
+                        Checklist: {item.label} · {item.result.replaceAll("_", " ")}
+                        {item.note ? ` · ${item.note}` : ""}
+                      </p>
+                    ))
+                  ) : (
+                    <p>No checklist template linked.</p>
+                  )}
+                </div>
+                <div className="compact-sequence-list top-gap">
+                  {visit.evidence.length > 0 ? (
+                    visit.evidence.map((item) => (
+                      <p key={item.id}>
+                        Evidence: {item.kind} · {item.capturedAt ? formatDateTime(item.capturedAt) : "time not recorded"}
+                      </p>
+                    ))
+                  ) : (
+                    <p>No evidence captured yet.</p>
+                  )}
+                </div>
+                <div className="compact-sequence-list top-gap">
+                  {visit.incidents.length > 0 ? (
+                    visit.incidents.map((incident) => (
+                      <p key={incident.id}>
+                        Incident: {incident.category} · {incident.severity} · {incident.summary} ·
+                        Occurred {formatDateTime(incident.occurredAt)}
+                      </p>
+                    ))
+                  ) : (
+                    <p>No incident recorded.</p>
+                  )}
+                </div>
                 {visit.review ? (
                   <p>
                     Review: {visit.review.outcome} by {visit.review.reviewer} at {formatDateTime(visit.review.at)}
@@ -139,7 +171,6 @@ export default async function CenterOrderDetailPage({
                 ) : (
                   <p>No review decision yet.</p>
                 )}
-                <p>{visit.evidenceCount} evidence items captured.</p>
               </div>
             ))}
           </div>

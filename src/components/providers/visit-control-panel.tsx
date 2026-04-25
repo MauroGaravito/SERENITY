@@ -45,6 +45,26 @@ function getSuggestedAction(visit: VisitRecord) {
   return "Track execution and keep the visit moving toward closure.";
 }
 
+function getExecutionNarrative(visit: VisitRecord) {
+  if (visit.status === "under_review") {
+    return "Review checklist, evidence, and incidents before deciding the outcome.";
+  }
+
+  if (visit.status === "approved") {
+    return "Execution context was approved and can support operational closure.";
+  }
+
+  if (visit.status === "rejected") {
+    return "Execution context was rejected and needs correction before approval.";
+  }
+
+  if (visit.checklistCompletion === 100 && visit.evidenceCount > 0) {
+    return "Checklist and evidence are ready for provider review.";
+  }
+
+  return "Execution context is still being built by the carer.";
+}
+
 export function VisitControlPanel({
   canReviewVisits,
   order
@@ -86,10 +106,12 @@ export function VisitControlPanel({
       }),
     [selectedVisit]
   );
-
   if (!selectedVisit) {
     return null;
   }
+
+  const reviewContextReady =
+    selectedVisit.checklistCompletion === 100 && selectedVisit.evidenceCount > 0;
 
   function runMutation(task: () => Promise<void>) {
     startTransition(async () => {
@@ -219,6 +241,10 @@ export function VisitControlPanel({
               <dd>{selectedVisit.evidenceCount} files</dd>
             </div>
             <div>
+              <dt>Incidents</dt>
+              <dd>{selectedVisit.incidents.length} reported</dd>
+            </div>
+            <div>
               <dt>Suggested action</dt>
               <dd>{getSuggestedAction(selectedVisit)}</dd>
             </div>
@@ -241,7 +267,7 @@ export function VisitControlPanel({
                   >
                     <span>{carer.name}</span>
                     <small>
-                      {carer.availability} · {carer.rating.toFixed(1)}
+                      {carer.readinessSummary} · rating {carer.rating.toFixed(1)}
                     </small>
                   </button>
                 )) : <p className="panel-copy">No carer currently clears the matching rules.</p>}
@@ -284,7 +310,11 @@ export function VisitControlPanel({
                 <div className="inline-actions">
                   <button
                     className="mini-action approve"
-                    disabled={isPending || !reviewerStatusActions.includes("approved")}
+                    disabled={
+                      isPending ||
+                      !reviewerStatusActions.includes("approved") ||
+                      !reviewContextReady
+                    }
                     onClick={() => handleReview("approved")}
                     type="button"
                   >
@@ -299,6 +329,11 @@ export function VisitControlPanel({
                     Reject
                   </button>
                 </div>
+                {!reviewContextReady ? (
+                  <p className="form-warning">
+                    Approval needs complete checklist and at least one evidence item.
+                  </p>
+                ) : null}
               </div>
             ) : null}
           </div>
@@ -307,19 +342,70 @@ export function VisitControlPanel({
         <article className="ops-panel">
           <div className="panel-heading">
             <div>
-              <p className="card-tag">Execution notes</p>
+              <p className="card-tag">Execution narrative</p>
               <h2>{selectedVisit.assignedCarerName ?? "No carer assigned"}</h2>
             </div>
           </div>
-          <p className="panel-copy">{selectedVisit.notes}</p>
-          {selectedVisit.incident ? (
-            <div className="incident-card">
-              <strong>
-                {selectedVisit.incident.category} · {selectedVisit.incident.severity}
-              </strong>
-              <p>{selectedVisit.incident.summary}</p>
+          <div className="execution-readiness-strip">
+            <div>
+              <strong>{getExecutionNarrative(selectedVisit)}</strong>
+              <p>
+                Checklist {selectedVisit.checklistCompletion}% · Evidence {selectedVisit.evidenceCount} ·
+                Incidents {selectedVisit.incidents.length}
+              </p>
             </div>
-          ) : null}
+          </div>
+          <p className="panel-copy">{selectedVisit.notes}</p>
+          <div className="execution-story-grid">
+            <div className="note-block">
+              <strong>Checklist</strong>
+              {selectedVisit.checklistItems.length > 0 ? (
+                <div className="compact-sequence-list top-gap">
+                  {selectedVisit.checklistItems.map((item) => (
+                    <p key={item.label}>
+                      {item.label}: {item.result.replaceAll("_", " ")}
+                      {item.note ? ` · ${item.note}` : ""}
+                    </p>
+                  ))}
+                </div>
+              ) : (
+                <p>No checklist template is linked to this visit.</p>
+              )}
+            </div>
+            <div className="note-block">
+              <strong>Evidence</strong>
+              {selectedVisit.evidence.length > 0 ? (
+                <div className="compact-sequence-list top-gap">
+                  {selectedVisit.evidence.map((item) => (
+                    <p key={item.id}>
+                      {item.kind}: {item.fileUrl}
+                      {item.capturedAt ? ` · ${formatDateTime(item.capturedAt)}` : ""}
+                    </p>
+                  ))}
+                </div>
+              ) : (
+                <p>No evidence captured yet.</p>
+              )}
+            </div>
+          </div>
+          {selectedVisit.incidents.length > 0 ? (
+            <div className="sequence-list top-gap">
+              {selectedVisit.incidents.map((incident) => (
+                <div className="incident-card" key={incident.id}>
+                  <strong>
+                    {incident.category} · {incident.severity}
+                  </strong>
+                  <p>{incident.summary}</p>
+                  <p>
+                    Occurred {formatDateTime(incident.occurredAt)}
+                    {incident.resolvedAt ? ` · Resolved ${formatDateTime(incident.resolvedAt)}` : " · Open"}
+                  </p>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="panel-copy">No incidents reported for this visit.</p>
+          )}
           {selectedVisit.review ? (
             <div className="review-card">
               <StatusBadge value={selectedVisit.review.outcome} />
@@ -340,6 +426,9 @@ export function VisitControlPanel({
                 {restrictedCarers.map((carer) => (
                   <div className="note-block" key={carer.id}>
                     <strong>{carer.name}</strong>
+                    <p>
+                      {carer.readinessStatus.replaceAll("_", " ")} · {carer.readinessSummary}
+                    </p>
                     <p>{carer.eligibilityReasons.join(" · ")}</p>
                   </div>
                 ))}

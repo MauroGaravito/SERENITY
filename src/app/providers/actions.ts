@@ -12,6 +12,7 @@ import {
   VisitStatus as PrismaVisitStatus
 } from "@prisma/client";
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { SKILL_CATALOG } from "@/lib/catalogs";
 import {
@@ -132,6 +133,61 @@ async function getScopedClosingPeriod(periodId: string, providerId: string) {
       endsAt: true
     }
   });
+}
+
+async function assertVisitHasReviewContext(visitId: string) {
+  const visit = await prisma.visit.findUnique({
+    where: { id: visitId },
+    select: {
+      evidence: {
+        select: { id: true }
+      },
+      checklistItems: {
+        select: {
+          id: true,
+          templateItemId: true
+        }
+      },
+      serviceOrder: {
+        select: {
+          serviceType: {
+            select: {
+              checklistTemplates: {
+                take: 1,
+                orderBy: { version: "desc" },
+                select: {
+                  items: {
+                    select: { id: true }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  });
+
+  if (!visit) {
+    throw new Error("Visit not found.");
+  }
+
+  const requiredTemplateItems =
+    visit.serviceOrder.serviceType.checklistTemplates[0]?.items ?? [];
+  const completedTemplateItemIds = new Set(
+    visit.checklistItems.map((item) => item.templateItemId)
+  );
+  const missingChecklistItems = requiredTemplateItems.filter(
+    (item) => !completedTemplateItemIds.has(item.id)
+  );
+
+  if (missingChecklistItems.length > 0) {
+    throw new Error("Checklist must be complete before approving the visit.");
+  }
+
+  if (visit.evidence.length === 0) {
+    throw new Error("At least one evidence item is required before approving the visit.");
+  }
 }
 
 async function getScopedExportJob(jobId: string, providerId: string) {
@@ -415,6 +471,10 @@ export async function reviewVisit({
         : PrismaVisitStatus.REJECTED
   });
 
+  if (outcome === "approved") {
+    await assertVisitHasReviewContext(visit.id);
+  }
+
   await prisma.review.create({
     data: {
       visitId,
@@ -556,11 +616,43 @@ function parseExternalResolution(value: string) {
 function parsePositiveInt(value: string, field: string) {
   const parsed = Number(value);
 
-  if (!Number.isFinite(parsed) || parsed < 0) {
+  if (!Number.isFinite(parsed) || parsed <= 0) {
     throw new Error(`Invalid numeric field: ${field}`);
   }
 
   return Math.round(parsed);
+}
+
+function parseOperationalDate(value: string, field: string) {
+  const parsed = new Date(value);
+
+  if (Number.isNaN(parsed.getTime())) {
+    throw new Error(`Invalid date field: ${field}`);
+  }
+
+  return parsed;
+}
+
+function validateVisitWindow({
+  plannedDurationMin,
+  scheduledEnd,
+  scheduledStart
+}: {
+  plannedDurationMin: number;
+  scheduledEnd: Date;
+  scheduledStart: Date;
+}) {
+  if (scheduledEnd <= scheduledStart) {
+    throw new Error("Scheduled end must be after scheduled start.");
+  }
+
+  const windowMinutes = Math.round(
+    (scheduledEnd.getTime() - scheduledStart.getTime()) / 60000
+  );
+
+  if (plannedDurationMin > windowMinutes) {
+    throw new Error("Planned duration cannot be longer than the scheduled visit window.");
+  }
 }
 
 function parseAmountToCents(value: string, field: string) {
@@ -581,16 +673,31 @@ export async function createServiceOrder(formData: FormData) {
   const recipientId = requiredString(formData.get("recipientId"), "recipientId");
   const serviceTypeId = requiredString(formData.get("serviceTypeId"), "serviceTypeId");
   const title = requiredString(formData.get("title"), "title");
-  const scheduledStart = requiredString(formData.get("scheduledStart"), "scheduledStart");
-  const scheduledEnd = requiredString(formData.get("scheduledEnd"), "scheduledEnd");
   const recurrenceRule = requiredString(formData.get("recurrenceRule"), "recurrenceRule");
-  const plannedDurationMin = Number(
-    requiredString(formData.get("plannedDurationMin"), "plannedDurationMin")
+  const plannedDurationMin = parsePositiveInt(
+    requiredString(formData.get("plannedDurationMin"), "plannedDurationMin"),
+    "plannedDurationMin"
+  );
+  const scheduledStart = parseOperationalDate(
+    requiredString(formData.get("scheduledStart"), "scheduledStart"),
+    "scheduledStart"
+  );
+  const scheduledEnd = parseOperationalDate(
+    requiredString(formData.get("scheduledEnd"), "scheduledEnd"),
+    "scheduledEnd"
   );
   const priority = parsePriority(requiredString(formData.get("priority"), "priority"));
   const requiredSkills = parseRequiredSkills(formData);
+  validateVisitWindow({ plannedDurationMin, scheduledEnd, scheduledStart });
 
-  const [facility, serviceType] = await Promise.all([
+  const [center, facility, serviceType] = await Promise.all([
+    prisma.organization.findFirst({
+      where: {
+        id: centerId,
+        kind: "CENTER"
+      },
+      select: { id: true }
+    }),
     prisma.facility.findFirst({
       where: {
         id: facilityId,
@@ -606,6 +713,10 @@ export async function createServiceOrder(formData: FormData) {
       select: { id: true }
     })
   ]);
+
+  if (!center) {
+    throw new Error("Selected center is not available for provider demand.");
+  }
 
   if (!facility) {
     throw new Error("Facility and recipient do not match the selected center.");
@@ -634,8 +745,8 @@ export async function createServiceOrder(formData: FormData) {
       requiredSkills,
       requiredLanguage: optionalString(formData.get("requiredLanguage")),
       plannedDurationMin,
-      startsOn: new Date(scheduledStart),
-      endsOn: new Date(scheduledEnd),
+      startsOn: scheduledStart,
+      endsOn: scheduledEnd,
       recurrenceRule
     }
   });
@@ -644,8 +755,8 @@ export async function createServiceOrder(formData: FormData) {
     data: {
       serviceOrderId: order.id,
       status: PrismaVisitStatus.SCHEDULED,
-      scheduledStart: new Date(scheduledStart),
-      scheduledEnd: new Date(scheduledEnd),
+      scheduledStart,
+      scheduledEnd,
       exceptionReason: "Newly created order awaiting assignment."
     }
   });
@@ -670,13 +781,14 @@ export async function createServiceOrder(formData: FormData) {
     type: AuditEventType.VISIT_CREATED,
     summary: "Initial visit created for the new provider order.",
     payload: {
-      scheduledStart,
-      scheduledEnd
+      scheduledStart: scheduledStart.toISOString(),
+      scheduledEnd: scheduledEnd.toISOString()
     }
   });
 
   await syncServiceOrderStatus(order.id);
   revalidateProviderPaths();
+  redirect(`/providers/orders/${order.id}`);
 }
 
 export async function updateServiceOrder(formData: FormData) {
@@ -684,17 +796,41 @@ export async function updateServiceOrder(formData: FormData) {
   const orderId = requiredString(formData.get("orderId"), "orderId");
   const title = requiredString(formData.get("title"), "title");
   const recurrenceRule = requiredString(formData.get("recurrenceRule"), "recurrenceRule");
-  const plannedDurationMin = Number(
-    requiredString(formData.get("plannedDurationMin"), "plannedDurationMin")
+  const plannedDurationMin = parsePositiveInt(
+    requiredString(formData.get("plannedDurationMin"), "plannedDurationMin"),
+    "plannedDurationMin"
+  );
+  const scheduledStart = parseOperationalDate(
+    requiredString(formData.get("scheduledStart"), "scheduledStart"),
+    "scheduledStart"
+  );
+  const scheduledEnd = parseOperationalDate(
+    requiredString(formData.get("scheduledEnd"), "scheduledEnd"),
+    "scheduledEnd"
   );
   const priority = parsePriority(requiredString(formData.get("priority"), "priority"));
   const requiredSkills = parseRequiredSkills(formData);
+  validateVisitWindow({ plannedDurationMin, scheduledEnd, scheduledStart });
 
   const order = await getScopedOrder(orderId, session.organizationId);
 
   if (!order) {
     throw new Error("Order not found for this provider.");
   }
+
+  const adjustableVisit = await prisma.visit.findFirst({
+    where: {
+      serviceOrderId: order.id,
+      assignedCarerId: null,
+      status: PrismaVisitStatus.SCHEDULED
+    },
+    orderBy: {
+      scheduledStart: "asc"
+    },
+    select: {
+      id: true
+    }
+  });
 
   await prisma.serviceOrder.update({
     where: { id: order.id },
@@ -703,12 +839,25 @@ export async function updateServiceOrder(formData: FormData) {
       priority,
       recurrenceRule,
       plannedDurationMin,
+      startsOn: scheduledStart,
+      endsOn: scheduledEnd,
       requiredLanguage: optionalString(formData.get("requiredLanguage")),
       instructions: optionalString(formData.get("instructions")),
       coordinatorNotes: optionalString(formData.get("coordinatorNotes")),
       requiredSkills
     }
   });
+
+  if (adjustableVisit) {
+    await prisma.visit.update({
+      where: { id: adjustableVisit.id },
+      data: {
+        scheduledStart,
+        scheduledEnd,
+        exceptionReason: "Visit window updated from order demand settings."
+      }
+    });
+  }
 
   await logAuditEvent({
     organizationId: session.organizationId,
@@ -719,7 +868,10 @@ export async function updateServiceOrder(formData: FormData) {
     payload: {
       title,
       priority: priority.toLowerCase(),
-      plannedDurationMin
+      plannedDurationMin,
+      scheduledStart: scheduledStart.toISOString(),
+      scheduledEnd: scheduledEnd.toISOString(),
+      adjustedVisitId: adjustableVisit?.id ?? null
     }
   });
 

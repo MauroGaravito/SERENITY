@@ -13,16 +13,18 @@ import {
 import { CarerWorkspaceRecord } from "@/lib/carers";
 
 function PendingButton({
+  disabled,
   idleLabel,
   pendingLabel
 }: {
+  disabled?: boolean;
   idleLabel: string;
   pendingLabel: string;
 }) {
   const { pending } = useFormStatus();
 
   return (
-    <button className="primary-link" disabled={pending} type="submit">
+    <button className="primary-link" disabled={pending || disabled} type="submit">
       {pending ? pendingLabel : idleLabel}
     </button>
   );
@@ -30,9 +32,11 @@ function PendingButton({
 
 export function CarerStatusActionForm({
   action,
+  disabled,
   visitId
 }: {
   action: "start" | "complete" | "submit_review";
+  disabled?: boolean;
   visitId: string;
 }) {
   const labels = {
@@ -46,6 +50,7 @@ export function CarerStatusActionForm({
       <input name="visitId" type="hidden" value={visitId} />
       <input name="statusAction" type="hidden" value={action} />
       <PendingButton
+        disabled={disabled}
         idleLabel={labels[action].idle}
         pendingLabel={labels[action].pending}
       />

@@ -49,6 +49,8 @@ export type CarerOption = {
   credentials: string[];
   availability: string;
   rating: number;
+  readinessStatus: "ready" | "restricted" | "attention_needed";
+  readinessSummary: string;
   isEligible: boolean;
   availabilityMatch: boolean;
   eligibilityReasons: string[];
@@ -66,6 +68,22 @@ export type VisitIncident = {
   category: string;
   severity: IncidentSeverity;
   summary: string;
+  occurredAt: string;
+  resolvedAt?: string;
+};
+
+export type VisitChecklistItem = {
+  id?: string;
+  label: string;
+  result: "pending" | "pass" | "fail" | "not_applicable";
+  note?: string;
+};
+
+export type VisitEvidence = {
+  id: string;
+  kind: string;
+  fileUrl: string;
+  capturedAt?: string;
 };
 
 export type VisitRecord = {
@@ -80,8 +98,11 @@ export type VisitRecord = {
   assignedCarerId?: string;
   assignedCarerName?: string;
   checklistCompletion: number;
+  checklistItems: VisitChecklistItem[];
   evidenceCount: number;
+  evidence: VisitEvidence[];
   notes: string;
+  incidents: VisitIncident[];
   incident?: VisitIncident;
   review?: VisitReview;
 };
@@ -100,6 +121,8 @@ export type ServiceOrderRecord = {
   requiredLanguage?: string;
   frequency: string;
   plannedDurationMin: number;
+  startsOn: string;
+  endsOn?: string;
   coverageRisk: "stable" | "warning" | "critical";
   coverageStatus: CoverageStatus;
   pendingAction: string;

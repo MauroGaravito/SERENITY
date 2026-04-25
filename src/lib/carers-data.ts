@@ -6,7 +6,11 @@ import {
   VisitStatus as PrismaVisitStatus
 } from "@prisma/client";
 import { unstable_noStore as noStore } from "next/cache";
-import { CarerVisitChecklistItem, CarerWorkspaceRecord } from "@/lib/carers";
+import {
+  CarerReadinessSignal,
+  CarerVisitChecklistItem,
+  CarerWorkspaceRecord
+} from "@/lib/carers";
 import { prisma } from "@/lib/prisma";
 
 const carerWorkspaceInclude = {
@@ -135,58 +139,163 @@ function getChecklistCompletion(items: ReturnType<typeof getChecklistItems>) {
   return Math.round((completedItems / items.length) * 100);
 }
 
-function getReadinessStatus(record: CarerWorkspaceRow): CarerWorkspaceRecord["readinessStatus"] {
-  const hasExpiredCredential = record.credentials.some(
-    (credential) => credential.status === CredentialStatus.EXPIRED
-  );
-  const hasExpiringCredential = record.credentials.some((credential) => {
-    const daysToExpiry = getDaysToExpiry(credential.expiresAt);
-    return typeof daysToExpiry === "number" && daysToExpiry >= 0 && daysToExpiry <= 45;
-  });
+function getExecutionReadiness({
+  checklistCompletion,
+  evidenceCount,
+  incidentCount
+}: {
+  checklistCompletion: number;
+  evidenceCount: number;
+  incidentCount: number;
+}): CarerWorkspaceRecord["visits"][number]["executionReadiness"] {
+  const reviewBlockers = [
+    ...(checklistCompletion < 100 ? ["Complete every checklist item before review."] : []),
+    ...(evidenceCount === 0 ? ["Capture at least one evidence item before review."] : [])
+  ];
 
-  if (hasExpiredCredential) {
-    return "restricted";
-  }
-
-  if (hasExpiringCredential || record.availabilityBlocks.length === 0) {
-    return "attention_needed";
-  }
-
-  return "ready";
+  return {
+    checklistComplete: checklistCompletion === 100,
+    evidenceCaptured: evidenceCount > 0,
+    incidentCount,
+    summary:
+      reviewBlockers.length === 0
+        ? incidentCount > 0
+          ? "Ready for review with incident context attached."
+          : "Ready for review with checklist and evidence attached."
+        : "More execution context is needed before review.",
+    reviewBlockers
+  };
 }
 
-function getWorkspaceAlerts(record: CarerWorkspaceRow): CarerWorkspaceRecord["alerts"] {
-  const alerts: CarerWorkspaceRecord["alerts"] = [];
+function getReadinessSummary(record: CarerWorkspaceRow): CarerWorkspaceRecord["readinessSummary"] {
+  const positiveSignals: CarerReadinessSignal[] = [];
+  const attentionSignals: CarerReadinessSignal[] = [];
+  const blockerSignals: CarerReadinessSignal[] = [];
+  const validCredentials = record.credentials.filter(
+    (credential) => credential.status === CredentialStatus.VALID
+  );
+  const workingBlocks = record.availabilityBlocks.filter((block) => block.isWorking);
+
+  if (validCredentials.length > 0) {
+    positiveSignals.push({
+      id: "verified-skills",
+      tone: "positive",
+      label: `${validCredentials.length} verified skills`,
+      detail: validCredentials.map((credential) => credential.name).join(", ")
+    });
+  } else {
+    attentionSignals.push({
+      id: "no-valid-credentials",
+      tone: "warning",
+      label: "No verified skills",
+      detail: "Provider matching cannot confirm service skills until credentials are valid."
+    });
+  }
+
+  if (workingBlocks.length > 0) {
+    positiveSignals.push({
+      id: "availability-declared",
+      tone: "positive",
+      label: `${workingBlocks.length} working blocks declared`,
+      detail: "Provider matching can compare upcoming visits against declared availability."
+    });
+  } else {
+    attentionSignals.push({
+      id: "availability-missing",
+      tone: "warning",
+      label: "No working availability blocks",
+      detail: "Provider matching is weaker until working blocks are declared."
+    });
+  }
 
   for (const credential of record.credentials) {
     const daysToExpiry = getDaysToExpiry(credential.expiresAt);
 
     if (credential.status === CredentialStatus.EXPIRED) {
-      alerts.push({
+      blockerSignals.push({
         id: `credential-expired-${credential.id}`,
         tone: "critical",
-        title: `${credential.name} expired`,
-        detail: "This credential is currently blocking some assignments."
+        label: `${credential.name} expired`,
+        detail: "This credential is currently blocking matching for related service skills."
       });
       continue;
     }
 
+    if (credential.status === CredentialStatus.REJECTED) {
+      blockerSignals.push({
+        id: `credential-rejected-${credential.id}`,
+        tone: "critical",
+        label: `${credential.name} rejected`,
+        detail: "This credential cannot be used for eligibility until it is corrected."
+      });
+      continue;
+    }
+
+    if (credential.status === CredentialStatus.PENDING) {
+      attentionSignals.push({
+        id: `credential-pending-${credential.id}`,
+        tone: "warning",
+        label: `${credential.name} pending`,
+        detail: "This skill is not counted as verified until provider review is complete."
+      });
+    }
+
     if (typeof daysToExpiry === "number" && daysToExpiry >= 0 && daysToExpiry <= 45) {
-      alerts.push({
+      attentionSignals.push({
         id: `credential-expiring-${credential.id}`,
         tone: "warning",
-        title: `${credential.name} expires soon`,
+        label: `${credential.name} expires soon`,
         detail: `${daysToExpiry} days remaining before operational eligibility is affected.`
       });
     }
   }
 
-  if (record.availabilityBlocks.length === 0) {
+  const status =
+    blockerSignals.length > 0
+      ? "restricted"
+      : attentionSignals.length > 0
+        ? "attention_needed"
+        : "ready";
+
+  return {
+    status,
+    headline:
+      status === "ready"
+        ? "Ready for matching"
+        : status === "restricted"
+          ? "Restricted from some assignments"
+          : "Attention needed before matching is strong",
+    operationalImpact:
+      status === "ready"
+        ? "This carer has verified skills and declared availability for provider matching."
+        : status === "restricted"
+          ? "Provider matching will exclude this carer where blockers affect required skills or service windows."
+          : "This carer may still receive some work, but matching confidence is reduced until warnings are cleared.",
+    positiveSignals,
+    attentionSignals,
+    blockerSignals
+  };
+}
+
+function getWorkspaceAlerts(record: CarerWorkspaceRow): CarerWorkspaceRecord["alerts"] {
+  const alerts: CarerWorkspaceRecord["alerts"] = [];
+  const readinessSummary = getReadinessSummary(record);
+
+  for (const signal of readinessSummary.blockerSignals) {
     alerts.push({
-      id: "availability-missing",
+      id: signal.id,
+      tone: "critical",
+      title: signal.label,
+      detail: signal.detail
+    });
+  }
+
+  for (const signal of readinessSummary.attentionSignals) {
+    alerts.push({
+      id: signal.id,
       tone: "warning",
-      title: "No availability blocks recorded",
-      detail: "Provider matching is weaker until working blocks are declared."
+      title: signal.label,
+      detail: signal.detail
     });
   }
 
@@ -203,17 +312,20 @@ function getWorkspaceAlerts(record: CarerWorkspaceRow): CarerWorkspaceRecord["al
 }
 
 function mapWorkspace(record: CarerWorkspaceRow): CarerWorkspaceRecord {
-  const readinessStatus = getReadinessStatus(record);
+  const readinessSummary = getReadinessSummary(record);
+  const readinessStatus = readinessSummary.status;
   const alerts = getWorkspaceAlerts(record);
-  const opportunityLimits = alerts
-    .filter((alert) => alert.tone !== "neutral")
-    .map((alert) => alert.title);
+  const opportunityLimits = [
+    ...readinessSummary.blockerSignals,
+    ...readinessSummary.attentionSignals
+  ].map((signal) => `${signal.label}: ${signal.detail}`);
 
   return {
     carerId: record.id,
     carerName: `${record.firstName} ${record.lastName}`,
     availability: record.availabilityNote ?? "Availability to be confirmed",
     readinessStatus,
+    readinessSummary,
     verifiedSkills: record.credentials
       .filter((credential) => credential.status === CredentialStatus.VALID)
       .map((credential) => credential.name),
@@ -245,6 +357,20 @@ function mapWorkspace(record: CarerWorkspaceRow): CarerWorkspaceRecord {
       })),
     visits: record.visits.map((visit) => {
       const checklistItems = getChecklistItems(visit);
+      const checklistCompletion = getChecklistCompletion(checklistItems);
+      const evidence = visit.evidence.map((item) => ({
+        id: item.id,
+        kind: item.kind,
+        fileUrl: item.fileUrl,
+        capturedAt: item.capturedAt?.toISOString()
+      }));
+      const incidents = visit.incidents.map((incident) => ({
+        id: incident.id,
+        category: incident.category,
+        severity: mapSeverity(incident.severity),
+        summary: incident.summary,
+        occurredAt: incident.occurredAt.toISOString()
+      }));
 
       return {
         id: visit.id,
@@ -268,21 +394,15 @@ function mapWorkspace(record: CarerWorkspaceRow): CarerWorkspaceRecord {
           visit.serviceOrder.instructions ?? "No service instructions recorded yet.",
         notes: visit.exceptionReason ?? "No execution notes yet.",
         requiredSkills: visit.serviceOrder.requiredSkills,
-        checklistCompletion: getChecklistCompletion(checklistItems),
+        checklistCompletion,
         checklistItems,
-        evidence: visit.evidence.map((item) => ({
-          id: item.id,
-          kind: item.kind,
-          fileUrl: item.fileUrl,
-          capturedAt: item.capturedAt?.toISOString()
-        })),
-        incidents: visit.incidents.map((incident) => ({
-          id: incident.id,
-          category: incident.category,
-          severity: mapSeverity(incident.severity),
-          summary: incident.summary,
-          occurredAt: incident.occurredAt.toISOString()
-        }))
+        evidence,
+        incidents,
+        executionReadiness: getExecutionReadiness({
+          checklistCompletion,
+          evidenceCount: evidence.length,
+          incidentCount: incidents.length
+        })
       };
     })
   };

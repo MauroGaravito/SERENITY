@@ -81,6 +81,10 @@ function toEvidenceUrl(value: string) {
 }
 
 function parseChecklistResult(value: string) {
+  if (value === "pending") {
+    return "pending";
+  }
+
   switch (value) {
     case "pass":
       return ChecklistResult.PASS;
@@ -90,6 +94,61 @@ function parseChecklistResult(value: string) {
       return ChecklistResult.NOT_APPLICABLE;
     default:
       throw new Error("Invalid checklist result.");
+  }
+}
+
+async function assertVisitReadyForReview(visitId: string) {
+  const visit = await prisma.visit.findUnique({
+    where: { id: visitId },
+    select: {
+      evidence: {
+        select: { id: true }
+      },
+      checklistItems: {
+        select: {
+          id: true,
+          templateItemId: true
+        }
+      },
+      serviceOrder: {
+        select: {
+          serviceType: {
+            select: {
+              checklistTemplates: {
+                take: 1,
+                orderBy: { version: "desc" },
+                select: {
+                  items: {
+                    select: { id: true }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  });
+
+  if (!visit) {
+    throw new Error("Visit not found.");
+  }
+
+  const requiredTemplateItems =
+    visit.serviceOrder.serviceType.checklistTemplates[0]?.items ?? [];
+  const completedTemplateItemIds = new Set(
+    visit.checklistItems.map((item) => item.templateItemId)
+  );
+  const missingChecklistItems = requiredTemplateItems.filter(
+    (item) => !completedTemplateItemIds.has(item.id)
+  );
+
+  if (missingChecklistItems.length > 0) {
+    throw new Error("Complete every checklist item before submitting the visit for review.");
+  }
+
+  if (visit.evidence.length === 0) {
+    throw new Error("Capture at least one evidence item before submitting the visit for review.");
   }
 }
 
@@ -259,6 +318,7 @@ export async function updateCarerVisitStatus(formData: FormData) {
       summary = "Carer marked the visit as completed.";
       break;
     case "submit_review":
+      await assertVisitReadyForReview(visit.id);
       status = PrismaVisitStatus.UNDER_REVIEW;
       data = { status };
       summary = "Carer submitted the visit for review.";
@@ -321,6 +381,14 @@ export async function saveVisitChecklistItem(formData: FormData) {
   });
 
   if (existingItem) {
+    if (result === "pending") {
+      await prisma.visitChecklistItem.delete({
+        where: { id: existingItem.id }
+      });
+      await revalidateCarerPath();
+      return;
+    }
+
     await prisma.visitChecklistItem.update({
       where: { id: existingItem.id },
       data: {
@@ -328,7 +396,7 @@ export async function saveVisitChecklistItem(formData: FormData) {
         note
       }
     });
-  } else {
+  } else if (result !== "pending") {
     await prisma.visitChecklistItem.create({
       data: {
         visitId: visit.id,

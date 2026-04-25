@@ -49,6 +49,19 @@ function formatDate(value: string) {
   }).format(new Date(value));
 }
 
+function getSignalClass(tone: string) {
+  switch (tone) {
+    case "positive":
+      return "readiness-signal-positive";
+    case "critical":
+      return "readiness-signal-critical";
+    case "warning":
+      return "readiness-signal-warning";
+    default:
+      return "readiness-signal-neutral";
+  }
+}
+
 export function CarerWorkspace({
   selectedVisitId,
   session,
@@ -157,30 +170,44 @@ export function CarerWorkspace({
           <div className="panel-heading">
             <div>
               <p className="card-tag">Profile readiness</p>
-              <h2>Verified skills and limits</h2>
+              <h2>{workspace.readinessSummary.headline}</h2>
             </div>
-          </div>
-          <div className="stacked-statuses">
             <StatusBadge value={workspace.readinessStatus} />
           </div>
-          <div className="pill-row top-gap">
-            {workspace.verifiedSkills.map((credential) => (
-              <span className="skill-pill" key={credential}>
-                {credential}
-              </span>
+          <p className="panel-copy">{workspace.readinessSummary.operationalImpact}</p>
+          <div className="readiness-signal-grid top-gap">
+            {workspace.readinessSummary.positiveSignals.map((signal) => (
+              <div className={`readiness-signal ${getSignalClass(signal.tone)}`} key={signal.id}>
+                <strong>{signal.label}</strong>
+                <p>{signal.detail}</p>
+              </div>
+            ))}
+            {workspace.readinessSummary.attentionSignals.map((signal) => (
+              <div className={`readiness-signal ${getSignalClass(signal.tone)}`} key={signal.id}>
+                <strong>{signal.label}</strong>
+                <p>{signal.detail}</p>
+              </div>
+            ))}
+            {workspace.readinessSummary.blockerSignals.map((signal) => (
+              <div className={`readiness-signal ${getSignalClass(signal.tone)}`} key={signal.id}>
+                <strong>{signal.label}</strong>
+                <p>{signal.detail}</p>
+              </div>
             ))}
           </div>
-          <div className="sequence-list top-gap">
-            {workspace.opportunityLimits.length > 0 ? (
-              workspace.opportunityLimits.map((limit) => (
-                <div className="note-block" key={limit}>
-                  <strong>Current limit</strong>
-                  <p>{limit}</p>
-                </div>
-              ))
-            ) : (
-              <p className="panel-copy">No current operational limits are blocking this carer.</p>
-            )}
+          <div className="readiness-mini-summary top-gap">
+            <div>
+              <strong>{workspace.verifiedSkills.length}</strong>
+              <span>verified skills</span>
+            </div>
+            <div>
+              <strong>{workspace.availabilityBlocks.filter((block) => block.isWorking).length}</strong>
+              <span>working blocks</span>
+            </div>
+            <div>
+              <strong>{workspace.readinessSummary.blockerSignals.length}</strong>
+              <span>blockers</span>
+            </div>
           </div>
         </article>
       </section>
@@ -321,6 +348,14 @@ export function CarerWorkspace({
                   <dt>Checklist</dt>
                   <dd>{selectedVisit.checklistCompletion}% complete</dd>
                 </div>
+                <div>
+                  <dt>Evidence</dt>
+                  <dd>{selectedVisit.evidence.length} captured</dd>
+                </div>
+                <div>
+                  <dt>Incidents</dt>
+                  <dd>{selectedVisit.incidents.length} reported</dd>
+                </div>
               </dl>
             </article>
 
@@ -353,9 +388,36 @@ export function CarerWorkspace({
                 <h2>Visit actions</h2>
               </div>
             </div>
+            <div className="execution-readiness-strip">
+              <div>
+                <strong>{selectedVisit.executionReadiness.summary}</strong>
+                <p>
+                  Checklist {selectedVisit.executionReadiness.checklistComplete ? "complete" : "incomplete"} ·
+                  Evidence {selectedVisit.executionReadiness.evidenceCaptured ? "captured" : "missing"} ·
+                  {selectedVisit.executionReadiness.incidentCount} incidents
+                </p>
+              </div>
+              {selectedVisit.executionReadiness.reviewBlockers.length > 0 ? (
+                <div className="sequence-list">
+                  {selectedVisit.executionReadiness.reviewBlockers.map((blocker) => (
+                    <p className="form-warning" key={blocker}>
+                      {blocker}
+                    </p>
+                  ))}
+                </div>
+              ) : null}
+            </div>
             <div className="inline-actions">
               {getAvailableActions(selectedVisit).map((action) => (
-                <CarerStatusActionForm action={action} key={action} visitId={selectedVisit.id} />
+                <CarerStatusActionForm
+                  action={action}
+                  disabled={
+                    action === "submit_review" &&
+                    selectedVisit.executionReadiness.reviewBlockers.length > 0
+                  }
+                  key={action}
+                  visitId={selectedVisit.id}
+                />
               ))}
             </div>
           </section>
@@ -433,7 +495,7 @@ export function CarerWorkspace({
                         {incident.category} · {incident.severity}
                       </strong>
                       <p>{incident.summary}</p>
-                      <p>{formatDateTime(incident.occurredAt)}</p>
+                      <p>Occurred {formatDateTime(incident.occurredAt)}</p>
                     </div>
                   ))
                 ) : (

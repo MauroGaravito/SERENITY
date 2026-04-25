@@ -177,11 +177,14 @@ Ya existe un scaffold tecnico inicial con:
 - provider workspace reorganizado en dashboard operativo, ordenes, closing, external export y audit trail,
 - dashboard provider con panorama general, links filtrados por estado/riesgo/prioridad y cola priorizada,
 - ordenes provider con formulario de nueva orden en modal para mantener visible la lista de demanda activa,
+- formulario provider de ordenes organizado por detalles de demanda, agenda, requisitos, instrucciones y notas internas,
 - `closing` enfocado solo en periodo actual, settlement y excepciones operativas,
 - `external export` separado para paquetes, handoff externo y jobs de sincronizacion,
 - `audit trail` separado para trazabilidad critica,
 - capa de sync externa con `export jobs`, cola programable por tiempo, endpoint interno seguro, chequeo remoto y ciclo visible `queued -> processing -> sent -> acknowledged/failed`,
 - capa operativa reforzada con estados de cobertura, reemplazo manual, escalamiento operativo, matching explicable y readiness del carer,
+- narrativa de ejecucion por visita con checklist, evidencia e incidencias visible para carer, provider y center,
+- readiness del carer estructurado en senales positivas, advertencias y bloqueos alineadas con matching provider,
 - `closing` con visitas excluidas del settlement y motivos visibles,
 - foundation de `xero_custom_connection` con modos `sandbox`, `auth_only` y `direct_post`,
 - esquema de dominio inicial en `prisma/schema.prisma`,
@@ -196,6 +199,7 @@ La capa operativa ya cubre:
 - escalamiento operativo con auditoria,
 - assignment pool con razones de inelegibilidad,
 - readiness del carer con alertas y limites,
+- readiness del carer con impacto operativo, senales escaneables y estados `ready`, `attention_needed` y `restricted`,
 - excepciones demo `cancelled` y `no_show`.
 
 Plan detallado de esta capa:

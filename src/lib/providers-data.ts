@@ -1,6 +1,7 @@
 ﻿import {
   ClosingPeriodStatus as PrismaClosingPeriodStatus,
   CredentialStatus,
+  ChecklistResult,
   ExpenseType as PrismaExpenseType,
   ExternalSyncStatus as PrismaExternalSyncStatus,
   ExportJobAttemptKind as PrismaExportJobAttemptKind,
@@ -23,7 +24,8 @@ import {
   IncidentSeverity,
   ProviderMetric,
   ReviewOutcome,
-  ServiceOrderRecord
+  ServiceOrderRecord,
+  VisitChecklistItem
 } from "@/lib/providers";
 
 export type ProviderOrderFormData = {
@@ -125,7 +127,19 @@ const providerOrderInclude = {
   center: true,
   facility: true,
   recipient: true,
-  serviceType: true,
+  serviceType: {
+    include: {
+      checklistTemplates: {
+        take: 1,
+        orderBy: { version: "desc" },
+        include: {
+          items: {
+            orderBy: { sortOrder: "asc" }
+          }
+        }
+      }
+    }
+  },
   provider: {
     include: {
       carers: {
@@ -150,9 +164,17 @@ const providerOrderInclude = {
   visits: {
     include: {
       assignedCarer: true,
-      checklistItems: true,
-      evidence: true,
-      incidents: true,
+      checklistItems: {
+        include: {
+          templateItem: true
+        }
+      },
+      evidence: {
+        orderBy: { createdAt: "desc" }
+      },
+      incidents: {
+        orderBy: { occurredAt: "desc" }
+      },
       reviews: {
         include: { reviewer: true },
         orderBy: { reviewedAt: "desc" }
@@ -172,6 +194,58 @@ function toLowerSnake<T extends string>(value: T) {
 
 function mapExpenseType(value: PrismaExpenseType) {
   return value.toLowerCase() as ClosingWorkspaceRecord["periods"][number]["visits"][number]["expenses"][number]["type"];
+}
+
+function mapChecklistResult(value?: ChecklistResult): VisitChecklistItem["result"] {
+  switch (value) {
+    case ChecklistResult.PASS:
+      return "pass";
+    case ChecklistResult.FAIL:
+      return "fail";
+    case ChecklistResult.NOT_APPLICABLE:
+      return "not_applicable";
+    default:
+      return "pending";
+  }
+}
+
+function getVisitChecklistItems(
+  visit: ProviderOrderRow["visits"][number],
+  order: ProviderOrderRow
+): VisitChecklistItem[] {
+  const templateItems = order.serviceType.checklistTemplates[0]?.items ?? [];
+  const existingItems = new Map(
+    visit.checklistItems.map((item) => [item.templateItemId, item])
+  );
+
+  if (templateItems.length === 0) {
+    return visit.checklistItems.map((item) => ({
+      id: item.id,
+      label: item.templateItem.label,
+      result: mapChecklistResult(item.result),
+      note: item.note ?? undefined
+    }));
+  }
+
+  return templateItems.map((templateItem) => {
+    const item = existingItems.get(templateItem.id);
+
+    return {
+      id: item?.id,
+      label: templateItem.label,
+      result: mapChecklistResult(item?.result),
+      note: item?.note ?? undefined
+    };
+  });
+}
+
+function getChecklistCompletion(items: VisitChecklistItem[]) {
+  if (items.length === 0) {
+    return 0;
+  }
+
+  const completedItems = items.filter((item) => item.result !== "pending").length;
+  return Math.round((completedItems / items.length) * 100);
 }
 
 function mapClosingStatus(value: PrismaClosingPeriodStatus) {
@@ -374,11 +448,55 @@ function getCredentialReason(
   return `Missing skill ${skill}`;
 }
 
+function getCarerReadinessForMatching(carer: ProviderOrderRow["provider"]["carers"][number]) {
+  const validCredentials = carer.credentials.filter(
+    (credential) => credential.status === CredentialStatus.VALID
+  );
+  const expiredOrRejected = carer.credentials.filter(
+    (credential) =>
+      credential.status === CredentialStatus.EXPIRED ||
+      credential.status === CredentialStatus.REJECTED
+  );
+  const pendingCredentials = carer.credentials.filter(
+    (credential) => credential.status === CredentialStatus.PENDING
+  );
+  const workingBlocks = carer.availabilityBlocks.filter((block) => block.isWorking);
+
+  if (expiredOrRejected.length > 0) {
+    return {
+      status: "restricted" as const,
+      summary: `${expiredOrRejected.length} blocking credential issue${
+        expiredOrRejected.length === 1 ? "" : "s"
+      }`
+    };
+  }
+
+  if (pendingCredentials.length > 0 || workingBlocks.length === 0) {
+    return {
+      status: "attention_needed" as const,
+      summary:
+        workingBlocks.length === 0
+          ? "No working availability blocks declared"
+          : `${pendingCredentials.length} credential${
+              pendingCredentials.length === 1 ? "" : "s"
+            } pending verification`
+    };
+  }
+
+  return {
+    status: "ready" as const,
+    summary: `${validCredentials.length} verified skill${
+      validCredentials.length === 1 ? "" : "s"
+    } and ${workingBlocks.length} working block${workingBlocks.length === 1 ? "" : "s"}`
+  };
+}
+
 function mapOrder(order: ProviderOrderRow): ServiceOrderRecord {
   const requiredSkills = order.requiredSkills;
   const requiredLanguage = order.requiredLanguage?.toLowerCase();
   const primaryVisit = order.visits.find((visit) => !visit.assignedCarerId) ?? order.visits[0];
   const eligibleCarers = order.provider.carers.map((carer) => {
+    const readiness = getCarerReadinessForMatching(carer);
     const validCredentials = carer.credentials.filter(
       (credential) => credential.status === CredentialStatus.VALID
     );
@@ -405,38 +523,26 @@ function mapOrder(order: ProviderOrderRow): ServiceOrderRecord {
       credentials: validCredentials.map((credential) => credential.name),
       availability: carer.availabilityNote ?? "Availability to be confirmed",
       rating: carer.rating,
+      readinessStatus: readiness.status,
+      readinessSummary: readiness.summary,
       isEligible: eligibilityReasons.length === 0,
       availabilityMatch,
       eligibilityReasons
     };
   });
   const coverageStatus = deriveOrderCoverageStatus(order);
+  const visits = order.visits.map((visit) => {
+    const checklistItems = getVisitChecklistItems(visit, order);
+    const incidents = visit.incidents.map((incident) => ({
+      id: incident.id,
+      category: incident.category,
+      severity: toLowerSnake(incident.severity) as IncidentSeverity,
+      summary: incident.summary,
+      occurredAt: incident.occurredAt.toISOString(),
+      resolvedAt: incident.resolvedAt?.toISOString()
+    }));
 
-  return {
-    id: order.id,
-    code: order.code,
-    title: order.title,
-    centerName: order.center.displayName,
-    facilityName: order.facility.name,
-    recipientName: `${order.recipient.firstName} ${order.recipient.lastName}`,
-    serviceType: order.serviceType.name,
-    status: toLowerSnake(order.status) as ServiceOrderRecord["status"],
-    priority: toLowerSnake(order.priority) as ServiceOrderRecord["priority"],
-    requiredSkills: order.requiredSkills,
-    requiredLanguage: order.requiredLanguage ?? undefined,
-    frequency: order.recurrenceRule ?? "One-off order",
-    plannedDurationMin: order.plannedDurationMin,
-    coverageRisk: deriveCoverageRisk(order),
-    coverageStatus,
-    pendingAction: derivePendingAction(order),
-    escalationSummary:
-      order.coordinatorNotes?.includes("Escalation") || order.priority === "CRITICAL"
-        ? order.coordinatorNotes ?? "Critical order requiring escalation."
-        : undefined,
-    instructions: order.instructions ?? "No operating instructions yet.",
-    notesForCoordinator: order.coordinatorNotes ?? "No coordinator notes yet.",
-    eligibleCarers,
-    visits: order.visits.map((visit) => ({
+    return {
       id: visit.id,
       label: new Intl.DateTimeFormat("en-AU", {
         weekday: "short",
@@ -453,17 +559,18 @@ function mapOrder(order: ProviderOrderRow): ServiceOrderRecord {
       assignedCarerName: visit.assignedCarer
         ? `${visit.assignedCarer.firstName} ${visit.assignedCarer.lastName}`
         : undefined,
-      checklistCompletion: visit.checklistItems.length > 0 ? 100 : 0,
+      checklistCompletion: getChecklistCompletion(checklistItems),
+      checklistItems,
       evidenceCount: visit.evidence.length,
+      evidence: visit.evidence.map((item) => ({
+        id: item.id,
+        kind: item.kind,
+        fileUrl: item.fileUrl,
+        capturedAt: item.capturedAt?.toISOString()
+      })),
       notes: visit.exceptionReason ?? "Visit on track.",
-      incident: visit.incidents[0]
-        ? {
-            id: visit.incidents[0].id,
-            category: visit.incidents[0].category,
-            severity: toLowerSnake(visit.incidents[0].severity) as IncidentSeverity,
-            summary: visit.incidents[0].summary
-          }
-        : undefined,
+      incidents,
+      incident: incidents[0],
       review: visit.reviews[0]
         ? {
             reviewer: visit.reviews[0].reviewer.fullName,
@@ -472,7 +579,36 @@ function mapOrder(order: ProviderOrderRow): ServiceOrderRecord {
             note: visit.reviews[0].notes ?? "No review notes"
           }
         : undefined
-    }))
+    };
+  });
+
+  return {
+    id: order.id,
+    code: order.code,
+    title: order.title,
+    centerName: order.center.displayName,
+    facilityName: order.facility.name,
+    recipientName: `${order.recipient.firstName} ${order.recipient.lastName}`,
+    serviceType: order.serviceType.name,
+    status: toLowerSnake(order.status) as ServiceOrderRecord["status"],
+    priority: toLowerSnake(order.priority) as ServiceOrderRecord["priority"],
+    requiredSkills: order.requiredSkills,
+    requiredLanguage: order.requiredLanguage ?? undefined,
+    frequency: order.recurrenceRule ?? "One-off order",
+    plannedDurationMin: order.plannedDurationMin,
+    startsOn: order.startsOn.toISOString(),
+    endsOn: order.endsOn?.toISOString(),
+    coverageRisk: deriveCoverageRisk(order),
+    coverageStatus,
+    pendingAction: derivePendingAction(order),
+    escalationSummary:
+      order.coordinatorNotes?.includes("Escalation") || order.priority === "CRITICAL"
+        ? order.coordinatorNotes ?? "Critical order requiring escalation."
+        : undefined,
+    instructions: order.instructions ?? "No operating instructions yet.",
+    notesForCoordinator: order.coordinatorNotes ?? "No coordinator notes yet.",
+    eligibleCarers,
+    visits
   };
 }
 

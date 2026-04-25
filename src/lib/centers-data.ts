@@ -1,5 +1,6 @@
 ﻿import {
   Prisma,
+  ChecklistResult,
   ServiceOrderStatus,
   VisitStatus as PrismaVisitStatus
 } from "@prisma/client";
@@ -10,7 +11,8 @@ import {
   IncidentSeverity,
   ProviderMetric,
   ReviewOutcome,
-  ServiceOrderRecord
+  ServiceOrderRecord,
+  VisitChecklistItem
 } from "@/lib/providers";
 
 export type CenterOrderFormData = {
@@ -40,14 +42,34 @@ const centerOrderInclude = {
   center: true,
   facility: true,
   recipient: true,
-  serviceType: true,
+  serviceType: {
+    include: {
+      checklistTemplates: {
+        take: 1,
+        orderBy: { version: "desc" },
+        include: {
+          items: {
+            orderBy: { sortOrder: "asc" }
+          }
+        }
+      }
+    }
+  },
   provider: true,
   visits: {
     include: {
       assignedCarer: true,
-      checklistItems: true,
-      evidence: true,
-      incidents: true,
+      checklistItems: {
+        include: {
+          templateItem: true
+        }
+      },
+      evidence: {
+        orderBy: { createdAt: "desc" }
+      },
+      incidents: {
+        orderBy: { occurredAt: "desc" }
+      },
       reviews: {
         include: { reviewer: true },
         orderBy: { reviewedAt: "desc" }
@@ -63,6 +85,58 @@ type CenterOrderRow = Prisma.ServiceOrderGetPayload<{
 
 function toLowerSnake<T extends string>(value: T) {
   return value.toLowerCase() as Lowercase<T>;
+}
+
+function mapChecklistResult(value?: ChecklistResult): VisitChecklistItem["result"] {
+  switch (value) {
+    case ChecklistResult.PASS:
+      return "pass";
+    case ChecklistResult.FAIL:
+      return "fail";
+    case ChecklistResult.NOT_APPLICABLE:
+      return "not_applicable";
+    default:
+      return "pending";
+  }
+}
+
+function getVisitChecklistItems(
+  visit: CenterOrderRow["visits"][number],
+  order: CenterOrderRow
+): VisitChecklistItem[] {
+  const templateItems = order.serviceType.checklistTemplates[0]?.items ?? [];
+  const existingItems = new Map(
+    visit.checklistItems.map((item) => [item.templateItemId, item])
+  );
+
+  if (templateItems.length === 0) {
+    return visit.checklistItems.map((item) => ({
+      id: item.id,
+      label: item.templateItem.label,
+      result: mapChecklistResult(item.result),
+      note: item.note ?? undefined
+    }));
+  }
+
+  return templateItems.map((templateItem) => {
+    const item = existingItems.get(templateItem.id);
+
+    return {
+      id: item?.id,
+      label: templateItem.label,
+      result: mapChecklistResult(item?.result),
+      note: item?.note ?? undefined
+    };
+  });
+}
+
+function getChecklistCompletion(items: VisitChecklistItem[]) {
+  if (items.length === 0) {
+    return 0;
+  }
+
+  const completedItems = items.filter((item) => item.result !== "pending").length;
+  return Math.round((completedItems / items.length) * 100);
 }
 
 function deriveCoverageRisk(order: CenterOrderRow): ServiceOrderRecord["coverageRisk"] {
@@ -129,6 +203,54 @@ function deriveOrderCoverageStatus(order: CenterOrderRow): ServiceOrderRecord["c
 
 function mapOrder(order: CenterOrderRow): ServiceOrderRecord {
   const coverageStatus = deriveOrderCoverageStatus(order);
+  const visits = order.visits.map((visit) => {
+    const checklistItems = getVisitChecklistItems(visit, order);
+    const incidents = visit.incidents.map((incident) => ({
+      id: incident.id,
+      category: incident.category,
+      severity: toLowerSnake(incident.severity) as IncidentSeverity,
+      summary: incident.summary,
+      occurredAt: incident.occurredAt.toISOString(),
+      resolvedAt: incident.resolvedAt?.toISOString()
+    }));
+
+    return {
+      id: visit.id,
+      label: new Intl.DateTimeFormat("en-AU", {
+        weekday: "short",
+        day: "2-digit",
+        month: "short"
+      }).format(visit.scheduledStart),
+      scheduledStart: visit.scheduledStart.toISOString(),
+      scheduledEnd: visit.scheduledEnd.toISOString(),
+      status: toLowerSnake(visit.status) as ServiceOrderRecord["visits"][number]["status"],
+      coverageStatus: deriveVisitCoverageStatus(visit),
+      assignedCarerId: visit.assignedCarerId ?? undefined,
+      assignedCarerName: visit.assignedCarer
+        ? `${visit.assignedCarer.firstName} ${visit.assignedCarer.lastName}`
+        : undefined,
+      checklistCompletion: getChecklistCompletion(checklistItems),
+      checklistItems,
+      evidenceCount: visit.evidence.length,
+      evidence: visit.evidence.map((item) => ({
+        id: item.id,
+        kind: item.kind,
+        fileUrl: item.fileUrl,
+        capturedAt: item.capturedAt?.toISOString()
+      })),
+      notes: visit.exceptionReason ?? "Visit on track.",
+      incidents,
+      incident: incidents[0],
+      review: visit.reviews[0]
+        ? {
+            reviewer: visit.reviews[0].reviewer.fullName,
+            outcome: toLowerSnake(visit.reviews[0].outcome) as ReviewOutcome,
+            at: visit.reviews[0].reviewedAt.toISOString(),
+            note: visit.reviews[0].notes ?? "No review notes"
+          }
+        : undefined
+    };
+  });
 
   return {
     id: order.id,
@@ -144,6 +266,8 @@ function mapOrder(order: CenterOrderRow): ServiceOrderRecord {
     requiredLanguage: order.requiredLanguage ?? undefined,
     frequency: order.recurrenceRule ?? "One-off order",
     plannedDurationMin: order.plannedDurationMin,
+    startsOn: order.startsOn.toISOString(),
+    endsOn: order.endsOn?.toISOString(),
     coverageRisk: deriveCoverageRisk(order),
     coverageStatus,
     pendingAction:
@@ -157,41 +281,7 @@ function mapOrder(order: CenterOrderRow): ServiceOrderRecord {
     instructions: order.instructions ?? "No operating instructions yet.",
     notesForCoordinator: order.coordinatorNotes ?? "No provider handoff note yet.",
     eligibleCarers: [],
-    visits: order.visits.map((visit) => ({
-      id: visit.id,
-      label: new Intl.DateTimeFormat("en-AU", {
-        weekday: "short",
-        day: "2-digit",
-        month: "short"
-      }).format(visit.scheduledStart),
-      scheduledStart: visit.scheduledStart.toISOString(),
-      scheduledEnd: visit.scheduledEnd.toISOString(),
-      status: toLowerSnake(visit.status) as ServiceOrderRecord["visits"][number]["status"],
-      coverageStatus: deriveVisitCoverageStatus(visit),
-      assignedCarerId: visit.assignedCarerId ?? undefined,
-      assignedCarerName: visit.assignedCarer
-        ? `${visit.assignedCarer.firstName} ${visit.assignedCarer.lastName}`
-        : undefined,
-      checklistCompletion: visit.checklistItems.length > 0 ? 100 : 0,
-      evidenceCount: visit.evidence.length,
-      notes: visit.exceptionReason ?? "Visit on track.",
-      incident: visit.incidents[0]
-        ? {
-            id: visit.incidents[0].id,
-            category: visit.incidents[0].category,
-            severity: toLowerSnake(visit.incidents[0].severity) as IncidentSeverity,
-            summary: visit.incidents[0].summary
-          }
-        : undefined,
-      review: visit.reviews[0]
-        ? {
-            reviewer: visit.reviews[0].reviewer.fullName,
-            outcome: toLowerSnake(visit.reviews[0].outcome) as ReviewOutcome,
-            at: visit.reviews[0].reviewedAt.toISOString(),
-            note: visit.reviews[0].notes ?? "No review notes"
-          }
-        : undefined
-    }))
+    visits
   };
 }
 

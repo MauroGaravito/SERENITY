@@ -6,6 +6,8 @@
 2. Ninguna visita puede confirmarse sin una ventana horaria, duracion y ubicacion definidas.
 3. Todo servicio debe pertenecer a un centro y a una prestadora responsable.
 4. Un cuidador no puede tener dos visitas superpuestas.
+5. El readiness del cuidador debe explicar impacto operativo mediante tres estados: `ready`, `attention_needed` y `restricted`.
+6. Las razones de matching visibles para provider deben estar alineadas con las señales que el cuidador ve en su workspace.
 
 ## 2. Reglas de cobertura
 
@@ -13,6 +15,10 @@
 2. Si una visita no tiene cuidador confirmado dentro del tiempo minimo definido, debe escalar a coordinacion.
 3. Si un cuidador cancela dentro de la ventana critica, Serenity debe abrir flujo de reemplazo inmediato.
 4. Todo reemplazo debe mantener trazabilidad del motivo y del responsable del cambio.
+5. Una orden creada por provider debe incluir centro, sede, recipient, tipo de servicio, titulo, prioridad, ventana inicial, duracion, recurrencia y al menos un skill requerido.
+6. La ventana de servicio debe tener fin posterior al inicio y la duracion planificada no puede exceder la ventana programada.
+7. La creacion de una orden provider genera una primera visita `scheduled` lista para cobertura y asignacion.
+8. Si se edita la ventana de una orden con una visita `scheduled` sin asignar, esa visita pendiente debe mantenerse alineada con la nueva ventana.
 
 ## 3. Reglas de ejecucion
 
@@ -51,6 +57,9 @@ Reglas adicionales:
 2. Una visita rechazada debe volver a estado corregible con observaciones visibles.
 3. Toda correccion posterior a la revision debe dejar historial.
 4. Las incidencias severas deben bloquear el cierre hasta resolucion o excepcion autorizada.
+5. Una visita no puede enviarse a review sin checklist completo cuando existe template operativo.
+6. Una visita no puede enviarse a review sin al menos una evidencia capturada.
+7. Provider reviewer no puede aprobar una visita si falta checklist completo o evidencia minima.
 
 ## 5. Reglas economicas
 

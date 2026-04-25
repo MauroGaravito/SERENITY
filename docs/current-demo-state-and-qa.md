@@ -242,6 +242,9 @@ Resultado esperado:
 
 - La lista sigue siendo el centro de la pantalla.
 - El formulario no empuja las ordenes hacia abajo.
+- El formulario separa demanda, agenda, requisitos, instrucciones e internos.
+- Una orden valida redirige al detalle para continuar cobertura/asignacion.
+- Ordenes sin skills, con ventana invalida o con duracion mayor que la ventana quedan bloqueadas.
 - Cada orden abre su detalle correctamente.
 
 ### 4. Review con provider reviewer
@@ -300,13 +303,18 @@ Pruebas:
 1. Entrar a `/carers`.
 2. Confirmar que Gabriel ve visitas asignadas.
 3. Abrir la visita `confirmed`.
-4. Probar flujo de ejecucion si quieres modificar la demo:
+4. Confirmar que el bloque de readiness de ejecucion explica checklist, evidencia e incidencias.
+5. Confirmar que `Submit for review` queda bloqueado si falta checklist completo o evidencia.
+6. Probar flujo de ejecucion si quieres modificar la demo:
    `Start visit` -> checklist/evidence -> `Complete visit` -> `Submit for review`.
 
 Resultado esperado:
 
 - El carer solo ve su workspace.
 - El flujo de ejecucion se entiende sin entrar a provider.
+- El carer entiende que falta antes de enviar a review.
+- Readiness del perfil explica senales positivas, advertencias y bloqueos.
+- Las razones de readiness coinciden con las razones visibles para provider en matching.
 
 ### 7. Closing
 
@@ -399,4 +407,6 @@ npm run db:seed:colombia
 - Cada rol entra a su superficie correcta.
 - Cada center manager ve su centro.
 - El carer puede ejecutar visitas desde su workspace.
+- Checklist, evidencia e incidencias se pueden leer como narrativa de ejecucion desde carer, provider y center.
+- Readiness del carer usa estados claros `ready`, `attention_needed` y `restricted`.
 - Colombia y Australia pueden reseedearse sin romper build ni typecheck.

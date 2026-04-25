@@ -40,6 +40,22 @@ export type CarerAlert = {
   detail: string;
 };
 
+export type CarerReadinessSignal = {
+  id: string;
+  tone: "positive" | "neutral" | "warning" | "critical";
+  label: string;
+  detail: string;
+};
+
+export type CarerReadinessSummary = {
+  status: "ready" | "restricted" | "attention_needed";
+  headline: string;
+  operationalImpact: string;
+  positiveSignals: CarerReadinessSignal[];
+  attentionSignals: CarerReadinessSignal[];
+  blockerSignals: CarerReadinessSignal[];
+};
+
 export type CarerAvailabilityBlockRecord = {
   id: string;
   startsAt: string;
@@ -68,6 +84,13 @@ export type CarerAssignedVisit = {
   checklistItems: CarerVisitChecklistItem[];
   evidence: CarerVisitEvidence[];
   incidents: CarerVisitIncident[];
+  executionReadiness: {
+    checklistComplete: boolean;
+    evidenceCaptured: boolean;
+    incidentCount: number;
+    summary: string;
+    reviewBlockers: string[];
+  };
 };
 
 export type CarerWorkspaceRecord = {
@@ -75,6 +98,7 @@ export type CarerWorkspaceRecord = {
   carerName: string;
   availability: string;
   readinessStatus: "ready" | "restricted" | "attention_needed";
+  readinessSummary: CarerReadinessSummary;
   verifiedSkills: string[];
   opportunityLimits: string[];
   alerts: CarerAlert[];
