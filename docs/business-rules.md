@@ -22,6 +22,29 @@
 4. Toda evidencia adjunta debe quedar vinculada a la visita, al autor y a la hora de carga.
 5. Si una visita queda incompleta, el sistema debe exigir una causa explicita.
 
+### Matriz actual de transiciones de visita
+
+La demo no permite saltos arbitrarios entre estados. Las transiciones actuales son:
+
+| Estado actual | Actor | Siguiente estado permitido |
+| --- | --- | --- |
+| `scheduled` | provider | `confirmed`, `cancelled` |
+| `confirmed` | provider | `in_progress`, `cancelled`, `no_show` |
+| `confirmed` | carer | `in_progress` |
+| `in_progress` | provider o carer | `completed` |
+| `completed` | provider o carer | `under_review` |
+| `under_review` | provider reviewer | `approved`, `rejected` |
+| `rejected` | provider | `completed` |
+| `approved`, `cancelled`, `no_show` | sistema | estados terminales para el flujo normal |
+
+Reglas adicionales:
+
+- `confirmed`, `in_progress`, `completed`, `under_review`, `approved` y `no_show` requieren cuidador asignado.
+- `completed` requiere `actualStart`.
+- `under_review` y `approved` requieren `actualStart` y `actualEnd`.
+- `approved` y `rejected` solo se ejecutan desde el flujo de review.
+- Un reemplazo puede resetear visitas que aun no llegaron a ejecucion, review o aprobacion.
+
 ## 4. Reglas de revision
 
 1. Ninguna visita pasa a aprobada sin revision humana o regla explicita de autoaprobacion.

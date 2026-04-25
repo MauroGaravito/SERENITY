@@ -445,6 +445,8 @@ function mapOrder(order: ProviderOrderRow): ServiceOrderRecord {
       }).format(visit.scheduledStart),
       scheduledStart: visit.scheduledStart.toISOString(),
       scheduledEnd: visit.scheduledEnd.toISOString(),
+      actualStart: visit.actualStart?.toISOString(),
+      actualEnd: visit.actualEnd?.toISOString(),
       status: toLowerSnake(visit.status) as ServiceOrderRecord["visits"][number]["status"],
       coverageStatus: deriveVisitCoverageStatus(visit),
       assignedCarerId: visit.assignedCarerId ?? undefined,

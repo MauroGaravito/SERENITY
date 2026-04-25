@@ -32,6 +32,7 @@ import {
   toPrismaVisitStatus
 } from "@/lib/providers-data";
 import { ExportTargetSystem, ReviewOutcome, VisitStatus } from "@/lib/providers";
+import { assertVisitTransition } from "@/lib/visit-state";
 
 type ProviderMutationInput = {
   visitId: string;
@@ -87,6 +88,8 @@ async function getScopedVisit(visitId: string, providerId: string) {
       id: true,
       status: true,
       assignedCarerId: true,
+      actualStart: true,
+      actualEnd: true,
       exceptionReason: true,
       serviceOrderId: true,
       serviceOrder: {
@@ -205,6 +208,13 @@ export async function assignCarerToVisit({
     throw new Error("Carer is not available for this provider.");
   }
 
+  assertVisitTransition({
+    actor: "provider",
+    assignedCarerId: carer.id,
+    currentStatus: visit.status,
+    nextStatus: PrismaVisitStatus.CONFIRMED
+  });
+
   await prisma.visit.update({
     where: { id: visit.id },
     data: {
@@ -240,6 +250,18 @@ export async function requestVisitReplacement({
 
   if (!visit) {
     throw new Error("Visit not found for this provider.");
+  }
+
+  const replacementBlockedStatuses: PrismaVisitStatus[] = [
+    PrismaVisitStatus.IN_PROGRESS,
+    PrismaVisitStatus.COMPLETED,
+    PrismaVisitStatus.UNDER_REVIEW,
+    PrismaVisitStatus.APPROVED,
+    PrismaVisitStatus.REJECTED
+  ];
+
+  if (replacementBlockedStatuses.includes(visit.status)) {
+    throw new Error("Replacement can only reset visits that have not reached execution or approval.");
   }
 
   await prisma.visit.update({
@@ -323,11 +345,34 @@ export async function updateVisitStatus({
     throw new Error("Visit not found for this provider.");
   }
 
+  const nextStatus = toPrismaVisitStatus(status);
+
+  assertVisitTransition({
+    actor: "provider",
+    assignedCarerId: visit.assignedCarerId,
+    currentStatus: visit.status,
+    hasActualStart: Boolean(visit.actualStart),
+    hasActualEnd: Boolean(visit.actualEnd),
+    nextStatus
+  });
+
+  const statusData: {
+    status: PrismaVisitStatus;
+    actualStart?: Date;
+    actualEnd?: Date;
+  } = { status: nextStatus };
+
+  if (nextStatus === PrismaVisitStatus.IN_PROGRESS && !visit.actualStart) {
+    statusData.actualStart = new Date();
+  }
+
+  if (nextStatus === PrismaVisitStatus.COMPLETED && !visit.actualEnd) {
+    statusData.actualEnd = new Date();
+  }
+
   await prisma.visit.update({
     where: { id: visit.id },
-    data: {
-      status: toPrismaVisitStatus(status)
-    }
+    data: statusData
   });
 
   await logAuditEvent({
@@ -357,6 +402,18 @@ export async function reviewVisit({
   if (!visit) {
     throw new Error("Visit not found for this provider.");
   }
+
+  assertVisitTransition({
+    actor: "reviewer",
+    assignedCarerId: visit.assignedCarerId,
+    currentStatus: visit.status,
+    hasActualStart: Boolean(visit.actualStart),
+    hasActualEnd: Boolean(visit.actualEnd),
+    nextStatus:
+      outcome === "approved"
+        ? PrismaVisitStatus.APPROVED
+        : PrismaVisitStatus.REJECTED
+  });
 
   await prisma.review.create({
     data: {

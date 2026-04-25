@@ -17,6 +17,7 @@ import {
   VisitStatus,
   formatDateTime
 } from "@/lib/providers";
+import { getAllowedVisitTransitions } from "@/lib/visit-state";
 import { StatusBadge } from "@/components/providers/status-badge";
 
 type VisitControlPanelProps = {
@@ -66,6 +67,24 @@ export function VisitControlPanel({
   const restrictedCarers = useMemo(
     () => order.eligibleCarers.filter((carer) => !carer.isEligible),
     [order.eligibleCarers]
+  );
+  const providerStatusActions = useMemo(
+    () =>
+      getAllowedVisitTransitions(selectedVisit?.status ?? "scheduled", "provider", {
+        assignedCarerId: selectedVisit?.assignedCarerId,
+        hasActualStart: Boolean(selectedVisit?.actualStart),
+        hasActualEnd: Boolean(selectedVisit?.actualEnd)
+      }),
+    [selectedVisit]
+  );
+  const reviewerStatusActions = useMemo(
+    () =>
+      getAllowedVisitTransitions(selectedVisit?.status ?? "scheduled", "reviewer", {
+        assignedCarerId: selectedVisit?.assignedCarerId,
+        hasActualStart: Boolean(selectedVisit?.actualStart),
+        hasActualEnd: Boolean(selectedVisit?.actualEnd)
+      }),
+    [selectedVisit]
   );
 
   if (!selectedVisit) {
@@ -232,14 +251,7 @@ export function VisitControlPanel({
             <div className="action-card">
               <h3>Visit status</h3>
               <div className="inline-actions">
-                {([
-                  "confirmed",
-                  "in_progress",
-                  "completed",
-                  "under_review",
-                  "cancelled",
-                  "no_show"
-                ] as const).map(
+                {providerStatusActions.length > 0 ? providerStatusActions.map(
                   (status) => (
                     <button
                       className="mini-action"
@@ -251,10 +263,13 @@ export function VisitControlPanel({
                       {status}
                     </button>
                   )
-                )}
+                ) : <p className="panel-copy">No manual status move is valid from this state.</p>}
                 <button
                   className="mini-action reject"
-                  disabled={isPending}
+                  disabled={
+                    isPending ||
+                    ["in_progress", "completed", "under_review", "approved", "rejected"].includes(selectedVisit.status)
+                  }
                   onClick={handleReplacementRequest}
                   type="button"
                 >
@@ -269,7 +284,7 @@ export function VisitControlPanel({
                 <div className="inline-actions">
                   <button
                     className="mini-action approve"
-                    disabled={isPending}
+                    disabled={isPending || !reviewerStatusActions.includes("approved")}
                     onClick={() => handleReview("approved")}
                     type="button"
                   >
@@ -277,7 +292,7 @@ export function VisitControlPanel({
                   </button>
                   <button
                     className="mini-action reject"
-                    disabled={isPending}
+                    disabled={isPending || !reviewerStatusActions.includes("rejected")}
                     onClick={() => handleReview("rejected")}
                     type="button"
                   >

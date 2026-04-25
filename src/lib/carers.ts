@@ -58,6 +58,8 @@ export type CarerAssignedVisit = {
   recipientName: string;
   scheduledStart: string;
   scheduledEnd: string;
+  actualStart?: string;
+  actualEnd?: string;
   status: "scheduled" | "confirmed" | "in_progress" | "completed" | "under_review" | "approved" | "rejected" | "cancelled" | "no_show";
   instructions: string;
   notes: string;

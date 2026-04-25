@@ -99,6 +99,8 @@ La unidad central es la **prestacion de servicio verificable**:
 - `docs/architecture.md`: base tecnica inicial.
 - `docs/domain-model.md`: modelo de dominio inicial.
 - `docs/user-manual.md`: manual de usuario basado en la semilla demo actual.
+- `docs/current-demo-state-and-qa.md`: mapa actual de la demo local y pruebas manuales recomendadas.
+- `docs/dev-log.md`: registro breve de entregas, decisiones y validaciones.
 - `docs/app-scope-2026-04-12.md`: alcance actual de la app para demos.
 - `docs/external-export-spec-2026-04-12.md`: especificacion inicial de exportacion externa.
 - `docs/integration-closure-plan-2026-04-14.md`: plan para cerrar la capa de integracion externa con Xero como primer partner.

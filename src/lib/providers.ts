@@ -73,6 +73,8 @@ export type VisitRecord = {
   label: string;
   scheduledStart: string;
   scheduledEnd: string;
+  actualStart?: string;
+  actualEnd?: string;
   status: VisitStatus;
   coverageStatus: CoverageStatus;
   assignedCarerId?: string;

@@ -13,19 +13,32 @@ import { StatusBadge } from "@/components/providers/status-badge";
 import { type SessionUser } from "@/lib/auth";
 import { CarerWorkspaceRecord } from "@/lib/carers";
 import { formatDateTime } from "@/lib/providers";
+import { getAllowedVisitTransitions } from "@/lib/visit-state";
 
-function getAvailableActions(status: CarerWorkspaceRecord["visits"][number]["status"]) {
-  switch (status) {
-    case "scheduled":
-    case "confirmed":
-      return ["start"] as const;
-    case "in_progress":
-      return ["complete"] as const;
-    case "completed":
-      return ["submit_review"] as const;
-    default:
-      return [] as const;
-  }
+function getAvailableActions(visit: CarerWorkspaceRecord["visits"][number]) {
+  const allowedTransitions = getAllowedVisitTransitions(visit.status, "carer", {
+    assignedCarerId: "current-carer",
+    hasActualStart: Boolean(visit.actualStart),
+    hasActualEnd: Boolean(visit.actualEnd)
+  });
+
+  return allowedTransitions
+    .map((status) => {
+      if (status === "in_progress") {
+        return "start";
+      }
+
+      if (status === "completed") {
+        return "complete";
+      }
+
+      if (status === "under_review") {
+        return "submit_review";
+      }
+
+      return undefined;
+    })
+    .filter((action): action is "start" | "complete" | "submit_review" => Boolean(action));
 }
 
 function formatDate(value: string) {
@@ -341,7 +354,7 @@ export function CarerWorkspace({
               </div>
             </div>
             <div className="inline-actions">
-              {getAvailableActions(selectedVisit.status).map((action) => (
+              {getAvailableActions(selectedVisit).map((action) => (
                 <CarerStatusActionForm action={action} key={action} visitId={selectedVisit.id} />
               ))}
             </div>

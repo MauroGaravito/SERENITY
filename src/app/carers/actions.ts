@@ -12,6 +12,7 @@ import { CARER_ROLES, requireUser } from "@/lib/auth";
 import { logAuditEvent } from "@/lib/audit";
 import { prisma } from "@/lib/prisma";
 import { syncServiceOrderStatus } from "@/lib/providers-data";
+import { assertVisitTransition } from "@/lib/visit-state";
 
 async function requireCarerSession() {
   const session = await requireUser(CARER_ROLES);
@@ -45,7 +46,11 @@ async function getScopedVisit(visitId: string, carerId: string) {
     },
     select: {
       id: true,
-      serviceOrderId: true
+      serviceOrderId: true,
+      status: true,
+      assignedCarerId: true,
+      actualStart: true,
+      actualEnd: true
     }
   });
 }
@@ -261,6 +266,15 @@ export async function updateCarerVisitStatus(formData: FormData) {
     default:
       throw new Error("Invalid status transition.");
   }
+
+  assertVisitTransition({
+    actor: "carer",
+    assignedCarerId: visit.assignedCarerId,
+    currentStatus: visit.status,
+    hasActualStart: Boolean(visit.actualStart),
+    hasActualEnd: Boolean(visit.actualEnd),
+    nextStatus: status
+  });
 
   await prisma.visit.update({
     where: { id: visit.id },

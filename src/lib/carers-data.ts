@@ -261,6 +261,8 @@ function mapWorkspace(record: CarerWorkspaceRow): CarerWorkspaceRecord {
         recipientName: `${visit.serviceOrder.recipient.firstName} ${visit.serviceOrder.recipient.lastName}`,
         scheduledStart: visit.scheduledStart.toISOString(),
         scheduledEnd: visit.scheduledEnd.toISOString(),
+        actualStart: visit.actualStart?.toISOString(),
+        actualEnd: visit.actualEnd?.toISOString(),
         status: mapStatus(visit.status),
         instructions:
           visit.serviceOrder.instructions ?? "No service instructions recorded yet.",
