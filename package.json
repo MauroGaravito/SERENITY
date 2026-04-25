@@ -16,7 +16,9 @@
     "db:stop": "docker compose down",
     "db:generate": "prisma generate",
     "db:push": "prisma db push",
-    "db:seed": "node prisma/seed.mjs"
+    "db:seed": "node prisma/seed.mjs",
+    "db:seed:colombia": "node prisma/seed.mjs --profile=colombia",
+    "db:seed:australia": "node prisma/seed.mjs --profile=australia"
   },
   "prisma": {
     "seed": "node prisma/seed.mjs"

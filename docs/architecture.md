@@ -18,6 +18,7 @@ La base tecnica inicial de Serenity sera una sola aplicacion web con `Next.js`, 
 - Persistencia: `PostgreSQL`
 - ORM: `Prisma`
 - Estilo inicial: `CSS` propio, sin dependencia visual extra
+- UI actual: componentes React server/client colocados cerca de cada ruta y estilos globales en `src/app/globals.css`
 
 ## Modulos tecnicos
 
@@ -57,6 +58,19 @@ La base tecnica inicial de Serenity sera una sola aplicacion web con `Next.js`, 
 - periodos de cierre
 - consolidado visitable
 
+### 6. External Export
+
+- paquetes exportables por periodo
+- targets externos
+- `export jobs`
+- estado de entrega y acknowledgement externo
+
+### 7. Audit Trail
+
+- eventos criticos por orden
+- trazabilidad de cambios operativos
+- evidencia de acciones de cierre y exportacion
+
 ## Principios
 
 1. Toda accion critica deja trazabilidad.
@@ -68,9 +82,31 @@ La base tecnica inicial de Serenity sera una sola aplicacion web con `Next.js`, 
 ## Estructura actual
 
 - `src/app`: rutas y UI
+- `src/app/providers`: superficie provider reorganizada en dashboard, orders, closing, export y audit
+- `src/components/providers`: componentes compartidos del provider workspace
 - `src/lib`: datos base y utilidades
 - `prisma/schema.prisma`: modelo inicial del dominio
+- `prisma/seed.mjs`: semilla parametrizada con perfiles `colombia` y `australia`
 - `docs/`: definiciones de producto, reglas y arquitectura
+
+## Provider workspace actual
+
+La superficie provider separa responsabilidades para evitar pantallas largas y confusas:
+
+- `/providers`: panorama operativo, carga actual, links filtrados y cola priorizada.
+- `/providers/orders`: lista operativa de ordenes con filtros por estado, riesgo y prioridad; la creacion de ordenes vive en un modal.
+- `/providers/closing`: cierre operativo del periodo, visitas aprobadas, settlement y excepciones.
+- `/providers/export`: handoff externo, descarga de paquetes y ejecucion de jobs.
+- `/providers/audit`: eventos criticos y trazabilidad.
+
+Esta division mantiene el flujo profesional sin duplicar la misma informacion en multiples tarjetas.
+
+## Demo data profiles
+
+La demo local usa `colombia` por defecto para trabajar con nombres y barrios familiares. La demo `australia` se conserva para presentaciones o despliegues que necesiten la narrativa original.
+
+- `npm run db:seed:colombia`
+- `npm run db:seed:australia`
 
 ## Proxima evolucion recomendada
 

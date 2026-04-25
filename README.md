@@ -136,13 +136,26 @@ Ese enfoque tiene mejor coherencia, menor dispersion y una narrativa comercial m
 5. Levantar la app:
    `npm run dev`
 
+### Demo seeds
+
+La semilla soporta dos perfiles:
+
+- `npm run db:seed` o `npm run db:seed:colombia`: demo local por defecto con nombres familiares y sedes en Bello, Antioquia.
+- `npm run db:seed:australia`: demo original de Australia, alineada con la narrativa usada en produccion/VPS.
+
+Ambas semillas mantienen la misma estructura operativa: 1 prestadora, 3 centros, 3 recipients, 7 carers, 3 ordenes, 7 visitas, closing periods, settlements, export jobs y audit events.
+
 ## Demo Access
 
 - Password compartido local: `SerenityDemo!2026`
-- Provider coordinator: `coordination@serenity.local`
-- Provider reviewer: `review@serenity.local`
-- Center manager: `harbour.manager@serenity.local`
-- Carer: `liam@serenity.local`
+- Colombia provider coordinator: `mauricio@serenity.local`
+- Colombia provider reviewer: `diana@serenity.local`
+- Colombia center manager: `laura@serenity.local`
+- Colombia carer: `gabriel@serenity.local`
+- Australia provider coordinator: `coordination@serenity.local`
+- Australia provider reviewer: `review@serenity.local`
+- Australia center manager: `harbour.manager@serenity.local`
+- Australia carer: `liam@serenity.local`
 
 ## Deployment
 
@@ -159,7 +172,12 @@ Ya existe un scaffold tecnico inicial con:
 - homepage de producto,
 - rutas por actor (`/centers`, `/providers`, `/carers`),
 - catalogos cerrados iniciales para `service types` y `skills`,
-- workspace inicial de `closing` para periodos, settlements y gastos basicos,
+- provider workspace reorganizado en dashboard operativo, ordenes, closing, external export y audit trail,
+- dashboard provider con panorama general, links filtrados por estado/riesgo/prioridad y cola priorizada,
+- ordenes provider con formulario de nueva orden en modal para mantener visible la lista de demanda activa,
+- `closing` enfocado solo en periodo actual, settlement y excepciones operativas,
+- `external export` separado para paquetes, handoff externo y jobs de sincronizacion,
+- `audit trail` separado para trazabilidad critica,
 - capa de sync externa con `export jobs`, cola programable por tiempo, endpoint interno seguro, chequeo remoto y ciclo visible `queued -> processing -> sent -> acknowledged/failed`,
 - capa operativa reforzada con estados de cobertura, reemplazo manual, escalamiento operativo, matching explicable y readiness del carer,
 - `closing` con visitas excluidas del settlement y motivos visibles,

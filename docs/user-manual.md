@@ -6,17 +6,66 @@ Este manual describe la app tal como existe hoy y usa como referencia la semilla
 
 Todo lo que aparece aqui corresponde al estado demo sembrado para abril de 2026.
 
+La semilla tiene dos perfiles:
+
+- `colombia`: perfil local por defecto para desarrollo y aprendizaje, con nombres familiares y sedes en Bello, Antioquia.
+- `australia`: perfil original para demos externas o entornos donde se quiera conservar la narrativa australiana.
+
+Comandos:
+
+- `npm run db:seed` usa `colombia`.
+- `npm run db:seed:colombia` fuerza Colombia.
+- `npm run db:seed:australia` fuerza Australia.
+
 ## Credenciales demo
 
 - Password compartido: `SerenityDemo!2026`
+
+### Perfil Colombia
+
+- Provider coordinator: `mauricio@serenity.local`
+- Provider reviewer: `diana@serenity.local`
+- Center manager Niquia: `laura@serenity.local`
+- Center manager Cabanas: `jose@serenity.local`
+- Center manager Bello Centro: `juan@serenity.local`
+- Carer demo principal: `gabriel@serenity.local`
+
+### Perfil Australia
+
 - Provider coordinator: `coordination@serenity.local`
 - Provider reviewer: `review@serenity.local`
 - Harbour View center manager: `harbour.manager@serenity.local`
 - Evergreen center manager: `evergreen.manager@serenity.local`
 - BlueWattle center manager: `bluewattle.manager@serenity.local`
-- Carer demo: `liam@serenity.local`
+- Carer demo principal: `liam@serenity.local`
 
 ## Datos demo sembrados
+
+### Perfil Colombia por defecto
+
+- Prestadora: `Serenity Homecare Antioquia`
+- Centros:
+  - `Centro de Cuidado Niquia`
+  - `Centro de Cuidado Cabanas`
+  - `Centro de Cuidado Bello Centro`
+- Facilities:
+  - `Sede Niquia` en Niquia
+  - `Sede Cabanas` en Cabanas
+  - `Sede Bello Centro` en Bello Centro
+- Recipients:
+  - `Rosalba`
+  - `Elizabeth Chaverra`
+  - `Betzabeth Agudelo`
+- Carers:
+  - `Alvaro Ramirez`
+  - `Gabriel Ramirez`
+  - `Gloria Palacio`
+  - `Rocio Agudelo`
+  - `Mariana`
+  - `Melissa`
+  - `Santiago`
+
+### Perfil Australia
 
 ### Organizaciones
 
@@ -106,23 +155,26 @@ La demo actual ya usa catalogos cerrados para `service types` y `skills`.
 
 ## Perfil: Provider coordinator
 
-### Usuario demo
+### Usuarios demo
 
-- Nombre sembrado: `Alex Morgan`
-- Email: `coordination@serenity.local`
+- Colombia: `Mauricio Garavito` / `mauricio@serenity.local`
+- Australia: `Alex Morgan` / `coordination@serenity.local`
 - Ruta principal: `/providers`
 
 ### Que puede hacer hoy
 
-- Ver metricas operativas de la prestadora.
-- Ver la cola de ordenes que requieren accion.
-- Ver periodos de cierre operativo.
+- Ver el panorama operativo de la prestadora.
+- Saltar a ordenes filtradas por estado, riesgo o prioridad.
+- Ver la cola de ordenes que requieren accion inmediata.
+- Crear una nueva `service order` desde un modal en `/providers/orders`.
+- Ver periodos de cierre operativo en `/providers/closing`.
 - Ver visitas aprobadas listas para settlement.
 - Ver que visitas quedan excluidas del settlement y que paso operativo falta.
+- Preparar exportacion externa en `/providers/export`.
+- Consultar eventos criticos en `/providers/audit`.
 - Registrar minutos aprobados, billable y payable por visita.
 - Registrar gastos o kilometraje basicos para visitas aprobadas.
 - Mover un periodo entre `open`, `locked` y `exported`.
-- Crear una nueva `service order`.
 - Editar una orden existente.
 - Agregar visitas a una orden.
 - Asignar un cuidador elegible a una visita.
@@ -176,7 +228,9 @@ Usa `SR-2403`.
 
 ### Formularios disponibles
 
-En `/providers/orders` puedes crear una orden nueva con estos campos:
+En `/providers/orders` puedes crear una orden nueva desde el boton `New order`. El formulario abre en modal para que la lista de ordenes siga siendo visible y no obligue al usuario a bajar por toda la pantalla.
+
+Campos disponibles:
 
 - centro
 - facility
@@ -206,6 +260,9 @@ En `/providers/closing` puedes:
 - guardar settlement por visita
 - registrar gastos basicos
 - marcar un periodo como `locked`
+
+En `/providers/export` puedes:
+
 - encolar un `sync job` hacia un target externo mock, manual o `xero_custom_connection`
 - procesar la entrega del job
 - correr la cola de jobs pendientes por lote
@@ -215,6 +272,12 @@ En `/providers/closing` puedes:
 - marcar un periodo como `exported`
 - descargar el export package en `json`
 - descargar el export package en `csv`
+
+En `/providers/audit` puedes:
+
+- ver eventos criticos recientes
+- confirmar quien cambio una orden, visita, cierre o exportacion
+- explicar la historia operativa sin mezclarla con el trabajo diario
 
 ## Perfil: Provider reviewer
 
@@ -262,9 +325,9 @@ Eso sirve para mostrar:
 
 ### Workspace de cierre
 
-Tanto `Provider coordinator` como `Provider reviewer` pueden entrar a `/providers/closing`.
+Tanto `Provider coordinator` como `Provider reviewer` pueden entrar a `/providers/closing`, `/providers/export` y `/providers/audit`.
 
-La vista actual muestra:
+La vista de `closing` muestra:
 
 - periodos de cierre
 - visitas aprobadas dentro del periodo
@@ -272,6 +335,10 @@ La vista actual muestra:
 - billable y payable
 - gastos asociados
 - estado de exportacion del periodo
+- visitas excluidas del settlement con motivo y siguiente paso
+
+La vista de `external export` muestra:
+
 - export batch id
 - jobs de sync por periodo
 - un estado visible unico por job
@@ -279,6 +346,8 @@ La vista actual muestra:
 - historial de intentos por job
 - siguiente intento programado cuando el job sigue en vuelo
 - trazabilidad basica de descarga y sync
+
+La vista de `audit trail` muestra eventos criticos recientes del flujo.
 
 Regla clave actual:
 

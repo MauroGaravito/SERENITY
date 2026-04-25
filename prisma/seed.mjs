@@ -19,6 +19,181 @@ import catalogs from "../src/lib/catalogs.json" with { type: "json" };
 
 const prisma = new PrismaClient();
 const DEMO_PASSWORD = "SerenityDemo!2026";
+const requestedProfile =
+  process.argv.find((arg) => arg.startsWith("--profile="))?.split("=")[1] ?? "colombia";
+
+const seedProfiles = {
+  colombia: {
+    timezone: "America/Bogota",
+    provider: {
+      legalName: "Serenity Homecare Antioquia SAS",
+      displayName: "Serenity Homecare Antioquia"
+    },
+    centers: [
+      {
+        legalName: "Centro de Cuidado Niquia SAS",
+        displayName: "Centro de Cuidado Niquia",
+        facility: {
+          name: "Sede Niquia",
+          addressLine1: "Barrio Niquia",
+          suburb: "Niquia",
+          state: "Antioquia",
+          postalCode: "051051"
+        },
+        manager: {
+          email: "laura@serenity.local",
+          fullName: "Laura Garavito"
+        }
+      },
+      {
+        legalName: "Centro de Cuidado Cabanas SAS",
+        displayName: "Centro de Cuidado Cabanas",
+        facility: {
+          name: "Sede Cabanas",
+          addressLine1: "Barrio Cabanas",
+          suburb: "Cabanas",
+          state: "Antioquia",
+          postalCode: "051052"
+        },
+        manager: {
+          email: "jose@serenity.local",
+          fullName: "Jose Garavito"
+        }
+      },
+      {
+        legalName: "Centro de Cuidado Bello Centro SAS",
+        displayName: "Centro de Cuidado Bello Centro",
+        facility: {
+          name: "Sede Bello Centro",
+          addressLine1: "Barrio Bello Centro",
+          suburb: "Bello Centro",
+          state: "Antioquia",
+          postalCode: "051053"
+        },
+        manager: {
+          email: "juan@serenity.local",
+          fullName: "Juan Correa"
+        }
+      }
+    ],
+    coordinator: {
+      email: "mauricio@serenity.local",
+      fullName: "Mauricio Garavito"
+    },
+    reviewer: {
+      email: "diana@serenity.local",
+      fullName: "Diana Chaverra"
+    },
+    carers: [
+      { name: "Alvaro Ramirez", email: "alvaro@serenity.local" },
+      { name: "Gabriel Ramirez", email: "gabriel@serenity.local" },
+      { name: "Gloria Palacio", email: "gloria@serenity.local" },
+      { name: "Rocio Agudelo", email: "rocio@serenity.local" },
+      { name: "Mariana", email: "mariana@serenity.local" },
+      { name: "Melissa", email: "melissa@serenity.local" },
+      { name: "Santiago", email: "santiago@serenity.local" }
+    ],
+    recipients: [
+      { firstName: "Rosalba", lastName: "" },
+      { firstName: "Elizabeth", lastName: "Chaverra" },
+      { firstName: "Betzabeth", lastName: "Agudelo" }
+    ],
+    auditSummaries: {
+      orderOneCreated: "Provider created SR-2401 for Centro de Cuidado Niquia.",
+      visitOneAssigned: "Morning personal care visit assigned to Gabriel Ramirez.",
+      orderTwoCreated: "Provider created SR-2402 for Centro de Cuidado Cabanas."
+    },
+    credentialSlug: "gabriel"
+  },
+  australia: {
+    timezone: "Australia/Sydney",
+    provider: {
+      legalName: "Serenity Care Partners Pty Ltd",
+      displayName: "Serenity Care Partners"
+    },
+    centers: [
+      {
+        legalName: "Harbour View Care Ltd",
+        displayName: "Harbour View Care",
+        facility: {
+          name: "Bondi Homecare North",
+          addressLine1: "10 Campbell Parade",
+          suburb: "Bondi",
+          state: "NSW",
+          postalCode: "2026"
+        },
+        manager: {
+          email: "harbour.manager@serenity.local",
+          fullName: "Priya Shah"
+        }
+      },
+      {
+        legalName: "Evergreen Support Services Ltd",
+        displayName: "Evergreen Support Services",
+        facility: {
+          name: "Inner West Community",
+          addressLine1: "155 Norton Street",
+          suburb: "Leichhardt",
+          state: "NSW",
+          postalCode: "2040"
+        },
+        manager: {
+          email: "evergreen.manager@serenity.local",
+          fullName: "Mason Lee"
+        }
+      },
+      {
+        legalName: "BlueWattle Homecare Ltd",
+        displayName: "BlueWattle Homecare",
+        facility: {
+          name: "South Sydney Outreach",
+          addressLine1: "88 Botany Road",
+          suburb: "Alexandria",
+          state: "NSW",
+          postalCode: "2015"
+        },
+        manager: {
+          email: "bluewattle.manager@serenity.local",
+          fullName: "Hannah Price"
+        }
+      }
+    ],
+    coordinator: {
+      email: "coordination@serenity.local",
+      fullName: "Alex Morgan"
+    },
+    reviewer: {
+      email: "review@serenity.local",
+      fullName: "Diana Cole"
+    },
+    carers: [
+      { name: "Sofia Bennett", email: "sofia@serenity.local" },
+      { name: "Liam Ortega", email: "liam@serenity.local" },
+      { name: "Anika Perera", email: "anika@serenity.local" },
+      { name: "Emily Tran", email: "emily@serenity.local" },
+      { name: "Noah Rossi", email: "noah@serenity.local" },
+      { name: "Grace Walker", email: "grace@serenity.local" },
+      { name: "Daniel Kim", email: "daniel@serenity.local" }
+    ],
+    recipients: [
+      { firstName: "Maria", lastName: "Thompson" },
+      { firstName: "George", lastName: "Hill" },
+      { firstName: "Elaine", lastName: "Cooper" }
+    ],
+    auditSummaries: {
+      orderOneCreated: "Provider created SR-2401 for Harbour View Care.",
+      visitOneAssigned: "Morning personal care visit assigned to Liam Ortega.",
+      orderTwoCreated: "Provider created SR-2402 for Evergreen Support Services."
+    },
+    credentialSlug: "liam"
+  }
+};
+
+const seedProfile = seedProfiles[requestedProfile];
+
+if (!seedProfile) {
+  throw new Error(`Unknown seed profile "${requestedProfile}". Use colombia or australia.`);
+}
 
 function hashPassword(password) {
   const salt = randomBytes(16).toString("hex");
@@ -61,72 +236,72 @@ async function main() {
   const provider = await prisma.organization.create({
     data: {
       kind: OrganizationKind.PROVIDER,
-      legalName: "Serenity Care Partners Pty Ltd",
-      displayName: "Serenity Care Partners",
-      timezone: "Australia/Sydney"
+      legalName: seedProfile.provider.legalName,
+      displayName: seedProfile.provider.displayName,
+      timezone: seedProfile.timezone
     }
   });
 
   const harbourView = await prisma.organization.create({
     data: {
       kind: OrganizationKind.CENTER,
-      legalName: "Harbour View Care Ltd",
-      displayName: "Harbour View Care",
-      timezone: "Australia/Sydney"
+      legalName: seedProfile.centers[0].legalName,
+      displayName: seedProfile.centers[0].displayName,
+      timezone: seedProfile.timezone
     }
   });
 
   const evergreen = await prisma.organization.create({
     data: {
       kind: OrganizationKind.CENTER,
-      legalName: "Evergreen Support Services Ltd",
-      displayName: "Evergreen Support Services",
-      timezone: "Australia/Sydney"
+      legalName: seedProfile.centers[1].legalName,
+      displayName: seedProfile.centers[1].displayName,
+      timezone: seedProfile.timezone
     }
   });
 
   const blueWattle = await prisma.organization.create({
     data: {
       kind: OrganizationKind.CENTER,
-      legalName: "BlueWattle Homecare Ltd",
-      displayName: "BlueWattle Homecare",
-      timezone: "Australia/Sydney"
+      legalName: seedProfile.centers[2].legalName,
+      displayName: seedProfile.centers[2].displayName,
+      timezone: seedProfile.timezone
     }
   });
 
   const bondiFacility = await prisma.facility.create({
     data: {
       organizationId: harbourView.id,
-      name: "Bondi Homecare North",
-      addressLine1: "10 Campbell Parade",
-      suburb: "Bondi",
-      state: "NSW",
-      postalCode: "2026",
-      timezone: "Australia/Sydney"
+      name: seedProfile.centers[0].facility.name,
+      addressLine1: seedProfile.centers[0].facility.addressLine1,
+      suburb: seedProfile.centers[0].facility.suburb,
+      state: seedProfile.centers[0].facility.state,
+      postalCode: seedProfile.centers[0].facility.postalCode,
+      timezone: seedProfile.timezone
     }
   });
 
   const innerWestFacility = await prisma.facility.create({
     data: {
       organizationId: evergreen.id,
-      name: "Inner West Community",
-      addressLine1: "155 Norton Street",
-      suburb: "Leichhardt",
-      state: "NSW",
-      postalCode: "2040",
-      timezone: "Australia/Sydney"
+      name: seedProfile.centers[1].facility.name,
+      addressLine1: seedProfile.centers[1].facility.addressLine1,
+      suburb: seedProfile.centers[1].facility.suburb,
+      state: seedProfile.centers[1].facility.state,
+      postalCode: seedProfile.centers[1].facility.postalCode,
+      timezone: seedProfile.timezone
     }
   });
 
   const southSydneyFacility = await prisma.facility.create({
     data: {
       organizationId: blueWattle.id,
-      name: "South Sydney Outreach",
-      addressLine1: "88 Botany Road",
-      suburb: "Alexandria",
-      state: "NSW",
-      postalCode: "2015",
-      timezone: "Australia/Sydney"
+      name: seedProfile.centers[2].facility.name,
+      addressLine1: seedProfile.centers[2].facility.addressLine1,
+      suburb: seedProfile.centers[2].facility.suburb,
+      state: seedProfile.centers[2].facility.state,
+      postalCode: seedProfile.centers[2].facility.postalCode,
+      timezone: seedProfile.timezone
     }
   });
 
@@ -144,35 +319,35 @@ async function main() {
 
   const coordinator = await createUser({
     organizationId: provider.id,
-    email: "coordination@serenity.local",
-    fullName: "Alex Morgan",
+    email: seedProfile.coordinator.email,
+    fullName: seedProfile.coordinator.fullName,
     role: UserRole.PROVIDER_COORDINATOR
   });
 
   const reviewer = await createUser({
     organizationId: provider.id,
-    email: "review@serenity.local",
-    fullName: "Diana Cole",
+    email: seedProfile.reviewer.email,
+    fullName: seedProfile.reviewer.fullName,
     role: UserRole.PROVIDER_REVIEWER
   });
 
   await Promise.all([
     createUser({
       organizationId: harbourView.id,
-      email: "harbour.manager@serenity.local",
-      fullName: "Priya Shah",
+      email: seedProfile.centers[0].manager.email,
+      fullName: seedProfile.centers[0].manager.fullName,
       role: UserRole.CENTER_MANAGER
     }),
     createUser({
       organizationId: evergreen.id,
-      email: "evergreen.manager@serenity.local",
-      fullName: "Mason Lee",
+      email: seedProfile.centers[1].manager.email,
+      fullName: seedProfile.centers[1].manager.fullName,
       role: UserRole.CENTER_MANAGER
     }),
     createUser({
       organizationId: blueWattle.id,
-      email: "bluewattle.manager@serenity.local",
-      fullName: "Hannah Price",
+      email: seedProfile.centers[2].manager.email,
+      fullName: seedProfile.centers[2].manager.fullName,
       role: UserRole.CENTER_MANAGER
     })
   ]);
@@ -207,8 +382,8 @@ async function main() {
   }
 
   const sofia = await createCarer({
-    name: "Sofia Bennett",
-    email: "sofia@serenity.local",
+    name: seedProfile.carers[0].name,
+    email: seedProfile.carers[0].email,
     phone: "+61 400 111 111",
     language: "English",
     taxId: "51884400111",
@@ -216,8 +391,8 @@ async function main() {
     rating: 4.9
   });
   const liam = await createCarer({
-    name: "Liam Ortega",
-    email: "liam@serenity.local",
+    name: seedProfile.carers[1].name,
+    email: seedProfile.carers[1].email,
     phone: "+61 400 111 112",
     language: "English",
     taxId: "51884400112",
@@ -225,8 +400,8 @@ async function main() {
     rating: 4.7
   });
   const anika = await createCarer({
-    name: "Anika Perera",
-    email: "anika@serenity.local",
+    name: seedProfile.carers[2].name,
+    email: seedProfile.carers[2].email,
     phone: "+61 400 111 113",
     language: "English",
     taxId: "51884400113",
@@ -234,8 +409,8 @@ async function main() {
     rating: 4.8
   });
   const emily = await createCarer({
-    name: "Emily Tran",
-    email: "emily@serenity.local",
+    name: seedProfile.carers[3].name,
+    email: seedProfile.carers[3].email,
     phone: "+61 400 111 114",
     language: "English",
     taxId: "51884400114",
@@ -243,8 +418,8 @@ async function main() {
     rating: 4.8
   });
   const noah = await createCarer({
-    name: "Noah Rossi",
-    email: "noah@serenity.local",
+    name: seedProfile.carers[4].name,
+    email: seedProfile.carers[4].email,
     phone: "+61 400 111 115",
     language: "English",
     taxId: "51884400115",
@@ -252,8 +427,8 @@ async function main() {
     rating: 4.6
   });
   const grace = await createCarer({
-    name: "Grace Walker",
-    email: "grace@serenity.local",
+    name: seedProfile.carers[5].name,
+    email: seedProfile.carers[5].email,
     phone: "+61 400 111 116",
     language: "English",
     taxId: "51884400116",
@@ -261,8 +436,8 @@ async function main() {
     rating: 4.9
   });
   const daniel = await createCarer({
-    name: "Daniel Kim",
-    email: "daniel@serenity.local",
+    name: seedProfile.carers[6].name,
+    email: seedProfile.carers[6].email,
     phone: "+61 400 111 117",
     language: "English",
     taxId: "51884400117",
@@ -301,15 +476,15 @@ async function main() {
   }
 
   await addCredential(liam.id, "NDIS Worker Screening", "2026-05-08T00:00:00.000Z", {
-    documentUrl: "manual://credentials/liam-ndis-worker-screening.pdf"
+    documentUrl: `manual://credentials/${seedProfile.credentialSlug}-ndis-worker-screening.pdf`
   });
   await addCredential(liam.id, "First Aid Certificate", "2027-02-01T00:00:00.000Z", {
     status: CredentialStatus.PENDING,
-    documentUrl: "manual://credentials/liam-first-aid-certificate.pdf"
+    documentUrl: `manual://credentials/${seedProfile.credentialSlug}-first-aid-certificate.pdf`
   });
   await addCredential(liam.id, "Police Check", "2026-04-01T00:00:00.000Z", {
     status: CredentialStatus.EXPIRED,
-    documentUrl: "manual://credentials/liam-police-check.pdf"
+    documentUrl: `manual://credentials/${seedProfile.credentialSlug}-police-check.pdf`
   });
 
   for (const [index, carer] of [sofia, anika, emily, noah, grace, daniel].entries()) {
@@ -354,8 +529,8 @@ async function main() {
     data: {
       facilityId: bondiFacility.id,
       externalRef: "HV-1001",
-      firstName: "Maria",
-      lastName: "Thompson",
+      firstName: seedProfile.recipients[0].firstName,
+      lastName: seedProfile.recipients[0].lastName,
       notes: "AM support plan with medication prompt"
     }
   });
@@ -364,8 +539,8 @@ async function main() {
     data: {
       facilityId: innerWestFacility.id,
       externalRef: "EV-1002",
-      firstName: "George",
-      lastName: "Hill",
+      firstName: seedProfile.recipients[1].firstName,
+      lastName: seedProfile.recipients[1].lastName,
       notes: "Community transport with appointment escort"
     }
   });
@@ -374,8 +549,8 @@ async function main() {
     data: {
       facilityId: southSydneyFacility.id,
       externalRef: "BW-1003",
-      firstName: "Elaine",
-      lastName: "Cooper",
+      firstName: seedProfile.recipients[2].firstName,
+      lastName: seedProfile.recipients[2].lastName,
       notes: "Overnight respite with safety checks"
     }
   });
@@ -617,8 +792,8 @@ async function main() {
     });
   }
 
-  const liamUser = await prisma.user.findUniqueOrThrow({ where: { email: "liam@serenity.local" } });
-  const emilyUser = await prisma.user.findUniqueOrThrow({ where: { email: "emily@serenity.local" } });
+  const liamUser = await prisma.user.findUniqueOrThrow({ where: { email: seedProfile.carers[1].email } });
+  const emilyUser = await prisma.user.findUniqueOrThrow({ where: { email: seedProfile.carers[3].email } });
 
   for (const fileUrl of [
     "https://example.com/evidence/visit-001-photo-1.jpg",
@@ -899,7 +1074,7 @@ async function main() {
         actorUserId: coordinator.id,
         serviceOrderId: orderOne.id,
         type: AuditEventType.ORDER_CREATED,
-        summary: "Provider created SR-2401 for Harbour View Care."
+        summary: seedProfile.auditSummaries.orderOneCreated
       },
       {
         organizationId: provider.id,
@@ -907,7 +1082,7 @@ async function main() {
         serviceOrderId: orderOne.id,
         visitId: visitOne.id,
         type: AuditEventType.VISIT_ASSIGNED,
-        summary: "Morning personal care visit assigned to Liam Ortega."
+        summary: seedProfile.auditSummaries.visitOneAssigned
       },
       {
         organizationId: provider.id,
@@ -922,7 +1097,7 @@ async function main() {
         actorUserId: coordinator.id,
         serviceOrderId: orderTwo.id,
         type: AuditEventType.ORDER_CREATED,
-        summary: "Provider created SR-2402 for Evergreen Support Services."
+        summary: seedProfile.auditSummaries.orderTwoCreated
       },
       {
         organizationId: provider.id,
@@ -946,6 +1121,7 @@ async function main() {
     provider: provider.displayName,
     coordinator: coordinator.fullName,
     reviewer: reviewer.fullName,
+    profile: requestedProfile,
     demoPassword: DEMO_PASSWORD,
     orders: 3,
     visits: 7

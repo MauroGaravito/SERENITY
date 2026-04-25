@@ -70,6 +70,18 @@ Salida esperada:
 - menos visitas disputadas,
 - mejor margen operativo.
 
+### Superficie provider actual
+
+El flujo provider quedo separado en cinco pantallas para reducir friccion:
+
+1. `Dashboard`: responde "que esta pasando ahora". Muestra carga actual, presion de cobertura, pendientes de review, ready for closing y links filtrados para abrir ordenes por estado, riesgo o prioridad.
+2. `Orders`: responde "que orden tengo que tocar". Lista la demanda activa y permite crear una nueva orden desde un modal sin empujar la tabla fuera de pantalla.
+3. `Closing`: responde "que puede cerrarse". Se enfoca en periodos, visitas aprobadas, settlement y exclusiones operativas.
+4. `External export`: responde "que salio de Serenity". Agrupa descarga de paquetes, targets externos, export jobs y acknowledgement remoto.
+5. `Audit trail`: responde "que paso y quien lo hizo". Mantiene eventos criticos fuera del flujo operativo diario.
+
+El criterio es que cada pantalla tenga una mision unica y que las tarjetas funcionen como acceso a trabajo, no como repeticion de la misma lista.
+
 ## 5. Flujo del cuidador independiente
 
 1. Mantener disponibilidad y documentos al dia.
@@ -120,7 +132,8 @@ Salida esperada:
 
 - revisar incidencias,
 - revisar documentos por vencer,
-- cerrar periodo parcial,
+- cerrar periodo operativo,
+- preparar external export cuando el periodo este locked,
 - medir cobertura y reprocesos.
 
 ### Mensual
