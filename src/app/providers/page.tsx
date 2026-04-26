@@ -186,7 +186,7 @@ export default async function ProvidersPage() {
             </Link>
             <Link
               className="summary-stat-card summary-stat-card-warning"
-              href="/providers/orders?status=completed"
+              href="/providers/orders?visitStatus=under_review"
             >
               <span>Pending review</span>
               <strong>{underReviewVisits}</strong>

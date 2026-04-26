@@ -4,7 +4,7 @@ import { ProviderShell } from "@/components/providers/provider-shell";
 import { StatusBadge } from "@/components/providers/status-badge";
 import { PROVIDER_ROLES, requireOrganizationUser } from "@/lib/auth";
 import { getProviderOrderFormData, listProviderOrders } from "@/lib/providers-data";
-import { ServiceOrderRecord } from "@/lib/providers";
+import { ServiceOrderRecord, VisitStatus } from "@/lib/providers";
 
 export const dynamic = "force-dynamic";
 
@@ -12,6 +12,7 @@ type OrdersSearchParams = {
   risk?: string;
   priority?: string;
   status?: string;
+  visitStatus?: string;
 };
 
 function isOrderRisk(value: string): value is ServiceOrderRecord["coverageRisk"] {
@@ -35,6 +36,20 @@ function isOrderStatus(value: string): value is ServiceOrderRecord["status"] {
   ].includes(value);
 }
 
+function isVisitStatus(value: string): value is VisitStatus {
+  return [
+    "scheduled",
+    "confirmed",
+    "in_progress",
+    "completed",
+    "under_review",
+    "approved",
+    "rejected",
+    "cancelled",
+    "no_show"
+  ].includes(value);
+}
+
 function getFilterLabel(searchParams: OrdersSearchParams) {
   if (searchParams.risk && isOrderRisk(searchParams.risk)) {
     return `${searchParams.risk} risk`;
@@ -46,6 +61,10 @@ function getFilterLabel(searchParams: OrdersSearchParams) {
 
   if (searchParams.status && isOrderStatus(searchParams.status)) {
     return `${searchParams.status.replaceAll("_", " ")} status`;
+  }
+
+  if (searchParams.visitStatus && isVisitStatus(searchParams.visitStatus)) {
+    return `${searchParams.visitStatus.replaceAll("_", " ")} visits`;
   }
 
   return "all active provider demand";
@@ -67,6 +86,10 @@ function filterOrders(orders: ServiceOrderRecord[], searchParams: OrdersSearchPa
       }
 
       return order.status === searchParams.status;
+    }
+
+    if (searchParams.visitStatus && isVisitStatus(searchParams.visitStatus)) {
+      return order.visits.some((visit) => visit.status === searchParams.visitStatus);
     }
 
     return true;
@@ -105,7 +128,7 @@ export default async function ProviderOrdersPage({
               Showing {filteredOrders.length} of {orders.length} orders.
             </p>
           </div>
-          {(params.risk || params.priority || params.status) ? (
+          {(params.risk || params.priority || params.status || params.visitStatus) ? (
             <Link className="inline-link" href="/providers/orders">
               Clear filter
             </Link>
