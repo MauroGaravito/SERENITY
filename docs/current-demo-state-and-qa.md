@@ -409,4 +409,6 @@ npm run db:seed:colombia
 - El carer puede ejecutar visitas desde su workspace.
 - Checklist, evidencia e incidencias se pueden leer como narrativa de ejecucion desde carer, provider y center.
 - Readiness del carer usa estados claros `ready`, `attention_needed` y `restricted`.
+- Credenciales vencidas o con fecha vencida no cuentan como skills verificadas.
+- Credenciales por vencer dentro de 45 dias muestran alerta y accion de renovacion sin bloquear matching antes del vencimiento.
 - Colombia y Australia pueden reseedearse sin romper build ni typecheck.

@@ -31,6 +31,10 @@ export type CarerCredentialRecord = {
   documentUrl?: string;
   daysToExpiry?: number;
   isExpiringSoon: boolean;
+  expiryState: "no_expiry" | "current" | "expiring_soon" | "expired";
+  expirySummary: string;
+  matchingImpact: string;
+  renewalAction: string;
 };
 
 export type CarerAlert = {

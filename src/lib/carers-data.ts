@@ -103,6 +103,78 @@ function getDaysToExpiry(value?: Date | null) {
   return Math.ceil((value.getTime() - Date.now()) / dayMs);
 }
 
+function getCredentialExpiryState(daysToExpiry?: number) {
+  if (typeof daysToExpiry !== "number") {
+    return "no_expiry" as const;
+  }
+
+  if (daysToExpiry < 0) {
+    return "expired" as const;
+  }
+
+  if (daysToExpiry <= 45) {
+    return "expiring_soon" as const;
+  }
+
+  return "current" as const;
+}
+
+function getCredentialExpirySummary(daysToExpiry?: number) {
+  if (typeof daysToExpiry !== "number") {
+    return "No expiry recorded.";
+  }
+
+  if (daysToExpiry < 0) {
+    return `${Math.abs(daysToExpiry)} days overdue.`;
+  }
+
+  if (daysToExpiry === 0) {
+    return "Expires today.";
+  }
+
+  return `${daysToExpiry} days remaining.`;
+}
+
+function getCredentialMatchingImpact(status: CredentialStatus, daysToExpiry?: number) {
+  if (status === CredentialStatus.REJECTED) {
+    return "Blocked until the credential is corrected and accepted.";
+  }
+
+  if (status === CredentialStatus.PENDING) {
+    return "Not counted for provider matching until verification is complete.";
+  }
+
+  if (status === CredentialStatus.EXPIRED || (typeof daysToExpiry === "number" && daysToExpiry < 0)) {
+    return "Blocked for matching until a current credential is recorded.";
+  }
+
+  if (typeof daysToExpiry === "number" && daysToExpiry <= 45) {
+    return "Still matchable, but renewal is needed before continuity is affected.";
+  }
+
+  return "Counts as verified for provider matching.";
+}
+
+function getCredentialRenewalAction(status: CredentialStatus, daysToExpiry?: number) {
+  if (status === CredentialStatus.REJECTED) {
+    return "Upload corrected evidence and resubmit for provider review.";
+  }
+
+  if (status === CredentialStatus.PENDING) {
+    return "Wait for provider review or follow up with the coordinator.";
+  }
+
+  if (status === CredentialStatus.EXPIRED || (typeof daysToExpiry === "number" && daysToExpiry < 0)) {
+    return "Update the expiry date and attach renewed documentation.";
+  }
+
+  if (typeof daysToExpiry === "number" && daysToExpiry <= 45) {
+    return "Start renewal now and update the credential before it expires.";
+  }
+
+  return "No action needed.";
+}
+
 function getChecklistItems(
   visit: CarerWorkspaceRow["visits"][number]
 ): CarerVisitChecklistItem[] {
@@ -172,7 +244,9 @@ function getReadinessSummary(record: CarerWorkspaceRow): CarerWorkspaceRecord["r
   const attentionSignals: CarerReadinessSignal[] = [];
   const blockerSignals: CarerReadinessSignal[] = [];
   const validCredentials = record.credentials.filter(
-    (credential) => credential.status === CredentialStatus.VALID
+    (credential) =>
+      credential.status === CredentialStatus.VALID &&
+      (!credential.expiresAt || credential.expiresAt > new Date())
   );
   const workingBlocks = record.availabilityBlocks.filter((block) => block.isWorking);
 
@@ -210,13 +284,14 @@ function getReadinessSummary(record: CarerWorkspaceRow): CarerWorkspaceRecord["r
 
   for (const credential of record.credentials) {
     const daysToExpiry = getDaysToExpiry(credential.expiresAt);
+    const isExpiredByDate = typeof daysToExpiry === "number" && daysToExpiry < 0;
 
-    if (credential.status === CredentialStatus.EXPIRED) {
+    if (credential.status === CredentialStatus.EXPIRED || isExpiredByDate) {
       blockerSignals.push({
         id: `credential-expired-${credential.id}`,
         tone: "critical",
         label: `${credential.name} expired`,
-        detail: "This credential is currently blocking matching for related service skills."
+        detail: `${getCredentialExpirySummary(daysToExpiry)} This credential blocks matching for related service skills.`
       });
       continue;
     }
@@ -245,7 +320,7 @@ function getReadinessSummary(record: CarerWorkspaceRow): CarerWorkspaceRecord["r
         id: `credential-expiring-${credential.id}`,
         tone: "warning",
         label: `${credential.name} expires soon`,
-        detail: `${daysToExpiry} days remaining before operational eligibility is affected.`
+        detail: `${getCredentialExpirySummary(daysToExpiry)} Renew before expiry to keep matching continuity.`
       });
     }
   }
@@ -327,12 +402,17 @@ function mapWorkspace(record: CarerWorkspaceRow): CarerWorkspaceRecord {
     readinessStatus,
     readinessSummary,
     verifiedSkills: record.credentials
-      .filter((credential) => credential.status === CredentialStatus.VALID)
+      .filter(
+        (credential) =>
+          credential.status === CredentialStatus.VALID &&
+          (!credential.expiresAt || credential.expiresAt > new Date())
+      )
       .map((credential) => credential.name),
     opportunityLimits,
     alerts,
     credentials: record.credentials.map((credential) => {
       const daysToExpiry = getDaysToExpiry(credential.expiresAt);
+      const expiryState = getCredentialExpiryState(daysToExpiry);
 
       return {
         id: credential.id,
@@ -343,7 +423,11 @@ function mapWorkspace(record: CarerWorkspaceRow): CarerWorkspaceRecord {
         expiresAt: credential.expiresAt?.toISOString(),
         documentUrl: credential.documentUrl ?? undefined,
         daysToExpiry,
-        isExpiringSoon: typeof daysToExpiry === "number" && daysToExpiry >= 0 && daysToExpiry <= 45
+        isExpiringSoon: expiryState === "expiring_soon",
+        expiryState,
+        expirySummary: getCredentialExpirySummary(daysToExpiry),
+        matchingImpact: getCredentialMatchingImpact(credential.status, daysToExpiry),
+        renewalAction: getCredentialRenewalAction(credential.status, daysToExpiry)
       };
     }),
     availabilityBlocks: record.availabilityBlocks

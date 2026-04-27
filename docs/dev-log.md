@@ -2,6 +2,40 @@
 
 Registro breve de decisiones y entregas relevantes. No reemplaza Plane; sirve como memoria tecnica y de producto dentro del repo.
 
+## 2026-04-27 - SER-6 Improve credential expiry alerts
+
+Objetivo:
+
+- Hacer que vencimientos de credenciales sean mas accionables para el carer.
+- Evitar que provider matching trate credenciales vencidas por fecha como skills validas.
+- Mantener continuidad entre readiness del carer y razones de elegibilidad provider.
+
+Resultado:
+
+- Las credenciales ahora exponen `expiryState`, resumen de vencimiento, impacto en matching y accion recomendada.
+- El workspace del carer muestra tarjetas diferenciadas para credenciales vencidas, rechazadas, pendientes o proximas a vencer.
+- La metrica de alertas de credenciales separa vencidas y proximas a vencer dentro de 45 dias.
+- Readiness deja de contar como verified skill una credencial `valid` con `expiresAt` vencido.
+- Provider matching deja de contar credenciales que vencen antes de la ventana de visita y muestra razones de restriccion alineadas.
+- Carers con credenciales proximas a vencer quedan como `attention_needed`; credenciales vencidas o rechazadas quedan como `restricted`.
+
+Validacion ejecutada:
+
+- `npm run typecheck`
+- `npm run build`
+
+Pruebas manuales pendientes para cerrar en Plane:
+
+- Reseed Colombia con `npm run db:seed:colombia`.
+- Entrar como carer demo a `/carers`.
+- Confirmar que la metrica `Credential alerts` separa vencidas y proximas a vencer.
+- Confirmar que cada credential card muestra estado, fecha, countdown, impacto en matching y accion recomendada.
+- Editar una credencial `valid` para poner `expiresAt` en el pasado y confirmar que pasa a bloqueo operativo.
+- Editar una credencial para vencer dentro de 45 dias y confirmar que aparece como warning sin bloquear matching.
+- Entrar como provider coordinator y abrir una orden con coverage pool.
+- Confirmar que una credencial vencida por fecha no cuenta como skill valida para asignacion.
+- Confirmar que las razones de restricted/attention carers coinciden con el workspace del carer.
+
 ## 2026-04-27 - SER-5 Refine carer readiness model and UI
 
 Objetivo:

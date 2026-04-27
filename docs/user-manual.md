@@ -543,6 +543,7 @@ Hoy `/carers` ya funciona como workspace ejecutable para el carer.
 - nota de disponibilidad editable
 - bloques de disponibilidad
 - credenciales con estado y vencimiento
+- estado de expiracion, impacto en matching y accion recomendada por credencial
 - skills verificadas derivadas de credenciales validas
 - readiness del perfil con impacto operativo
 - senales separadas de readiness: positivas, atencion y bloqueos
@@ -584,6 +585,8 @@ Readiness del perfil:
 - `ready`: tiene skills verificadas y disponibilidad declarada.
 - `attention_needed`: puede operar parcialmente, pero hay advertencias como credenciales pendientes, credenciales por vencer o falta de bloques de disponibilidad.
 - `restricted`: existen bloqueos como credenciales vencidas o rechazadas que afectan matching.
+- Una credencial `valid` con fecha ya vencida se trata como bloqueo operativo aunque el estado manual no se haya actualizado todavia.
+- Una credencial que vence dentro de 45 dias mantiene matching, pero aparece como alerta para renovar antes de afectar continuidad.
 
 Provider ve razones compatibles en el coverage pool, de modo que el cuidador y el coordinador leen la misma logica de elegibilidad desde superficies distintas.
 

@@ -1410,6 +1410,16 @@ ul {
   background: rgba(255, 255, 255, 0.6);
 }
 
+.credential-card-warning {
+  border-color: rgba(241, 181, 70, 0.35);
+  background: rgba(255, 242, 210, 0.62);
+}
+
+.credential-card-critical {
+  border-color: rgba(186, 53, 42, 0.24);
+  background: rgba(255, 232, 228, 0.7);
+}
+
 .credential-card-header {
   display: flex;
   gap: 0.75rem;
@@ -1423,6 +1433,23 @@ ul {
   flex-wrap: wrap;
   color: var(--muted);
   font-size: 0.92rem;
+}
+
+.credential-alert-summary {
+  display: grid;
+  gap: 0.25rem;
+  padding: 0.75rem 0.85rem;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.52);
+}
+
+.credential-alert-summary strong {
+  color: var(--surface-strong);
+}
+
+.credential-alert-summary p {
+  margin: 0;
+  color: var(--muted);
 }
 
 .credential-form-card {

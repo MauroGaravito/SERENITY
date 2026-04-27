@@ -8,6 +8,8 @@
 4. Un cuidador no puede tener dos visitas superpuestas.
 5. El readiness del cuidador debe explicar impacto operativo mediante tres estados: `ready`, `attention_needed` y `restricted`.
 6. Las razones de matching visibles para provider deben estar alineadas con las señales que el cuidador ve en su workspace.
+7. Una credencial `valid` deja de contar como skill verificada si su `expiresAt` ya paso o si vence antes de la ventana de la visita que se esta asignando.
+8. Las credenciales que vencen en los proximos 45 dias deben mostrarse como advertencia operativa sin bloquear matching hasta que expiren.
 
 ## 2. Reglas de cobertura
 

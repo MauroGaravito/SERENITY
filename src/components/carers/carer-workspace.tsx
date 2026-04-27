@@ -62,6 +62,18 @@ function getSignalClass(tone: string) {
   }
 }
 
+function getCredentialCardClass(credential: CarerWorkspaceRecord["credentials"][number]) {
+  if (credential.status === "expired" || credential.status === "rejected" || credential.expiryState === "expired") {
+    return "credential-card credential-card-critical";
+  }
+
+  if (credential.status === "pending" || credential.expiryState === "expiring_soon") {
+    return "credential-card credential-card-warning";
+  }
+
+  return "credential-card";
+}
+
 export function CarerWorkspace({
   selectedVisitId,
   session,
@@ -92,6 +104,9 @@ export function CarerWorkspace({
   });
 
   const expiringSoon = workspace.credentials.filter((credential) => credential.isExpiringSoon).length;
+  const expiredCredentials = workspace.credentials.filter(
+    (credential) => credential.status === "expired" || credential.expiryState === "expired"
+  ).length;
 
   return (
     <main className="role-page carer-theme">
@@ -123,9 +138,9 @@ export function CarerWorkspace({
           <span>Operational readiness summary for provider matching</span>
         </article>
         <article className="metric-card metric-critical">
-          <p>Expiring soon</p>
-          <strong>{expiringSoon}</strong>
-          <span>Credentials due to expire in the next 45 days</span>
+          <p>Credential alerts</p>
+          <strong>{expiredCredentials + expiringSoon}</strong>
+          <span>{expiredCredentials} expired · {expiringSoon} expiring in 45 days</span>
         </article>
       </section>
 
@@ -272,7 +287,7 @@ export function CarerWorkspace({
           <div className="sequence-list top-gap">
             {workspace.credentials.length > 0 ? (
               workspace.credentials.map((credential) => (
-                <div className="credential-card" key={credential.id}>
+                <div className={getCredentialCardClass(credential)} key={credential.id}>
                   <div className="credential-card-header">
                     <strong>{credential.name}</strong>
                     <span
@@ -289,12 +304,12 @@ export function CarerWorkspace({
                       Expires: {credential.expiresAt ? formatDate(credential.expiresAt) : "No expiry"}
                     </span>
                     <span>
-                      {credential.daysToExpiry === undefined
-                        ? "No expiry countdown"
-                        : credential.daysToExpiry >= 0
-                          ? `${credential.daysToExpiry} days remaining`
-                          : `${Math.abs(credential.daysToExpiry)} days overdue`}
+                      {credential.expirySummary}
                     </span>
+                  </div>
+                  <div className="credential-alert-summary">
+                    <strong>{credential.matchingImpact}</strong>
+                    <p>{credential.renewalAction}</p>
                   </div>
                   {credential.documentUrl ? <p>{credential.documentUrl}</p> : null}
                   <CarerCredentialForm credential={credential} />

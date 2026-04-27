@@ -426,14 +426,21 @@ function derivePendingAction(order: ProviderOrderRow) {
 }
 
 function getCredentialReason(
-  credentials: Array<{ name: string; status: CredentialStatus }>,
-  skill: string
+  credentials: Array<{ name: string; status: CredentialStatus; expiresAt?: Date | null }>,
+  skill: string,
+  referenceDate?: Date
 ) {
   const matching = credentials.filter(
     (credential) => credential.name.toLowerCase() === skill.toLowerCase()
   );
 
-  if (matching.some((credential) => credential.status === CredentialStatus.EXPIRED)) {
+  if (
+    matching.some(
+      (credential) =>
+        credential.status === CredentialStatus.EXPIRED ||
+        Boolean(referenceDate && credential.expiresAt && credential.expiresAt <= referenceDate)
+    )
+  ) {
     return `Expired credential for ${skill}`;
   }
 
@@ -448,18 +455,34 @@ function getCredentialReason(
   return `Missing skill ${skill}`;
 }
 
+function getDaysToExpiry(value?: Date | null) {
+  if (!value) {
+    return undefined;
+  }
+
+  const dayMs = 1000 * 60 * 60 * 24;
+  return Math.ceil((value.getTime() - Date.now()) / dayMs);
+}
+
 function getCarerReadinessForMatching(carer: ProviderOrderRow["provider"]["carers"][number]) {
   const validCredentials = carer.credentials.filter(
-    (credential) => credential.status === CredentialStatus.VALID
+    (credential) =>
+      credential.status === CredentialStatus.VALID &&
+      (!credential.expiresAt || credential.expiresAt > new Date())
   );
   const expiredOrRejected = carer.credentials.filter(
     (credential) =>
       credential.status === CredentialStatus.EXPIRED ||
-      credential.status === CredentialStatus.REJECTED
+      credential.status === CredentialStatus.REJECTED ||
+      Boolean(credential.expiresAt && credential.expiresAt <= new Date())
   );
   const pendingCredentials = carer.credentials.filter(
     (credential) => credential.status === CredentialStatus.PENDING
   );
+  const expiringCredentials = validCredentials.filter((credential) => {
+    const daysToExpiry = getDaysToExpiry(credential.expiresAt);
+    return typeof daysToExpiry === "number" && daysToExpiry >= 0 && daysToExpiry <= 45;
+  });
   const workingBlocks = carer.availabilityBlocks.filter((block) => block.isWorking);
 
   if (expiredOrRejected.length > 0) {
@@ -471,12 +494,16 @@ function getCarerReadinessForMatching(carer: ProviderOrderRow["provider"]["carer
     };
   }
 
-  if (pendingCredentials.length > 0 || workingBlocks.length === 0) {
+  if (pendingCredentials.length > 0 || expiringCredentials.length > 0 || workingBlocks.length === 0) {
     return {
       status: "attention_needed" as const,
       summary:
         workingBlocks.length === 0
           ? "No working availability blocks declared"
+          : expiringCredentials.length > 0
+            ? `${expiringCredentials.length} credential${
+                expiringCredentials.length === 1 ? "" : "s"
+              } expiring within 45 days`
           : `${pendingCredentials.length} credential${
               pendingCredentials.length === 1 ? "" : "s"
             } pending verification`
@@ -498,7 +525,9 @@ function mapOrder(order: ProviderOrderRow): ServiceOrderRecord {
   const eligibleCarers = order.provider.carers.map((carer) => {
     const readiness = getCarerReadinessForMatching(carer);
     const validCredentials = carer.credentials.filter(
-      (credential) => credential.status === CredentialStatus.VALID
+      (credential) =>
+        credential.status === CredentialStatus.VALID &&
+        (!primaryVisit || !credential.expiresAt || credential.expiresAt > primaryVisit.scheduledEnd)
     );
     const credentialNames = validCredentials.map((credential) => credential.name.toLowerCase());
     const missingSkills = requiredSkills.filter(
@@ -512,7 +541,9 @@ function mapOrder(order: ProviderOrderRow): ServiceOrderRecord {
       !carer.primaryLanguage ||
       carer.primaryLanguage.toLowerCase() === requiredLanguage;
     const eligibilityReasons = [
-      ...missingSkills.map((skill) => getCredentialReason(carer.credentials, skill)),
+      ...missingSkills.map((skill) =>
+        getCredentialReason(carer.credentials, skill, primaryVisit?.scheduledEnd)
+      ),
       ...(availabilityMatch ? [] : ["No availability block covering the visit window"]),
       ...(matchesLanguage ? [] : [`Language mismatch for ${order.requiredLanguage}`])
     ];
