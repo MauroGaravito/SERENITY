@@ -53,6 +53,8 @@ export type CarerOption = {
   readinessSummary: string;
   isEligible: boolean;
   availabilityMatch: boolean;
+  availabilityStatus: "available" | "partial" | "unavailable" | "conflict" | "unknown";
+  availabilitySummary: string;
   eligibilityReasons: string[];
 };
 

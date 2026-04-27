@@ -15,6 +15,7 @@
 import { unstable_noStore as noStore } from "next/cache";
 import { checkConnectorStatus, executeConnector } from "@/lib/export-connectors";
 import { prisma } from "@/lib/prisma";
+import { assessAvailabilityForVisit } from "@/lib/availability";
 import { SKILL_CATALOG } from "@/lib/catalogs";
 import {
   ClosingExportPackage,
@@ -155,6 +156,31 @@ const providerOrderInclude = {
               }
             },
             orderBy: [{ startsAt: "asc" }]
+          },
+          visits: {
+            where: {
+              status: {
+                in: [
+                  PrismaVisitStatus.SCHEDULED,
+                  PrismaVisitStatus.CONFIRMED,
+                  PrismaVisitStatus.IN_PROGRESS,
+                  PrismaVisitStatus.COMPLETED,
+                  PrismaVisitStatus.UNDER_REVIEW
+                ]
+              }
+            },
+            select: {
+              id: true,
+              scheduledStart: true,
+              scheduledEnd: true,
+              status: true,
+              serviceOrder: {
+                select: {
+                  code: true
+                }
+              }
+            },
+            orderBy: [{ scheduledStart: "asc" }]
           }
         },
         orderBy: [{ rating: "desc" }, { lastName: "asc" }]
@@ -344,21 +370,6 @@ function deriveCoverageRisk(order: ProviderOrderRow): ServiceOrderRecord["covera
   return "stable";
 }
 
-function hasAvailabilityCoverage(
-  blocks: Array<{ startsAt: Date; endsAt: Date; isWorking: boolean }>,
-  visit: { scheduledStart: Date; scheduledEnd: Date }
-) {
-  const workingBlocks = blocks.filter((block) => block.isWorking);
-
-  if (workingBlocks.length === 0) {
-    return true;
-  }
-
-  return workingBlocks.some(
-    (block) => block.startsAt <= visit.scheduledStart && block.endsAt >= visit.scheduledEnd
-  );
-}
-
 function deriveVisitCoverageStatus(
   visit: ProviderOrderRow["visits"][number]
 ): ServiceOrderRecord["visits"][number]["coverageStatus"] {
@@ -533,9 +544,25 @@ function mapOrder(order: ProviderOrderRow): ServiceOrderRecord {
     const missingSkills = requiredSkills.filter(
       (skill) => !credentialNames.includes(skill.toLowerCase())
     );
-    const availabilityMatch = primaryVisit
-      ? hasAvailabilityCoverage(carer.availabilityBlocks, primaryVisit)
-      : true;
+    const availabilityAssessment = primaryVisit
+      ? assessAvailabilityForVisit({
+          blocks: carer.availabilityBlocks,
+          existingVisits: carer.visits.map((visit) => ({
+            id: visit.id,
+            scheduledStart: visit.scheduledStart,
+            scheduledEnd: visit.scheduledEnd,
+            status: visit.status,
+            label: visit.serviceOrder.code
+          })),
+          targetVisit: primaryVisit
+        })
+      : {
+          status: "available" as const,
+          matches: true,
+          summary: "No target visit selected",
+          reasons: []
+        };
+    const availabilityMatch = availabilityAssessment.matches;
     const matchesLanguage =
       !requiredLanguage ||
       !carer.primaryLanguage ||
@@ -544,7 +571,7 @@ function mapOrder(order: ProviderOrderRow): ServiceOrderRecord {
       ...missingSkills.map((skill) =>
         getCredentialReason(carer.credentials, skill, primaryVisit?.scheduledEnd)
       ),
-      ...(availabilityMatch ? [] : ["No availability block covering the visit window"]),
+      ...availabilityAssessment.reasons,
       ...(matchesLanguage ? [] : [`Language mismatch for ${order.requiredLanguage}`])
     ];
 
@@ -558,6 +585,8 @@ function mapOrder(order: ProviderOrderRow): ServiceOrderRecord {
       readinessSummary: readiness.summary,
       isEligible: eligibilityReasons.length === 0,
       availabilityMatch,
+      availabilityStatus: availabilityAssessment.status,
+      availabilitySummary: availabilityAssessment.summary,
       eligibilityReasons
     };
   });

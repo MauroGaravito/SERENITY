@@ -2,6 +2,39 @@
 
 Registro breve de decisiones y entregas relevantes. No reemplaza Plane; sirve como memoria tecnica y de producto dentro del repo.
 
+## 2026-04-27 - SER-7 Strengthen availability and restriction logic
+
+Objetivo:
+
+- Reducir asignaciones con conflictos de disponibilidad.
+- Hacer visibles las razones de restriccion en provider matching.
+- Alinear disponibilidad declarada, readiness y validacion server-side.
+
+Resultado:
+
+- Se agrego una evaluacion compartida de disponibilidad por visita.
+- Matching ahora distingue `available`, `partial`, `unavailable`, `conflict` y `unknown`.
+- Provider coverage pool muestra resumen de disponibilidad junto con readiness.
+- Matching bloquea bloques no disponibles, disponibilidad parcial, ausencia de working block que cubra la visita y asignaciones solapadas.
+- La accion server-side de asignacion revalida disponibilidad, solapes, skills vigentes para la ventana y lenguaje antes de confirmar.
+- Carer readiness ahora muestra que unavailable blocks y active assignments son usados por matching.
+
+Validacion ejecutada:
+
+- `npm run typecheck`
+- `npm run build`
+
+Pruebas manuales pendientes para la etapa QA:
+
+- Reseed Colombia con `npm run db:seed:colombia`.
+- Entrar como provider coordinator y abrir una orden con coverage pool.
+- Confirmar que carers elegibles muestran disponibilidad y readiness.
+- Crear o ajustar un unavailable block que se solape con una visita y confirmar restriccion.
+- Crear o ajustar un working block parcial y confirmar que no permite asignar.
+- Confirmar que un carer con otra visita solapada queda restringido.
+- Intentar asignar un carer restringido y confirmar que el server action devuelve error claro.
+- Entrar como carer y confirmar que readiness muestra unavailable blocks y active assignments como señales operativas.
+
 ## 2026-04-27 - SER-6 Improve credential expiry alerts
 
 Objetivo:

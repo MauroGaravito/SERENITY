@@ -20,6 +20,7 @@ import {
   requireOrganizationUser
 } from "@/lib/auth";
 import { logAuditEvent } from "@/lib/audit";
+import { assessAvailabilityForVisit } from "@/lib/availability";
 import {
   acknowledgeClosingExportJob,
   checkClosingExportJobStatus,
@@ -91,13 +92,17 @@ async function getScopedVisit(visitId: string, providerId: string) {
       assignedCarerId: true,
       actualStart: true,
       actualEnd: true,
+      scheduledStart: true,
+      scheduledEnd: true,
       exceptionReason: true,
       serviceOrderId: true,
       serviceOrder: {
         select: {
           providerId: true,
           code: true,
-          coordinatorNotes: true
+          coordinatorNotes: true,
+          requiredSkills: true,
+          requiredLanguage: true
         }
       }
     }
@@ -252,7 +257,45 @@ export async function assignCarerToVisit({
         providerId,
         isActive: true
       },
-      select: { id: true, firstName: true, lastName: true }
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        primaryLanguage: true,
+        credentials: {
+          select: {
+            name: true,
+            status: true,
+            expiresAt: true
+          }
+        },
+        availabilityBlocks: {
+          where: {
+            endsAt: {
+              gte: new Date(Date.now() - 1000 * 60 * 60 * 24)
+            }
+          }
+        },
+        visits: {
+          where: {
+            status: {
+              in: [
+                PrismaVisitStatus.SCHEDULED,
+                PrismaVisitStatus.CONFIRMED,
+                PrismaVisitStatus.IN_PROGRESS,
+                PrismaVisitStatus.COMPLETED,
+                PrismaVisitStatus.UNDER_REVIEW
+              ]
+            }
+          },
+          select: {
+            id: true,
+            scheduledStart: true,
+            scheduledEnd: true,
+            status: true
+          }
+        }
+      }
     })
   ]);
 
@@ -262,6 +305,48 @@ export async function assignCarerToVisit({
 
   if (!carer) {
     throw new Error("Carer is not available for this provider.");
+  }
+
+  const availabilityAssessment = assessAvailabilityForVisit({
+    blocks: carer.availabilityBlocks,
+    existingVisits: carer.visits,
+    targetVisit: {
+      id: visit.id,
+      scheduledStart: visit.scheduledStart,
+      scheduledEnd: visit.scheduledEnd
+    }
+  });
+
+  if (!availabilityAssessment.matches) {
+    throw new Error(
+      `Carer cannot be assigned: ${[
+        availabilityAssessment.summary,
+        ...availabilityAssessment.reasons
+      ].join(" ")}`
+    );
+  }
+
+  const validCredentialNames = carer.credentials
+    .filter(
+      (credential) =>
+        credential.status === "VALID" &&
+        (!credential.expiresAt || credential.expiresAt > visit.scheduledEnd)
+    )
+    .map((credential) => credential.name.toLowerCase());
+  const missingSkills = visit.serviceOrder.requiredSkills.filter(
+    (skill) => !validCredentialNames.includes(skill.toLowerCase())
+  );
+
+  if (missingSkills.length > 0) {
+    throw new Error(`Carer cannot be assigned: missing valid skills ${missingSkills.join(", ")}.`);
+  }
+
+  if (
+    visit.serviceOrder.requiredLanguage &&
+    carer.primaryLanguage &&
+    carer.primaryLanguage.toLowerCase() !== visit.serviceOrder.requiredLanguage.toLowerCase()
+  ) {
+    throw new Error(`Carer cannot be assigned: language mismatch for ${visit.serviceOrder.requiredLanguage}.`);
   }
 
   assertVisitTransition({

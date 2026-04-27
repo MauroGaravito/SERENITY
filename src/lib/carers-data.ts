@@ -63,6 +63,14 @@ const carerWorkspaceInclude = {
   }
 } satisfies Prisma.CarerInclude;
 
+const ACTIVE_ASSIGNMENT_STATUSES = new Set<PrismaVisitStatus>([
+  PrismaVisitStatus.SCHEDULED,
+  PrismaVisitStatus.CONFIRMED,
+  PrismaVisitStatus.IN_PROGRESS,
+  PrismaVisitStatus.COMPLETED,
+  PrismaVisitStatus.UNDER_REVIEW
+]);
+
 type CarerWorkspaceRow = Prisma.CarerGetPayload<{
   include: typeof carerWorkspaceInclude;
 }>;
@@ -249,6 +257,10 @@ function getReadinessSummary(record: CarerWorkspaceRow): CarerWorkspaceRecord["r
       (!credential.expiresAt || credential.expiresAt > new Date())
   );
   const workingBlocks = record.availabilityBlocks.filter((block) => block.isWorking);
+  const unavailableBlocks = record.availabilityBlocks.filter((block) => !block.isWorking);
+  const activeAssignments = record.visits.filter((visit) =>
+    ACTIVE_ASSIGNMENT_STATUSES.has(visit.status)
+  );
 
   if (validCredentials.length > 0) {
     positiveSignals.push({
@@ -279,6 +291,24 @@ function getReadinessSummary(record: CarerWorkspaceRow): CarerWorkspaceRecord["r
       tone: "warning",
       label: "No working availability blocks",
       detail: "Provider matching is weaker until working blocks are declared."
+    });
+  }
+
+  if (unavailableBlocks.length > 0) {
+    attentionSignals.push({
+      id: "unavailable-blocks-declared",
+      tone: "warning",
+      label: `${unavailableBlocks.length} unavailable blocks declared`,
+      detail: "Provider matching will avoid visit windows that overlap declared unavailable time."
+    });
+  }
+
+  if (activeAssignments.length > 0) {
+    positiveSignals.push({
+      id: "active-assignments-visible",
+      tone: "positive",
+      label: `${activeAssignments.length} active assignments visible`,
+      detail: "Provider matching can avoid overlapping assignments for this carer."
     });
   }
 

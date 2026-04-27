@@ -10,6 +10,9 @@
 6. Las razones de matching visibles para provider deben estar alineadas con las señales que el cuidador ve en su workspace.
 7. Una credencial `valid` deja de contar como skill verificada si su `expiresAt` ya paso o si vence antes de la ventana de la visita que se esta asignando.
 8. Las credenciales que vencen en los proximos 45 dias deben mostrarse como advertencia operativa sin bloquear matching hasta que expiren.
+9. Una visita no puede asignarse si la ventana se solapa con otra asignacion activa del cuidador.
+10. Una visita no puede asignarse si se solapa con un bloque declarado como no disponible.
+11. Una visita solo puede asignarse cuando un bloque laboral declarado cubre toda la ventana de servicio.
 
 ## 2. Reglas de cobertura
 

@@ -267,7 +267,7 @@ export function VisitControlPanel({
                   >
                     <span>{carer.name}</span>
                     <small>
-                      {carer.readinessSummary} · rating {carer.rating.toFixed(1)}
+                      {carer.availabilitySummary} · {carer.readinessSummary} · rating {carer.rating.toFixed(1)}
                     </small>
                   </button>
                 )) : <p className="panel-copy">No carer currently clears the matching rules.</p>}
@@ -426,6 +426,9 @@ export function VisitControlPanel({
                 {restrictedCarers.map((carer) => (
                   <div className="note-block" key={carer.id}>
                     <strong>{carer.name}</strong>
+                    <p>
+                      {carer.availabilityStatus.replaceAll("_", " ")} · {carer.availabilitySummary}
+                    </p>
                     <p>
                       {carer.readinessStatus.replaceAll("_", " ")} · {carer.readinessSummary}
                     </p>

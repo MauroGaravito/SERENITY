@@ -213,6 +213,8 @@ Usa `SR-2401`.
   - una visita aprobada con `Liam Ortega`
   - una visita futura sin asignar
 - En `Coverage pool` veras carers elegibles y carers restringidos con razones visibles.
+- Las razones de disponibilidad distinguen bloque laboral completo, disponibilidad parcial, bloque no disponible y asignaciones solapadas.
+- La asignacion tambien se valida en servidor contra disponibilidad, skills vigentes y lenguaje.
 - En `Visit control` puedes seleccionar la visita sin cobertura y asignarla.
 - Tambien puedes pedir `Request replacement` y dejar una nota de escalamiento.
 

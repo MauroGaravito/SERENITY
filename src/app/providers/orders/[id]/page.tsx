@@ -133,6 +133,9 @@ export default async function ProviderOrderDetailPage({
                   {carer.availability} · rating {carer.rating.toFixed(1)}
                 </p>
                 <p>
+                  {carer.availabilityStatus.replaceAll("_", " ")} · {carer.availabilitySummary}
+                </p>
+                <p>
                   {carer.isEligible
                     ? `Eligible · ${carer.credentials.join(" · ")}`
                     : carer.eligibilityReasons.join(" · ")}

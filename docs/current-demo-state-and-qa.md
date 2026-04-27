@@ -411,4 +411,6 @@ npm run db:seed:colombia
 - Readiness del carer usa estados claros `ready`, `attention_needed` y `restricted`.
 - Credenciales vencidas o con fecha vencida no cuentan como skills verificadas.
 - Credenciales por vencer dentro de 45 dias muestran alerta y accion de renovacion sin bloquear matching antes del vencimiento.
+- Provider matching bloquea unavailable blocks, disponibilidad parcial y visitas asignadas que se solapan.
+- La accion server-side de asignacion vuelve a validar disponibilidad, skills vigentes y lenguaje antes de confirmar.
 - Colombia y Australia pueden reseedearse sin romper build ni typecheck.
