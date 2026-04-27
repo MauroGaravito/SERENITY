@@ -550,6 +550,8 @@ Hoy `/carers` ya funciona como workspace ejecutable para el carer.
 - readiness del perfil con impacto operativo
 - senales separadas de readiness: positivas, atencion y bloqueos
 - readiness de ejecucion por visita antes de enviar a review
+- resumen superior con estado de readiness y siguiente accion de visita seleccionada
+- readiness organizado por señales listas, atencion y bloqueos para demo
 
 ### Que no puede hacer todavia
 

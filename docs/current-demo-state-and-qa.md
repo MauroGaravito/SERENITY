@@ -413,4 +413,5 @@ npm run db:seed:colombia
 - Credenciales por vencer dentro de 45 dias muestran alerta y accion de renovacion sin bloquear matching antes del vencimiento.
 - Provider matching bloquea unavailable blocks, disponibilidad parcial y visitas asignadas que se solapan.
 - La accion server-side de asignacion vuelve a validar disponibilidad, skills vigentes y lenguaje antes de confirmar.
+- El workspace del carer prioriza resumen operativo, readiness por lanes, agenda con ventana y formularios mas compactos para demo.
 - Colombia y Australia pueden reseedearse sin romper build ni typecheck.

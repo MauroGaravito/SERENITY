@@ -74,6 +74,34 @@ function getCredentialCardClass(credential: CarerWorkspaceRecord["credentials"][
   return "credential-card";
 }
 
+function getVisitActionSummary(visit?: CarerWorkspaceRecord["visits"][number]) {
+  if (!visit) {
+    return "No active visit selected.";
+  }
+
+  if (visit.executionReadiness.reviewBlockers.length > 0) {
+    return visit.executionReadiness.reviewBlockers[0];
+  }
+
+  if (visit.status === "confirmed") {
+    return "Ready to start from the execution controls.";
+  }
+
+  if (visit.status === "in_progress") {
+    return "Complete the visit once field work is finished.";
+  }
+
+  if (visit.status === "completed") {
+    return "Submit for review when the execution context is ready.";
+  }
+
+  if (visit.status === "under_review") {
+    return "Waiting for provider review.";
+  }
+
+  return "Track this visit from the assigned visit queue.";
+}
+
 export function CarerWorkspace({
   selectedVisitId,
   session,
@@ -107,18 +135,28 @@ export function CarerWorkspace({
   const expiredCredentials = workspace.credentials.filter(
     (credential) => credential.status === "expired" || credential.expiryState === "expired"
   ).length;
+  const workingBlocks = workspace.availabilityBlocks.filter((block) => block.isWorking).length;
+  const unavailableBlocks = workspace.availabilityBlocks.length - workingBlocks;
+  const blockerCount = workspace.readinessSummary.blockerSignals.length;
+  const attentionCount = workspace.readinessSummary.attentionSignals.length;
 
   return (
     <main className="role-page carer-theme">
       <SessionBanner session={session} />
 
-      <section>
+      <section className="carer-hero-panel">
         <span className="eyebrow">Carer execution</span>
-        <h1>Assigned visits and field execution</h1>
-        <p>
-          El cuidador ya puede ejecutar visitas, mantener su perfil operativo y
-          ver con claridad que esta limitando o habilitando nuevas asignaciones.
-        </p>
+        <div className="carer-hero-grid">
+          <div>
+            <h1>{workspace.carerName}</h1>
+            <p>{workspace.readinessSummary.operationalImpact}</p>
+          </div>
+          <div className="carer-hero-status">
+            <StatusBadge value={workspace.readinessStatus} />
+            <strong>{selectedVisit ? selectedVisit.orderCode : "No assigned visit"}</strong>
+            <span>{getVisitActionSummary(selectedVisit)}</span>
+          </div>
+        </div>
       </section>
 
       <section className="metrics-grid metrics-grid-4">
@@ -135,7 +173,7 @@ export function CarerWorkspace({
         <article className="metric-card metric-warning">
           <p>Readiness</p>
           <strong>{workspace.readinessStatus.replaceAll("_", " ")}</strong>
-          <span>Operational readiness summary for provider matching</span>
+          <span>{blockerCount} blockers - {attentionCount} attention signals</span>
         </article>
         <article className="metric-card metric-critical">
           <p>Credential alerts</p>
@@ -171,6 +209,7 @@ export function CarerWorkspace({
                     <p>
                       {visit.recipientName} · {visit.serviceType}
                     </p>
+                    <p>{formatDateTime(visit.scheduledStart)} - {formatDateTime(visit.scheduledEnd)}</p>
                   </div>
                   <StatusBadge value={visit.status} />
                 </Link>
@@ -189,26 +228,42 @@ export function CarerWorkspace({
             </div>
             <StatusBadge value={workspace.readinessStatus} />
           </div>
-          <p className="panel-copy">{workspace.readinessSummary.operationalImpact}</p>
-          <div className="readiness-signal-grid top-gap">
-            {workspace.readinessSummary.positiveSignals.map((signal) => (
-              <div className={`readiness-signal ${getSignalClass(signal.tone)}`} key={signal.id}>
-                <strong>{signal.label}</strong>
-                <p>{signal.detail}</p>
-              </div>
-            ))}
-            {workspace.readinessSummary.attentionSignals.map((signal) => (
-              <div className={`readiness-signal ${getSignalClass(signal.tone)}`} key={signal.id}>
-                <strong>{signal.label}</strong>
-                <p>{signal.detail}</p>
-              </div>
-            ))}
-            {workspace.readinessSummary.blockerSignals.map((signal) => (
-              <div className={`readiness-signal ${getSignalClass(signal.tone)}`} key={signal.id}>
-                <strong>{signal.label}</strong>
-                <p>{signal.detail}</p>
-              </div>
-            ))}
+          <div className="readiness-lanes top-gap">
+            <div className="readiness-lane">
+              <strong>Ready signals</strong>
+              {workspace.readinessSummary.positiveSignals.map((signal) => (
+                <div className={`readiness-signal ${getSignalClass(signal.tone)}`} key={signal.id}>
+                  <span>{signal.label}</span>
+                  <p>{signal.detail}</p>
+                </div>
+              ))}
+            </div>
+            <div className="readiness-lane">
+              <strong>Attention</strong>
+              {workspace.readinessSummary.attentionSignals.length > 0 ? (
+                workspace.readinessSummary.attentionSignals.map((signal) => (
+                  <div className={`readiness-signal ${getSignalClass(signal.tone)}`} key={signal.id}>
+                    <span>{signal.label}</span>
+                    <p>{signal.detail}</p>
+                  </div>
+                ))
+              ) : (
+                <p className="panel-copy">No attention signals.</p>
+              )}
+            </div>
+            <div className="readiness-lane">
+              <strong>Blockers</strong>
+              {workspace.readinessSummary.blockerSignals.length > 0 ? (
+                workspace.readinessSummary.blockerSignals.map((signal) => (
+                  <div className={`readiness-signal ${getSignalClass(signal.tone)}`} key={signal.id}>
+                    <span>{signal.label}</span>
+                    <p>{signal.detail}</p>
+                  </div>
+                ))
+              ) : (
+                <p className="panel-copy">No blockers.</p>
+              )}
+            </div>
           </div>
           <div className="readiness-mini-summary top-gap">
             <div>
@@ -216,12 +271,12 @@ export function CarerWorkspace({
               <span>verified skills</span>
             </div>
             <div>
-              <strong>{workspace.availabilityBlocks.filter((block) => block.isWorking).length}</strong>
+              <strong>{workingBlocks}</strong>
               <span>working blocks</span>
             </div>
             <div>
-              <strong>{workspace.readinessSummary.blockerSignals.length}</strong>
-              <span>blockers</span>
+              <strong>{unavailableBlocks}</strong>
+              <span>unavailable blocks</span>
             </div>
           </div>
         </article>
@@ -231,8 +286,9 @@ export function CarerWorkspace({
         <div className="panel-heading">
           <div>
             <p className="card-tag">Operational alerts</p>
-            <h2>What needs attention</h2>
+            <h2>Action queue</h2>
           </div>
+          <span className="skill-pill">{workspace.alerts.length} alerts</span>
         </div>
         <div className="sequence-list">
           {workspace.alerts.length > 0 ? (
@@ -255,9 +311,10 @@ export function CarerWorkspace({
               <p className="card-tag">Availability</p>
               <h2>Profile and working blocks</h2>
             </div>
+            <span className="skill-pill">{workingBlocks} working</span>
           </div>
-          <CarerAvailabilityNoteForm availability={workspace.availability} />
-          <div className="top-gap">
+          <div className="carer-form-strip">
+            <CarerAvailabilityNoteForm availability={workspace.availability} />
             <CarerAvailabilityBlockForm />
           </div>
           <div className="sequence-list top-gap">
@@ -282,6 +339,7 @@ export function CarerWorkspace({
               <p className="card-tag">Credentials</p>
               <h2>Operational readiness</h2>
             </div>
+            <span className="skill-pill">{workspace.credentials.length} records</span>
           </div>
           <CarerCredentialForm />
           <div className="sequence-list top-gap">

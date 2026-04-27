@@ -2,6 +2,40 @@
 
 Registro breve de decisiones y entregas relevantes. No reemplaza Plane; sirve como memoria tecnica y de producto dentro del repo.
 
+## 2026-04-27 - SER-8 Polish carer profile for demo reliability
+
+Objetivo:
+
+- Mejorar la claridad demo del workspace carer sin cambiar reglas de negocio.
+- Hacer mas visible la continuidad entre perfil, readiness, credenciales, disponibilidad y visitas asignadas.
+- Reducir ruido visual para explicar el flujo carer con menos friccion.
+
+Resultado:
+
+- El header del workspace carer ahora resume nombre, readiness e siguiente accion de la visita seleccionada.
+- La metrica de readiness muestra blockers y attention signals para lectura rapida.
+- La agenda de visitas muestra ventana programada directamente en cada fila.
+- Readiness se reorganizo en lanes: ready signals, attention y blockers.
+- Availability y credential forms quedan mas compactos dentro del layout operativo.
+- Las secciones de alerts, availability y credentials muestran contadores accionables.
+- Estilos responsive actualizados para mantener la nueva jerarquia en pantallas angostas.
+
+Validacion ejecutada:
+
+- `npm run typecheck`
+- `npm run build`
+
+Pruebas manuales pendientes para la etapa QA:
+
+- Reseed Colombia con `npm run db:seed:colombia`.
+- Entrar como carer demo y confirmar que el header muestra readiness y siguiente accion.
+- Confirmar que las metricas superiores explican visitas, hoy, readiness y credential alerts.
+- Confirmar que readiness se lee por lanes sin mezclar positivos, advertencias y bloqueos.
+- Confirmar que agenda muestra recipient, service type, fecha/hora y estado.
+- Confirmar que availability y credential forms siguen funcionando en el layout compacto.
+- Confirmar que execution readiness, checklist, evidence e incidents siguen disponibles para la visita seleccionada.
+- Revisar responsive basico del workspace carer.
+
 ## 2026-04-27 - SER-7 Strengthen availability and restriction logic
 
 Objetivo:

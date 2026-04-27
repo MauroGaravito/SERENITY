@@ -1113,6 +1113,41 @@ ul {
   font-size: clamp(1.5rem, 2vw, 2.2rem);
 }
 
+.carer-hero-panel {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.carer-hero-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(260px, 0.36fr);
+  gap: 1rem;
+  align-items: stretch;
+}
+
+.carer-hero-grid h1 {
+  margin-bottom: 0.65rem;
+}
+
+.carer-hero-status {
+  display: grid;
+  align-content: start;
+  gap: 0.55rem;
+  padding: 1rem;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.58);
+}
+
+.carer-hero-status strong {
+  color: var(--surface-strong);
+  font-size: 1.1rem;
+}
+
+.carer-hero-status span {
+  color: var(--muted);
+}
+
 .status-badge {
   display: inline-flex;
   align-items: center;
@@ -1324,9 +1359,24 @@ ul {
   margin-top: 1rem;
 }
 
-.readiness-signal-grid {
+.readiness-signal-grid,
+.readiness-lanes {
   display: grid;
   gap: 0.75rem;
+}
+
+.readiness-lanes {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: start;
+}
+
+.readiness-lane {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.readiness-lane > strong {
+  color: var(--surface-strong);
 }
 
 .readiness-signal {
@@ -1338,8 +1388,10 @@ ul {
   background: rgba(255, 255, 255, 0.62);
 }
 
-.readiness-signal strong {
+.readiness-signal strong,
+.readiness-signal span {
   color: var(--surface-strong);
+  font-weight: 700;
 }
 
 .readiness-signal p {
@@ -1457,6 +1509,13 @@ ul {
   border-radius: 20px;
   border: 1px solid rgba(19, 60, 58, 0.08);
   background: rgba(255, 255, 255, 0.5);
+}
+
+.carer-form-strip {
+  display: grid;
+  grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr);
+  gap: 0.85rem;
+  align-items: start;
 }
 
 .credential-pill {
@@ -1864,6 +1923,9 @@ ul {
   .closing-step-grid,
   .closing-step-strip,
   .execution-story-grid,
+  .carer-hero-grid,
+  .carer-form-strip,
+  .readiness-lanes,
   .readiness-mini-summary {
     grid-template-columns: 1fr;
   }
