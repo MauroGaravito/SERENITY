@@ -4,7 +4,7 @@ import { getCarerWorkspace } from "@/lib/carers-data";
 
 export const dynamic = "force-dynamic";
 
-export default async function CarersPage() {
+export default async function CarerAvailabilityPage() {
   const session = await requireUser(CARER_ROLES);
   const workspace = await getCarerWorkspace(session.userId);
 
@@ -20,5 +20,5 @@ export default async function CarersPage() {
     );
   }
 
-  return <CarerWorkspace currentSection="overview" session={session} workspace={workspace} />;
+  return <CarerWorkspace currentSection="availability" session={session} workspace={workspace} />;
 }

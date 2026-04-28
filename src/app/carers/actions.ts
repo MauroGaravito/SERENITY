@@ -198,6 +198,8 @@ function optionalDate(value: FormDataEntryValue | null) {
 
 async function revalidateCarerPath() {
   revalidatePath("/carers");
+  revalidatePath("/carers/availability");
+  revalidatePath("/carers/credentials");
 }
 
 export async function updateCarerAvailabilityProfile(formData: FormData) {
@@ -221,11 +223,32 @@ export async function addCarerAvailabilityBlock(formData: FormData) {
   const isWorking = String(formData.get("isWorking") ?? "working") === "working";
 
   if (!startsAt || !endsAt) {
-    throw new Error("Availability block dates are required.");
+    await revalidateCarerPath();
+    return;
   }
 
   if (endsAt <= startsAt) {
-    throw new Error("Availability block end must be after start.");
+    await revalidateCarerPath();
+    return;
+  }
+
+  const overlappingBlock = await prisma.availabilityBlock.findFirst({
+    where: {
+      carerId: session.carerId,
+      startsAt: { lt: endsAt },
+      endsAt: { gt: startsAt }
+    },
+    select: {
+      id: true,
+      isWorking: true,
+      startsAt: true,
+      endsAt: true
+    }
+  });
+
+  if (overlappingBlock) {
+    await revalidateCarerPath();
+    return;
   }
 
   await prisma.availabilityBlock.create({
@@ -234,6 +257,20 @@ export async function addCarerAvailabilityBlock(formData: FormData) {
       startsAt,
       endsAt,
       isWorking
+    }
+  });
+
+  await revalidateCarerPath();
+}
+
+export async function deleteCarerAvailabilityBlock(formData: FormData) {
+  const session = await requireCarerSession();
+  const availabilityBlockId = requiredString(formData.get("availabilityBlockId"), "availabilityBlockId");
+
+  await prisma.availabilityBlock.deleteMany({
+    where: {
+      id: availabilityBlockId,
+      carerId: session.carerId
     }
   });
 
