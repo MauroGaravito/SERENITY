@@ -18,8 +18,11 @@ export function ProviderVisitCreateForm({ orderId }: { orderId: string }) {
     <form action={createVisitForOrder} className="ops-panel order-form-panel compact-form">
       <div className="panel-heading">
         <div>
-          <p className="card-tag">Add visit</p>
-          <h2>Schedule another visit</h2>
+          <p className="card-tag">Schedule</p>
+          <h2>Add another visit</h2>
+          <p className="panel-copy">
+            Use this only when the order needs an extra dated visit outside the current schedule.
+          </p>
         </div>
       </div>
 

@@ -94,11 +94,11 @@ export function ProviderOrderEditForm({ order }: { order: ServiceOrderRecord }) 
     <form action={updateServiceOrder} className="ops-panel order-form-panel" onSubmit={validateBeforeSubmit}>
       <div className="panel-heading">
         <div>
-          <p className="card-tag">Edit order</p>
-          <h2>Demand settings</h2>
+          <p className="card-tag">Edit request</p>
+          <h2>Service request</h2>
           <p className="panel-copy">
-            Update demand, scheduling and eligibility inputs before coordinators continue
-            coverage work.
+            Update what care is needed, when it is needed, and which skills are required
+            before coverage continues.
           </p>
         </div>
       </div>
@@ -131,7 +131,7 @@ export function ProviderOrderEditForm({ order }: { order: ServiceOrderRecord }) 
       <section className="form-section">
         <div className="form-section-heading">
           <p className="card-tag">Scheduling</p>
-          <h3>Service window</h3>
+          <h3>Requested care window</h3>
         </div>
         <div className="form-grid">
           <label>
@@ -174,7 +174,7 @@ export function ProviderOrderEditForm({ order }: { order: ServiceOrderRecord }) 
           </label>
 
           <label>
-            <span>Recurrence</span>
+            <span>Requested pattern</span>
             <select
               name="recurrenceRule"
               onChange={(event) => setRecurrenceRule(event.target.value)}
@@ -208,7 +208,7 @@ export function ProviderOrderEditForm({ order }: { order: ServiceOrderRecord }) 
         </label>
         <fieldset className="form-block">
           <legend>Required skills</legend>
-          <p className="field-help">Changing skills immediately affects the coverage pool below.</p>
+          <p className="field-help">Changing skills updates future coverage matches for this order.</p>
           <div className="pill-row checkbox-pill-row">
             {SKILL_CATALOG.map((skill) => (
               <label className="checkbox-pill" key={skill}>
@@ -254,8 +254,7 @@ export function ProviderOrderEditForm({ order }: { order: ServiceOrderRecord }) 
       <div className="note-block compact-note-block">
         <strong>After saving</strong>
         <p>
-          Review the visit control panel and coverage pool to confirm the order still has workable
-          assignment options.
+          Return to visit schedule and coverage to confirm every visit still has workable coverage.
         </p>
       </div>
 

@@ -47,22 +47,22 @@ function getSuggestedAction(visit: VisitRecord) {
 
 function getExecutionNarrative(visit: VisitRecord) {
   if (visit.status === "under_review") {
-    return "Review checklist, evidence, and incidents before deciding the outcome.";
+    return "Review the care tasks, evidence, and notes before approving this visit.";
   }
 
   if (visit.status === "approved") {
-    return "Execution context was approved and can support operational closure.";
+    return "This visit was approved and is ready for closing.";
   }
 
   if (visit.status === "rejected") {
-    return "Execution context was rejected and needs correction before approval.";
+    return "This visit needs correction before it can be approved.";
   }
 
   if (visit.checklistCompletion === 100 && visit.evidenceCount > 0) {
-    return "Checklist and evidence are ready for provider review.";
+    return "Care tasks and evidence are ready for provider review.";
   }
 
-  return "Execution context is still being built by the carer.";
+  return "The carer is still building this visit record.";
 }
 
 export function VisitControlPanel({
@@ -82,10 +82,6 @@ export function VisitControlPanel({
   );
   const eligibleCarers = useMemo(
     () => order.eligibleCarers.filter((carer) => carer.isEligible),
-    [order.eligibleCarers]
-  );
-  const restrictedCarers = useMemo(
-    () => order.eligibleCarers.filter((carer) => !carer.isEligible),
     [order.eligibleCarers]
   );
   const providerStatusActions = useMemo(
@@ -189,8 +185,8 @@ export function VisitControlPanel({
       <div className="ops-panel">
         <div className="panel-heading">
           <div>
-            <p className="card-tag">Visits in this order</p>
-            <h2>{order.code}</h2>
+            <p className="card-tag">Agenda</p>
+            <h2>Service visits</h2>
           </div>
           <StatusBadge value={order.status} />
         </div>
@@ -219,7 +215,7 @@ export function VisitControlPanel({
         <article className="ops-panel">
           <div className="panel-heading">
             <div>
-              <p className="card-tag">Visit control</p>
+              <p className="card-tag">Selected visit</p>
               <h2>{selectedVisit.label}</h2>
             </div>
             <StatusBadge value={selectedVisit.status} />
@@ -255,9 +251,14 @@ export function VisitControlPanel({
 
           <div className="action-grid">
             <div className="action-card">
-              <h3>Assign carer</h3>
+              <h3>Coverage match</h3>
               <div className="stacked-options">
-                {eligibleCarers.length > 0 ? eligibleCarers.map((carer) => (
+                {selectedVisit.assignedCarerName ? (
+                  <div className="note-block">
+                    <strong>{selectedVisit.assignedCarerName}</strong>
+                    <p>Assigned to this visit window.</p>
+                  </div>
+                ) : eligibleCarers.length > 0 ? eligibleCarers.map((carer) => (
                   <button
                     className="mini-action"
                     disabled={isPending}
@@ -270,12 +271,12 @@ export function VisitControlPanel({
                       {carer.availabilitySummary} · {carer.readinessSummary} · rating {carer.rating.toFixed(1)}
                     </small>
                   </button>
-                )) : <p className="panel-copy">No carer currently clears the matching rules.</p>}
+                )) : <p className="panel-copy">No available match is ready for this visit window.</p>}
               </div>
             </div>
 
             <div className="action-card">
-              <h3>Visit status</h3>
+              <h3>Next step</h3>
               <div className="inline-actions">
                 {providerStatusActions.length > 0 ? providerStatusActions.map(
                   (status) => (
@@ -289,7 +290,7 @@ export function VisitControlPanel({
                       {status}
                     </button>
                   )
-                ) : <p className="panel-copy">No manual status move is valid from this state.</p>}
+                ) : <p className="panel-copy">This visit has no provider action available right now.</p>}
                 <button
                   className="mini-action reject"
                   disabled={
@@ -299,9 +300,13 @@ export function VisitControlPanel({
                   onClick={handleReplacementRequest}
                   type="button"
                 >
-                  Request replacement
+                  Request new coverage
                 </button>
               </div>
+              <p className="field-help">
+                This removes the current assignment, keeps the visit scheduled, and marks it
+                for replacement coverage.
+              </p>
             </div>
 
             {canReviewVisits ? (
@@ -342,7 +347,7 @@ export function VisitControlPanel({
         <article className="ops-panel">
           <div className="panel-heading">
             <div>
-              <p className="card-tag">Execution narrative</p>
+              <p className="card-tag">Care record</p>
               <h2>{selectedVisit.assignedCarerName ?? "No carer assigned"}</h2>
             </div>
           </div>
@@ -358,7 +363,7 @@ export function VisitControlPanel({
           <p className="panel-copy">{selectedVisit.notes}</p>
           <div className="execution-story-grid">
             <div className="note-block">
-              <strong>Checklist</strong>
+              <strong>Care tasks</strong>
               {selectedVisit.checklistItems.length > 0 ? (
                 <div className="compact-sequence-list top-gap">
                   {selectedVisit.checklistItems.map((item) => (
@@ -373,7 +378,7 @@ export function VisitControlPanel({
               )}
             </div>
             <div className="note-block">
-              <strong>Evidence</strong>
+              <strong>Evidence captured</strong>
               {selectedVisit.evidence.length > 0 ? (
                 <div className="compact-sequence-list top-gap">
                   {selectedVisit.evidence.map((item) => (
@@ -419,31 +424,12 @@ export function VisitControlPanel({
               No review captured yet. This visit is still on the operational lane.
             </p>
           )}
-          {restrictedCarers.length > 0 ? (
-            <div className="top-gap">
-              <strong>Restricted carers</strong>
-              <div className="sequence-list top-gap">
-                {restrictedCarers.map((carer) => (
-                  <div className="note-block" key={carer.id}>
-                    <strong>{carer.name}</strong>
-                    <p>
-                      {carer.availabilityStatus.replaceAll("_", " ")} · {carer.availabilitySummary}
-                    </p>
-                    <p>
-                      {carer.readinessStatus.replaceAll("_", " ")} · {carer.readinessSummary}
-                    </p>
-                    <p>{carer.eligibilityReasons.join(" · ")}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ) : null}
           <div className="top-gap escalation-panel">
-            <strong>Operational escalation</strong>
-            <p>Use this when coverage risk or service impact needs an explicit coordination note.</p>
+            <strong>Care coordination note</strong>
+            <p>Record a provider note when this visit needs follow-up.</p>
             <div className="form-grid top-gap">
               <label>
-                <span>Severity</span>
+                <span>Priority</span>
                 <select
                   disabled={isPending}
                   onChange={(event) => setEscalationSeverity(event.target.value)}
@@ -459,7 +445,7 @@ export function VisitControlPanel({
                 <input
                   disabled={isPending}
                   onChange={(event) => setEscalationReason(event.target.value)}
-                  placeholder="Describe why this order needs escalation"
+                  placeholder="Describe the follow-up needed"
                   type="text"
                   value={escalationReason}
                 />
@@ -472,7 +458,7 @@ export function VisitControlPanel({
                 onClick={handleEscalation}
                 type="button"
               >
-                Log escalation
+                Save note
               </button>
             </div>
           </div>

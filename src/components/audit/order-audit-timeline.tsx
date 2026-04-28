@@ -5,16 +5,16 @@ export function OrderAuditTimeline({ events }: { events: AuditEventRecord[] }) {
     <article className="ops-panel">
       <div className="panel-heading">
         <div>
-          <p className="card-tag">Audit trail</p>
-          <h2>Critical events</h2>
+          <p className="card-tag">Activity log</p>
+          <h2>Order changes</h2>
         </div>
       </div>
 
       <div className="sequence-list audit-list">
         {events.length === 0 ? (
           <div className="note-block">
-            <strong>No audit events yet</strong>
-            <p>The order has not recorded a critical workflow event yet.</p>
+            <strong>No activity yet</strong>
+            <p>The order has not recorded a workflow update yet.</p>
           </div>
         ) : (
           events.map((event) => (

@@ -35,6 +35,42 @@ La demo local esta configurada con:
 - 2 closing periods.
 - export jobs y audit events sembrados.
 
+## SER-26 status para QA visual
+
+SER-26 esta activo como trabajo transversal de jerarquia de informacion y claridad UI.
+
+Estado al cierre del 2026-04-28:
+
+- Backend y reglas operativas se mantienen estables.
+- El rediseño se concentra en frontend, lenguaje de producto y separacion de dominios operativos.
+- Carer workspace es el flujo mas avanzado del rediseño.
+- Provider order detail ya fue simplificado, pero sigue siendo el punto principal de revision para la proxima sesion.
+- Center views, provider dashboard, provider orders list, closing y export aun necesitan la misma pasada de consistencia visual.
+
+Validacion automatizada ya ejecutada:
+
+```powershell
+npm run typecheck
+npm run build
+```
+
+Ambas pasaron. El build mantiene el warning conocido de Next por uso de `<img>` en `src/components/carers/carer-workspace.tsx`.
+
+Prioridad de QA para el 2026-04-29:
+
+1. Entrar como `mauricio@serenity.local`.
+2. Revisar `/providers/orders/[id]` para `SR-2401`.
+3. Confirmar que el lenguaje visible es entendible para un coordinador:
+   - `Service request`
+   - `Visit schedule and coverage`
+   - `Selected visit`
+   - `Care record`
+   - `Care coordination note`
+   - `Order changes`
+4. Confirmar que `Request new coverage` explica que elimina la asignacion actual, mantiene la visita programada y marca la visita para cobertura de reemplazo.
+5. Decidir si schedule, coverage diagnostics y order changes deben quedarse como detalles plegables o pasar a paginas/secciones propias.
+6. Revisar responsive basico en carer y provider antes de cerrar SER-26.
+
 ## Organizaciones y responsables
 
 ### Prestadora

@@ -17,6 +17,7 @@ export default async function CenterOrdersPage() {
 
   return (
     <CenterShell
+      currentSection="orders"
       title="Service requests"
       subtitle="El centro convierte necesidad operativa en demanda estructurada para la prestadora."
     >

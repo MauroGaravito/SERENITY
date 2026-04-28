@@ -2,6 +2,57 @@
 
 Registro breve de decisiones y entregas relevantes. No reemplaza Plane; sirve como memoria tecnica y de producto dentro del repo.
 
+## 2026-04-28 - SER-26 UI hierarchy redesign checkpoint
+
+Objetivo:
+
+- Avanzar SER-26 como rediseño transversal de jerarquia visual, lenguaje operativo y claridad de UI.
+- Mantener la logica backend estable mientras se mejora la experiencia frontend.
+- Dejar un punto claro para continuar el 2026-04-29.
+
+Resultado:
+
+- Se introdujo una base compartida de layout con `AppShell` para alinear provider, center y carer bajo una estructura mas consistente.
+- El workspace del carer fue reorganizado en secciones dedicadas: overview, availability, credentials y visit execution.
+- Availability del carer ahora usa un planner visual mensual, seleccion de rangos por fecha, rangos de hora en incrementos de 30 minutos, prevencion de solapamientos y eliminacion de rangos.
+- Credentials y visit execution quedaron mas separados para reducir scroll y fatiga visual.
+- Visit execution cambio hacia una experiencia de registro/reporting mas clara: datos del cliente arriba, tareas de cuidado, evidencia visible, notas y excepciones.
+- El detalle de orden provider fue simplificado para reducir columnas, quitar diagnosticos internos de matching de la vista principal y usar lenguaje de coordinador.
+- En provider order detail se cambio el foco a `Service request`, `Visit schedule and coverage`, `Selected visit`, `Care record`, `Care coordination note` y `Order changes`.
+- `Request new coverage` ahora explica en UI que elimina la asignacion actual, mantiene la visita programada y la marca para cobertura de reemplazo.
+- Se cambio el texto de auditoria de `Operational escalation` a `Coordination note` para alinear el lenguaje con Serenity.
+
+Validacion ejecutada:
+
+- `npm run typecheck`
+- `npm run build`
+
+Resultado de validacion:
+
+- Typecheck paso.
+- Build paso.
+- Queda el warning conocido de Next por uso de `<img>` en `src/components/carers/carer-workspace.tsx`.
+
+Estado estimado de SER-26:
+
+- Avance funcional y visual aproximado: 65-70%.
+- El carer workspace esta cerca del objetivo visual esperado.
+- Provider order detail mejoro, pero todavia necesita revision visual final en browser antes de considerarlo consolidado.
+
+Punto exacto para retomar el 2026-04-29:
+
+- Revisar visualmente `/providers/orders/[id]` con Mauricio.
+- Confirmar si `Visit schedule and coverage`, `Service request`, `Add another visit`, `Care record`, `Care coordination note` y `Order changes` son los nombres definitivos.
+- Decidir si schedule, coverage diagnostics y order changes deben ser detalles plegables, modales o secciones propias en la barra lateral.
+- Continuar SER-26 por provider dashboard, provider orders list, closing/export y center views.
+- Hacer una pasada responsive/mobile basica sobre carer y provider.
+- Antes de cerrar SER-26, limpiar cualquier lenguaje tecnico visible que suene a modelo interno: coverage pool, execution narrative, escalation, demand settings, critical events.
+
+Notas de producto:
+
+- SER-26 sigue alineado con su descripcion: mejorar jerarquia de informacion, escaneabilidad, separacion de dominios operativos, claridad de acciones y consistencia visual sin cambiar el alcance backend.
+- No cerrar SER-26 aun. Mantener en `In Progress` hasta completar QA visual transversal.
+
 ## 2026-04-27 - SER-8 Polish carer profile for demo reliability
 
 Objetivo:

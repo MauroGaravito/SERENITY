@@ -8,7 +8,6 @@ import { VisitControlPanel } from "@/components/providers/visit-control-panel";
 import { listOrderAuditEvents } from "@/lib/audit-data";
 import { PROVIDER_ROLES, requireOrganizationUser } from "@/lib/auth";
 import { UserRole } from "@prisma/client";
-import { formatDateTime } from "@/lib/providers";
 import { getProviderOrder } from "@/lib/providers-data";
 
 export const dynamic = "force-dynamic";
@@ -33,43 +32,52 @@ export default async function ProviderOrderDetailPage({
     <ProviderShell
       currentSection="orders"
       title={`${order.code} · ${order.title}`}
-      subtitle="Validacion operativa del flujo provider: asignacion, estados de visita, revision y auditoria."
+      subtitle="Follow the service order from demand through coverage, visit execution, and review."
     >
-      <section className="ops-overview-grid">
-        <article className="ops-panel">
+      <section className="order-command-bar">
+        <article className="ops-panel order-command-primary">
           <div className="panel-heading">
             <div>
               <p className="card-tag">Order summary</p>
               <h2>{order.recipientName}</h2>
+              <p className="panel-copy">
+                {order.centerName} - {order.facilityName} - {order.serviceType}
+              </p>
             </div>
             <div className="stacked-statuses">
               <StatusBadge value={order.status} />
               <StatusBadge value={order.coverageStatus} />
             </div>
           </div>
-          <dl className="meta-grid">
-            <div>
-              <dt>Center</dt>
-              <dd>{order.centerName}</dd>
+          <div className="order-widget-grid">
+            <div className="order-widget">
+              <span className="metric-icon metric-icon-today" aria-hidden="true" />
+              <strong>{order.visits.length}</strong>
+              <p>Visits</p>
             </div>
-            <div>
-              <dt>Facility</dt>
-              <dd>{order.facilityName}</dd>
+            <div className="order-widget">
+              <span className="metric-icon metric-icon-readiness" aria-hidden="true" />
+              <strong>{order.priority}</strong>
+              <p>Priority</p>
             </div>
-            <div>
-              <dt>Service type</dt>
-              <dd>{order.serviceType}</dd>
+            <div className="order-widget">
+              <span className="metric-icon metric-icon-credentials" aria-hidden="true" />
+              <strong>{Math.round(order.plannedDurationMin / 60)}h</strong>
+              <p>Duration</p>
             </div>
+            <div className="order-widget">
+              <span className="metric-icon metric-icon-visits" aria-hidden="true" />
+              <strong>{order.requiredSkills.length}</strong>
+              <p>Skills</p>
+            </div>
+          </div>
+          <dl className="meta-grid order-meta-strip">
             <div>
-              <dt>Frequency</dt>
+              <dt>Requested pattern</dt>
               <dd>{order.frequency}</dd>
             </div>
             <div>
-              <dt>Planned duration</dt>
-              <dd>{order.plannedDurationMin} min</dd>
-            </div>
-            <div>
-              <dt>Required language</dt>
+              <dt>Language</dt>
               <dd>{order.requiredLanguage ?? "Not specified"}</dd>
             </div>
             <div>
@@ -79,24 +87,21 @@ export default async function ProviderOrderDetailPage({
           </dl>
         </article>
 
-        <article className="ops-panel">
+        <article className="ops-panel order-command-notes">
           <div className="panel-heading">
             <div>
-              <p className="card-tag">Coordinator notes</p>
-              <h2>Operating constraints</h2>
+              <p className="card-tag">Brief</p>
+              <h2>Instructions</h2>
             </div>
           </div>
-          <p className="panel-copy">{order.instructions}</p>
+          <div className="note-block">
+            <strong>Care instructions</strong>
+            <p>{order.instructions}</p>
+          </div>
           <div className="note-block">
             <strong>Coordinator note</strong>
             <p>{order.notesForCoordinator}</p>
           </div>
-          {order.escalationSummary ? (
-            <div className="note-block">
-              <strong>Escalation summary</strong>
-              <p>{order.escalationSummary}</p>
-            </div>
-          ) : null}
           <div className="pill-row">
             {order.requiredSkills.map((skill) => (
               <span className="skill-pill" key={skill}>
@@ -107,66 +112,42 @@ export default async function ProviderOrderDetailPage({
         </article>
       </section>
 
-      <section className="ops-two-column">
-        <ProviderOrderEditForm order={order} />
-        <ProviderVisitCreateForm orderId={order.id} />
-      </section>
-
-      <VisitControlPanel
-        canReviewVisits={session.role === UserRole.PROVIDER_REVIEWER}
-        order={order}
-      />
-
-      <section className="ops-two-column">
-        <article className="ops-panel">
+      <section className="order-workbench">
+        <article className="ops-panel order-workbench-main">
           <div className="panel-heading">
             <div>
-              <p className="card-tag">Coverage pool</p>
-              <h2>Assignment and restrictions</h2>
+              <p className="card-tag">Visits</p>
+              <h2>Visit schedule and coverage</h2>
+              <p className="panel-copy">
+                Select one visit to review its coverage, care record, evidence, and next action.
+              </p>
             </div>
           </div>
-          <div className="sequence-list">
-            {order.eligibleCarers.map((carer) => (
-              <div key={carer.id}>
-                <strong>{carer.name}</strong>
-                <p>
-                  {carer.availability} · rating {carer.rating.toFixed(1)}
-                </p>
-                <p>
-                  {carer.availabilityStatus.replaceAll("_", " ")} · {carer.availabilitySummary}
-                </p>
-                <p>
-                  {carer.isEligible
-                    ? `Eligible · ${carer.credentials.join(" · ")}`
-                    : carer.eligibilityReasons.join(" · ")}
-                </p>
-              </div>
-            ))}
-          </div>
+          <VisitControlPanel
+            canReviewVisits={session.role === UserRole.PROVIDER_REVIEWER}
+            order={order}
+          />
         </article>
 
-        <article className="ops-panel">
-          <div className="panel-heading">
-            <div>
-              <p className="card-tag">Upcoming windows</p>
-              <h2>Visit schedule</h2>
-            </div>
-          </div>
-          <div className="sequence-list">
-            {order.visits.map((visit) => (
-              <div key={visit.id}>
-                <strong>{visit.label}</strong>
-                <p>
-                  {formatDateTime(visit.scheduledStart)} - {formatDateTime(visit.scheduledEnd)}
-                </p>
-                <p>
-                  {visit.assignedCarerName ?? "No carer assigned yet"} ·{" "}
-                  {visit.coverageStatus.replaceAll("_", " ")}
-                </p>
-              </div>
-            ))}
-          </div>
-        </article>
+        <aside className="order-workbench-side">
+          <details className="ops-panel workspace-detail-section order-detail-toggle">
+            <summary>
+              <span>Edit request</span>
+              <strong>Service request</strong>
+              <small>Update title, priority, care window, skills, and notes</small>
+            </summary>
+            <ProviderOrderEditForm order={order} />
+          </details>
+
+          <details className="ops-panel workspace-detail-section order-detail-toggle">
+            <summary>
+              <span>Schedule</span>
+              <strong>Add another visit</strong>
+              <small>Create an extra dated visit for this order</small>
+            </summary>
+            <ProviderVisitCreateForm orderId={order.id} />
+          </details>
+        </aside>
       </section>
 
       <OrderAuditTimeline events={auditEvents} />

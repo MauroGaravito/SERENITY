@@ -1,6 +1,5 @@
-﻿import Link from "next/link";
 import { ReactNode } from "react";
-import { SessionBanner } from "@/components/auth/session-banner";
+import { AppShell } from "@/components/ui/app-shell";
 import { getOptionalSession } from "@/lib/auth";
 
 const navItems = [
@@ -12,52 +11,29 @@ const navItems = [
 ] as const;
 
 export async function ProviderShell({
+  children,
   currentSection,
-  title,
   subtitle,
-  children
+  title
 }: {
-  currentSection: (typeof navItems)[number]["key"];
-  title: string;
-  subtitle: string;
   children: ReactNode;
+  currentSection: (typeof navItems)[number]["key"];
+  subtitle: string;
+  title: string;
 }) {
   const session = await getOptionalSession();
 
   return (
-    <main className="providers-shell">
-      <aside className="providers-sidebar">
-        <Link className="providers-brand" href="/">
-          Serenity
-        </Link>
-        <p className="providers-sidebar-copy">
-          Operations core para prestadoras de homecare.
-        </p>
-        <nav className="providers-nav">
-          {navItems.map((item) => (
-            <Link
-              className={`providers-nav-link ${currentSection === item.key ? "is-active" : ""}`}
-              href={item.href}
-              key={item.href}
-            >
-              {item.label}
-            </Link>
-          ))}
-        </nav>
-        {session ? <SessionBanner session={session} /> : null}
-      </aside>
-
-      <section className="providers-main">
-        <header className="providers-header">
-          <div>
-            <span className="eyebrow">Provider operations</span>
-            <h1>{title}</h1>
-          </div>
-          <p>{subtitle}</p>
-        </header>
-        {children}
-      </section>
-    </main>
+    <AppShell
+      currentSection={currentSection}
+      eyebrow="Provider operations"
+      navItems={navItems}
+      session={session}
+      sidebarCopy="Operations core para prestadoras de homecare."
+      subtitle={subtitle}
+      title={title}
+    >
+      {children}
+    </AppShell>
   );
 }
-

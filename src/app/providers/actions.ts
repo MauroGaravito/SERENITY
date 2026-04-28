@@ -449,7 +449,7 @@ export async function logOperationalEscalation(formData: FormData) {
     select: { coordinatorNotes: true }
   });
 
-  const escalationLine = `Escalation (${severity.toUpperCase()}): ${reason}`;
+  const escalationLine = `Coordination note (${severity.toUpperCase()}): ${reason}`;
 
   await prisma.serviceOrder.update({
     where: { id: order.id },
@@ -463,7 +463,7 @@ export async function logOperationalEscalation(formData: FormData) {
     actorUserId: session.userId,
     serviceOrderId: order.id,
     type: AuditEventType.ORDER_UPDATED,
-    summary: `Operational escalation logged for ${order.code}.`,
+    summary: `Coordination note added for ${order.code}.`,
     payload: {
       scope: "operational_escalation",
       severity,
@@ -939,7 +939,7 @@ export async function updateServiceOrder(formData: FormData) {
       data: {
         scheduledStart,
         scheduledEnd,
-        exceptionReason: "Visit window updated from order demand settings."
+        exceptionReason: "Visit window updated from the service request."
       }
     });
   }

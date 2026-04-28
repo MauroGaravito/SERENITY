@@ -1,53 +1,38 @@
-﻿import Link from "next/link";
 import { ReactNode } from "react";
-import { SessionBanner } from "@/components/auth/session-banner";
+import { AppShell } from "@/components/ui/app-shell";
 import { getOptionalSession } from "@/lib/auth";
 
 const navItems = [
-  { href: "/centers", label: "Dashboard" },
-  { href: "/centers/orders", label: "Orders" }
+  { href: "/centers", label: "Dashboard", key: "dashboard" },
+  { href: "/centers/orders", label: "Orders", key: "orders" }
 ] as const;
 
 export async function CenterShell({
-  title,
+  children,
+  currentSection = "dashboard",
   subtitle,
-  children
+  title
 }: {
-  title: string;
-  subtitle: string;
   children: ReactNode;
+  currentSection?: (typeof navItems)[number]["key"];
+  subtitle: string;
+  title: string;
 }) {
   const session = await getOptionalSession();
 
   return (
-    <main className="providers-shell centers-shell">
-      <aside className="providers-sidebar centers-sidebar">
-        <Link className="providers-brand" href="/">
-          Serenity
-        </Link>
-        <p className="providers-sidebar-copy">
-          Demand and compliance workspace for care centers.
-        </p>
-        <nav className="providers-nav">
-          {navItems.map((item) => (
-            <Link className="providers-nav-link" href={item.href} key={item.href}>
-              {item.label}
-            </Link>
-          ))}
-        </nav>
-        {session ? <SessionBanner session={session} /> : null}
-      </aside>
-
-      <section className="providers-main">
-        <header className="providers-header">
-          <div>
-            <span className="eyebrow">Center demand</span>
-            <h1>{title}</h1>
-          </div>
-          <p>{subtitle}</p>
-        </header>
-        {children}
-      </section>
-    </main>
+    <AppShell
+      currentSection={currentSection}
+      eyebrow="Center demand"
+      navItems={navItems}
+      roleClassName="app-shell-center centers-shell"
+      session={session}
+      sidebarClassName="app-sidebar-center centers-sidebar"
+      sidebarCopy="Demand and compliance workspace for care centers."
+      subtitle={subtitle}
+      title={title}
+    >
+      {children}
+    </AppShell>
   );
 }
