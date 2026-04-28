@@ -182,7 +182,14 @@ export function CarerWorkspace({
         </article>
       </section>
 
-      <section className="ops-two-column">
+      <nav className="workspace-section-tabs" aria-label="Carer workspace sections">
+        <a href="#overview">Overview</a>
+        <a href="#availability-setup">Availability</a>
+        <a href="#credential-setup">Credentials</a>
+        {selectedVisit ? <a href="#visit-execution">Visit execution</a> : null}
+      </nav>
+
+      <section className="ops-two-column" id="overview">
         <article className="ops-panel">
           <div className="panel-heading">
             <div>
@@ -304,7 +311,13 @@ export function CarerWorkspace({
         </div>
       </section>
 
-      <section className="ops-two-column">
+      <details className="workspace-detail-section" id="availability-setup">
+        <summary>
+          <span>Availability</span>
+          <strong>Profile and working blocks</strong>
+          <small>{workingBlocks} working blocks - {unavailableBlocks} unavailable blocks</small>
+        </summary>
+      <section className="ops-single-column">
         <article className="ops-panel">
           <div className="panel-heading">
             <div>
@@ -332,7 +345,16 @@ export function CarerWorkspace({
             )}
           </div>
         </article>
+      </section>
+      </details>
 
+      <details className="workspace-detail-section" id="credential-setup">
+        <summary>
+          <span>Credentials</span>
+          <strong>Operational readiness records</strong>
+          <small>{workspace.credentials.length} records - {expiredCredentials + expiringSoon} alerts</small>
+        </summary>
+      <section className="ops-single-column">
         <article className="ops-panel">
           <div className="panel-heading">
             <div>
@@ -370,7 +392,10 @@ export function CarerWorkspace({
                     <p>{credential.renewalAction}</p>
                   </div>
                   {credential.documentUrl ? <p>{credential.documentUrl}</p> : null}
-                  <CarerCredentialForm credential={credential} />
+                  <details className="inline-edit-details">
+                    <summary>Edit credential</summary>
+                    <CarerCredentialForm credential={credential} />
+                  </details>
                 </div>
               ))
             ) : (
@@ -379,9 +404,15 @@ export function CarerWorkspace({
           </div>
         </article>
       </section>
+      </details>
 
       {selectedVisit ? (
-        <>
+        <details className="workspace-detail-section" id="visit-execution">
+          <summary>
+            <span>Visit execution</span>
+            <strong>{selectedVisit.orderCode} - {selectedVisit.orderTitle}</strong>
+            <small>{getVisitActionSummary(selectedVisit)}</small>
+          </summary>
           <section className="ops-overview-grid">
             <article className="ops-panel">
               <div className="panel-heading">
@@ -577,7 +608,7 @@ export function CarerWorkspace({
               </div>
             </article>
           </section>
-        </>
+        </details>
       ) : null}
     </main>
   );
