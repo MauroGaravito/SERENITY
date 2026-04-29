@@ -58,6 +58,26 @@ Decisiones vigentes:
 - Audit explica historia; no es una cola operativa diaria.
 - La separacion backend/frontend queda diferida; primero se estabilizan boundaries de dominio.
 
+## SER-28 admin setup status
+
+SER-28 deja `/admin` como el punto oficial de configuracion antes de que exista demanda operativa.
+
+Estado al cierre del 2026-04-29:
+
+- Admin puede revisar si la red esta lista para crear la primera solicitud.
+- Admin puede administrar centro cliente, sedes, contactos y patients.
+- Admin puede agregar sedes a un cliente existente.
+- Admin puede revisar el care team de Serenity y abrir cada carer individualmente.
+- Admin puede resolver alertas de credenciales por carer desde una revision individual.
+- Workflows se muestran como catalogo configurado con duracion en horas y care record esperado.
+- Workflows siguen siendo seed-controlled/read-only por decision de producto hasta estabilizar el modelo.
+
+Riesgo abierto:
+
+- La UI sigue siendo la principal deuda. SER-28 cerro estructura y flujo, pero no resuelve todavia el cambio visual profundo que Serenity necesita.
+- La referencia visual preferida usa una navegacion mas limpia, tarjetas con iconografia, graficas simples y menos cajas anidadas. Ese criterio debe alimentar `SER-35` y la decision de arquitectura frontend.
+- Separar frontend/backend puede ayudar a trabajar la UI con mas libertad, pero la mejora visual debe tratarse como un rediseño de frontend y design system, no como una consecuencia automatica del split.
+
 ## SER-26 status para QA visual
 
 SER-26 queda como antecedente visual. El trabajo nuevo debe guiarse por SER-27 y por el flujo admin-first.
@@ -250,15 +270,22 @@ admin@serenity.local
 Pruebas:
 
 1. Entrar a `/admin`.
-2. Confirmar que existe una prestadora, un centro cliente, una sede, una paciente y 7 carers.
-3. Entrar a `/admin/clients` y confirmar Niquia / Sede Niquia / Rosalba.
-4. Entrar a `/admin/care-team` y confirmar contacto, tipo y credenciales de carers.
-5. Entrar a `/admin/workflows` y confirmar catalogo de servicios.
+2. Confirmar que el bloque `Setup readiness` indica si falta algo antes de crear solicitudes.
+3. Confirmar que existe una prestadora, un centro cliente, una sede, una paciente y 7 carers.
+4. Entrar a `/admin/clients` y confirmar Niquia / Sede Niquia / Laura / Rosalba.
+5. Confirmar que `/admin/clients` permite agregar otra sede a un cliente existente.
+6. Entrar a `/admin/care-team` y confirmar contacto, tipo, disponibilidad y credenciales de carers.
+7. Expandir un carer con `Needs setup` y confirmar que la pantalla explica si faltan credenciales o disponibilidad.
+8. Confirmar que Admin puede actualizar credenciales con alerta desde la revision individual del carer.
+9. Entrar a `/admin/workflows` y confirmar catalogo de servicios, duracion en horas y checklist/care record.
 
 Resultado esperado:
 
 - El admin explica la jerarquia del negocio antes de que exista demanda.
 - Mauricio no necesita crear centros o carers desde el dashboard operativo.
+- Los empty states explican que falta cuando una pieza de setup no existe.
+- La revision de carers no debe mostrar formularios solapados ni edicion masiva visible permanentemente.
+- Los workflows explican que son catalogo configurado, no un constructor visual editable en esta etapa.
 
 ### 4. Orders y modal de nueva orden
 

@@ -1,7 +1,7 @@
 import { AdminShell } from "@/components/admin/admin-shell";
 import { ADMIN_ROLES, requireOrganizationUser } from "@/lib/auth";
 import { getAdminWorkspace } from "@/lib/admin-data";
-import { createCareRecipient, createClientCenter } from "@/app/admin/actions";
+import { createCareRecipient, createClientCenter, createClientSite } from "@/app/admin/actions";
 
 export const dynamic = "force-dynamic";
 
@@ -21,7 +21,30 @@ export default async function AdminClientsPage() {
       title="Clients and sites"
       subtitle="Centros, sedes, contactos y pacientes antes de crear solicitudes."
     >
-      <section className="ops-two-column admin-management-grid">
+      <section className="metrics-grid metrics-grid-4">
+        <article className="metric-card">
+          <span>Clients</span>
+          <strong>{workspace.stats.clients}</strong>
+          <p>Centers linked to Serenity.</p>
+        </article>
+        <article className="metric-card">
+          <span>Sites</span>
+          <strong>{workspace.stats.facilities}</strong>
+          <p>Operational locations.</p>
+        </article>
+        <article className="metric-card">
+          <span>Contacts</span>
+          <strong>{workspace.stats.contacts}</strong>
+          <p>People who represent the center.</p>
+        </article>
+        <article className="metric-card">
+          <span>Patients</span>
+          <strong>{workspace.stats.recipients}</strong>
+          <p>Ready for new requests.</p>
+        </article>
+      </section>
+
+      <section className="admin-form-grid">
         <form action={createClientCenter} className="ops-panel">
           <div className="panel-heading">
             <div>
@@ -73,6 +96,58 @@ export default async function AdminClientsPage() {
           </div>
         </form>
 
+        <form action={createClientSite} className="ops-panel">
+          <div className="panel-heading">
+            <div>
+              <p className="card-tag">Existing client</p>
+              <h2>Add site to client</h2>
+              <p className="panel-copy">
+                Use this when the center already exists and Serenity needs another operational site.
+              </p>
+            </div>
+          </div>
+          <div className="form-grid">
+            <label className="form-grid-span-2">
+              <span>Client center</span>
+              <select name="centerId" required>
+                {workspace.clients.map((client) => (
+                  <option key={client.center.id} value={client.center.id}>
+                    {client.center.displayName}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              <span>Site name</span>
+              <input name="facilityName" placeholder="Sede Norte" required />
+            </label>
+            <label>
+              <span>Address</span>
+              <input name="addressLine1" placeholder="Address or neighborhood" required />
+            </label>
+            <label>
+              <span>Suburb</span>
+              <input name="suburb" placeholder="Niquia" required />
+            </label>
+            <label>
+              <span>State</span>
+              <input name="state" placeholder="Antioquia" required />
+            </label>
+            <label>
+              <span>Postal code</span>
+              <input name="postalCode" placeholder="051051" />
+            </label>
+          </div>
+          <div className="form-actions">
+            <button className="primary-link" disabled={workspace.clients.length === 0} type="submit">
+              Add site
+            </button>
+          </div>
+          {workspace.clients.length === 0 ? (
+            <p className="form-warning">Create a client before adding another site.</p>
+          ) : null}
+        </form>
+
         <form action={createCareRecipient} className="ops-panel">
           <div className="panel-heading">
             <div>
@@ -116,6 +191,11 @@ export default async function AdminClientsPage() {
               Add patient
             </button>
           </div>
+          {facilities.length === 0 ? (
+            <p className="form-warning">
+              Create a client and site before adding patients.
+            </p>
+          ) : null}
         </form>
       </section>
 
@@ -131,8 +211,17 @@ export default async function AdminClientsPage() {
           </div>
         </div>
 
-        <div className="admin-client-list">
-          {workspace.clients.map((client) => (
+        {workspace.clients.length === 0 ? (
+          <div className="admin-empty-state">
+            <strong>No client centers yet</strong>
+            <p>
+              Start by creating the first client center, its site and the center contact. Mauricio
+              should not create a service request until this exists.
+            </p>
+          </div>
+        ) : (
+          <div className="admin-client-list">
+            {workspace.clients.map((client) => (
             <article className="admin-client-card" key={client.id}>
               <div className="admin-client-head">
                 <div>
@@ -161,16 +250,21 @@ export default async function AdminClientsPage() {
                 ))}
                 <div className="admin-site-card">
                   <strong>Center contacts</strong>
-                  {client.center.users.map((user) => (
-                    <p key={user.id}>
-                      {user.fullName} / {user.email}
-                    </p>
-                  ))}
+                  {client.center.users.length > 0 ? (
+                    client.center.users.map((user) => (
+                      <p key={user.id}>
+                        {user.fullName} / {user.email}
+                      </p>
+                    ))
+                  ) : (
+                    <p>No center contact assigned.</p>
+                  )}
                 </div>
               </div>
             </article>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </section>
     </AdminShell>
   );

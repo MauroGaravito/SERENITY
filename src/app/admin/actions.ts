@@ -1,6 +1,6 @@
 "use server";
 
-import { CarerKind, OrganizationKind, UserRole } from "@prisma/client";
+import { CarerKind, CredentialStatus, OrganizationKind, UserRole } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { ADMIN_ROLES, hashPassword, requireOrganizationUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -30,7 +30,24 @@ function revalidateAdmin() {
   revalidatePath("/admin");
   revalidatePath("/admin/clients");
   revalidatePath("/admin/care-team");
+  revalidatePath("/admin/workflows");
   revalidatePath("/providers/orders");
+}
+
+function toCredentialStatus(value: string) {
+  if (value === "VALID") {
+    return CredentialStatus.VALID;
+  }
+
+  if (value === "EXPIRED") {
+    return CredentialStatus.EXPIRED;
+  }
+
+  if (value === "REJECTED") {
+    return CredentialStatus.REJECTED;
+  }
+
+  return CredentialStatus.PENDING;
 }
 
 export async function createClientCenter(formData: FormData) {
@@ -117,6 +134,38 @@ export async function createCareRecipient(formData: FormData) {
   revalidateAdmin();
 }
 
+export async function createClientSite(formData: FormData) {
+  const providerId = await requireAdminProviderId();
+  const centerId = readRequired(formData, "centerId");
+  const center = await prisma.providerClient.findFirst({
+    where: {
+      providerId,
+      centerId
+    },
+    select: {
+      centerId: true
+    }
+  });
+
+  if (!center) {
+    throw new Error("Center is not part of this provider client network.");
+  }
+
+  await prisma.facility.create({
+    data: {
+      organizationId: center.centerId,
+      name: readRequired(formData, "facilityName"),
+      addressLine1: readRequired(formData, "addressLine1"),
+      suburb: readRequired(formData, "suburb"),
+      state: readRequired(formData, "state"),
+      postalCode: String(formData.get("postalCode") ?? "").trim() || "000000",
+      timezone: "America/Bogota"
+    }
+  });
+
+  revalidateAdmin();
+}
+
 export async function createCareTeamMember(formData: FormData) {
   const providerId = await requireAdminProviderId();
   const firstName = readRequired(formData, "firstName");
@@ -151,6 +200,40 @@ export async function createCareTeamMember(formData: FormData) {
         rating: 0
       }
     });
+  });
+
+  revalidateAdmin();
+}
+
+export async function updateCarerCredentialStatus(formData: FormData) {
+  const providerId = await requireAdminProviderId();
+  const credentialId = readRequired(formData, "credentialId");
+  const status = toCredentialStatus(String(formData.get("status") ?? "PENDING"));
+  const expiresAtValue = String(formData.get("expiresAt") ?? "").trim();
+
+  const credential = await prisma.credential.findFirst({
+    where: {
+      id: credentialId,
+      carer: {
+        providerId
+      }
+    },
+    select: {
+      id: true
+    }
+  });
+
+  if (!credential) {
+    throw new Error("Credential is not part of this provider care team.");
+  }
+
+  await prisma.credential.update({
+    where: { id: credential.id },
+    data: {
+      status,
+      expiresAt: expiresAtValue ? new Date(`${expiresAtValue}T00:00:00.000Z`) : null,
+      issuedAt: status === CredentialStatus.VALID ? new Date() : undefined
+    }
   });
 
   revalidateAdmin();

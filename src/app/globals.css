@@ -1632,8 +1632,9 @@ ul {
 .admin-role-list,
 .admin-action-list,
 .admin-client-list,
-.admin-care-grid,
-.admin-service-grid {
+.admin-care-list,
+.admin-service-grid,
+.admin-readiness-grid {
   display: grid;
   gap: 0.85rem;
 }
@@ -1641,7 +1642,9 @@ ul {
 .admin-role-list > div,
 .admin-client-card,
 .admin-site-card,
-.admin-service-card {
+.admin-service-card,
+.admin-readiness-card,
+.admin-empty-state {
   border: 1px solid var(--line);
   border-radius: 18px;
   background: rgba(255, 255, 255, 0.7);
@@ -1700,11 +1703,174 @@ ul {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
+.admin-care-list {
+  grid-template-columns: 1fr;
+}
+
+.admin-carer-disclosure {
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.72);
+  overflow: hidden;
+}
+
+.admin-carer-disclosure > summary {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) minmax(320px, auto);
+  gap: 1rem;
+  align-items: center;
+  padding: 1rem;
+  cursor: pointer;
+  list-style: none;
+}
+
+.admin-carer-disclosure > summary::-webkit-details-marker {
+  display: none;
+}
+
+.admin-carer-disclosure > summary strong {
+  color: var(--surface-strong);
+  font-family: var(--font-display), sans-serif;
+}
+
+.admin-carer-disclosure > summary p {
+  margin: 0.2rem 0 0;
+  color: var(--muted);
+}
+
+.admin-carer-summary-meta {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.45rem;
+}
+
+.admin-carer-summary-meta > span:not(.status-pill) {
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: rgba(247, 250, 248, 0.88);
+  color: var(--muted);
+  font-size: 0.82rem;
+  padding: 0.35rem 0.55rem;
+}
+
+.admin-carer-detail {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 1rem;
+  padding: 0 1rem 1rem;
+}
+
+.admin-readiness-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.compact-admin-readiness {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin-top: 1rem;
+}
+
+.admin-readiness-card {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.admin-readiness-card span {
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.admin-readiness-card strong,
+.admin-empty-state strong {
+  color: var(--surface-strong);
+  font-family: var(--font-display), sans-serif;
+}
+
+.admin-readiness-card p,
+.admin-empty-state p {
+  margin: 0;
+  color: var(--muted);
+}
+
+.admin-readiness-card.is-ready {
+  border-color: rgba(35, 119, 90, 0.22);
+  background: #edf8f3;
+}
+
+.admin-readiness-card.needs-work {
+  border-color: rgba(201, 133, 31, 0.22);
+  background: #fff8e8;
+}
+
 .admin-contact-grid {
   display: flex;
   flex-wrap: wrap;
   gap: 0.45rem;
   margin: 0.75rem 0;
+}
+
+.admin-form-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+  align-items: start;
+}
+
+.admin-setup-reason {
+  border: 1px solid rgba(201, 133, 31, 0.22);
+  border-radius: 14px;
+  background: #fff8e8;
+  padding: 0.65rem 0.75rem;
+  color: #815202 !important;
+  font-weight: 700;
+}
+
+.admin-credential-action-list {
+  display: grid;
+  gap: 0.65rem;
+  margin-top: 0.75rem;
+}
+
+.admin-credential-action {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) 140px 150px auto;
+  gap: 0.55rem;
+  align-items: end;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.76);
+  padding: 0.75rem;
+}
+
+.admin-credential-action p {
+  margin: 0.2rem 0 0;
+  color: var(--muted);
+}
+
+.admin-credential-action label {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.admin-credential-action label span {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.admin-credential-action select,
+.admin-credential-action input {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: white;
+  padding: 0.55rem 0.65rem;
+  font: inherit;
 }
 
 .exception-grid {
@@ -3064,9 +3230,15 @@ ul {
   .coordinator-lower-grid,
   .workflow-focus-card,
   .workflow-stepper,
+  .admin-form-grid,
   .admin-client-body,
   .admin-care-grid,
+  .admin-carer-disclosure > summary,
+  .admin-carer-detail,
   .admin-service-grid,
+  .admin-readiness-grid,
+  .compact-admin-readiness,
+  .admin-credential-action,
   .package-metric-grid,
   .settlement-board,
   .settlement-value-grid,

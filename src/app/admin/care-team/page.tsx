@@ -1,7 +1,7 @@
 import { AdminShell } from "@/components/admin/admin-shell";
 import { ADMIN_ROLES, requireOrganizationUser } from "@/lib/auth";
 import { getAdminWorkspace } from "@/lib/admin-data";
-import { createCareTeamMember } from "@/app/admin/actions";
+import { createCareTeamMember, updateCarerCredentialStatus } from "@/app/admin/actions";
 
 export const dynamic = "force-dynamic";
 
@@ -104,6 +104,23 @@ export default async function AdminCareTeamPage() {
               <p>External carers.</p>
             </article>
           </div>
+          <div className="admin-readiness-grid compact-admin-readiness">
+            <article className="admin-readiness-card needs-work">
+              <span>Credential alerts</span>
+              <strong>{workspace.stats.credentialAlerts}</strong>
+              <p>Pending, expired or rejected credentials need admin attention.</p>
+            </article>
+            <article className="admin-readiness-card needs-work">
+              <span>No availability</span>
+              <strong>{workspace.stats.carersWithoutAvailability}</strong>
+              <p>Carers without availability cannot support reliable matching.</p>
+            </article>
+            <article className="admin-readiness-card needs-work">
+              <span>No credentials</span>
+              <strong>{workspace.stats.carersWithoutCredentials}</strong>
+              <p>New carers need credentials before they are operationally useful.</p>
+            </article>
+          </div>
         </section>
       </section>
 
@@ -119,40 +136,98 @@ export default async function AdminCareTeamPage() {
           </div>
         </div>
 
-        <div className="admin-care-grid">
-          {workspace.carers.map((carer) => {
+        {workspace.carers.length === 0 ? (
+          <div className="admin-empty-state">
+            <strong>No carers attached to Serenity</strong>
+            <p>
+              Add the first care team member before Mauricio starts assigning visits. Carers
+              should have contact details, relationship type, availability and credentials.
+            </p>
+          </div>
+        ) : (
+          <div className="admin-care-list">
+            {workspace.carers.map((carer) => {
             const invalidCredentials = carer.credentials.filter(
               (credential) => credential.status !== "VALID"
             );
+            const missingAvailability = carer.availabilityBlocks.length === 0;
+            const readyForMatching = invalidCredentials.length === 0 && !missingAvailability;
+            const setupReasons = [
+              invalidCredentials.length > 0
+                ? `${invalidCredentials.length} credential alerts`
+                : null,
+              missingAvailability ? "No availability blocks" : null
+            ].filter(Boolean);
 
             return (
-              <article className="care-team-card" key={carer.id}>
-                <div className="care-team-card-head">
+              <details className="admin-carer-disclosure" key={carer.id}>
+                <summary>
                   <div>
-                    <h3>
+                    <strong>
                       {carer.firstName} {carer.lastName}
-                    </h3>
+                    </strong>
                     <p>{carer.kind === "EMPLOYEE" ? "Employee" : "Independent"}</p>
                   </div>
-                  <span className={`status-pill ${carer.isActive ? "" : "status-muted"}`}>
-                    {carer.isActive ? "Active" : "Inactive"}
-                  </span>
+                  <div className="admin-carer-summary-meta">
+                    <span className={`status-pill ${readyForMatching ? "" : "status-warning"}`}>
+                      {readyForMatching ? "Ready" : "Needs setup"}
+                    </span>
+                    <span>{carer.credentials.length} credentials</span>
+                    <span>{invalidCredentials.length} alerts</span>
+                    <span>{carer.availabilityBlocks.length} availability blocks</span>
+                  </div>
+                </summary>
+
+                <div className="admin-carer-detail">
+                  <div>
+                    <p>{carer.availabilityNote ?? "No availability note yet."}</p>
+                    {setupReasons.length > 0 ? (
+                      <p className="admin-setup-reason">
+                        Needs setup: {setupReasons.join(" / ")}.
+                      </p>
+                    ) : null}
+                  </div>
+                  <div className="admin-contact-grid">
+                    <span>{carer.email ?? "No email"}</span>
+                    <span>{carer.phone}</span>
+                    <span>{carer.primaryLanguage ?? "No language set"}</span>
+                  </div>
                 </div>
-                <div className="admin-contact-grid">
-                  <span>{carer.email ?? "No email"}</span>
-                  <span>{carer.phone}</span>
-                  <span>{carer.primaryLanguage ?? "No language set"}</span>
-                </div>
-                <p>{carer.availabilityNote ?? "No availability note yet."}</p>
-                <div className="carer-mini-metrics">
-                  <span>{carer.credentials.length} credentials</span>
-                  <span>{invalidCredentials.length} alerts</span>
-                  <span>{carer.availabilityBlocks.length} blocks</span>
-                </div>
-              </article>
+
+                {invalidCredentials.length > 0 ? (
+                  <div className="admin-credential-action-list">
+                    {invalidCredentials.map((credential) => (
+                      <form action={updateCarerCredentialStatus} className="admin-credential-action" key={credential.id}>
+                        <input name="credentialId" type="hidden" value={credential.id} />
+                        <div>
+                          <strong>{credential.name}</strong>
+                          <p>Current status: {credential.status.toLowerCase()}</p>
+                        </div>
+                        <label>
+                          <span>Status</span>
+                          <select defaultValue={credential.status} name="status">
+                            <option value="PENDING">Pending</option>
+                            <option value="VALID">Valid</option>
+                            <option value="EXPIRED">Expired</option>
+                            <option value="REJECTED">Rejected</option>
+                          </select>
+                        </label>
+                        <label>
+                          <span>Expires</span>
+                          <input name="expiresAt" type="date" />
+                        </label>
+                        <button className="ghost-link" type="submit">
+                          Save
+                        </button>
+                      </form>
+                    ))}
+                  </div>
+                ) : null}
+              </details>
             );
-          })}
-        </div>
+            })}
+          </div>
+        )}
       </section>
     </AdminShell>
   );

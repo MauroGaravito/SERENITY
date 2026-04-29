@@ -29,7 +29,7 @@ export default async function AdminHomePage() {
       label: "Care team",
       title: "Prepare carers",
       copy: "Keep contact, employment type, availability and credential readiness visible.",
-      done: hasCarers
+      done: hasCarers && workspace.stats.carersWithoutAvailability === 0
     },
     {
       label: "Service workflow",
@@ -55,6 +55,9 @@ export default async function AdminHomePage() {
           </p>
         </div>
         <div className="workflow-focus-actions">
+          <span className={`status-pill ${workspace.setup.ready ? "" : "status-warning"}`}>
+            {workspace.setup.ready ? "Ready for requests" : "Setup needed"}
+          </span>
           <Link className="primary-link" href="/admin/clients">
             Add client
           </Link>
@@ -83,8 +86,39 @@ export default async function AdminHomePage() {
         <article className="metric-card">
           <span>Care team</span>
           <strong>{workspace.stats.carers}</strong>
-          <p>{workspace.stats.credentialAlerts} credential alerts.</p>
+          <p>
+            {workspace.stats.credentialAlerts} credential alerts /{" "}
+            {workspace.stats.carersWithoutAvailability} without availability.
+          </p>
         </article>
+      </section>
+
+      <section className="ops-panel admin-readiness-panel">
+        <div className="panel-heading">
+          <div>
+            <p className="card-tag">Setup readiness</p>
+            <h2>{workspace.setup.ready ? "Ready for Mauricio" : "Not ready for first request"}</h2>
+            <p className="panel-copy">{workspace.setup.nextAction}</p>
+          </div>
+          <Link
+            className={workspace.setup.ready ? "primary-link" : "ghost-link"}
+            href={workspace.setup.ready ? "/providers/orders" : "/admin/clients"}
+          >
+            {workspace.setup.ready ? "Create first request" : "Continue setup"}
+          </Link>
+        </div>
+        <div className="admin-readiness-grid">
+          {workspace.setup.checks.map((check) => (
+            <article
+              className={`admin-readiness-card ${check.ready ? "is-ready" : "needs-work"}`}
+              key={check.key}
+            >
+              <span>{check.ready ? "Ready" : "Needs work"}</span>
+              <strong>{check.label}</strong>
+              <p>{check.action}</p>
+            </article>
+          ))}
+        </div>
       </section>
 
       <section className="ops-panel admin-setup-panel">

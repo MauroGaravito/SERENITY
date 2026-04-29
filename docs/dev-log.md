@@ -2,6 +2,52 @@
 
 Registro breve de decisiones y entregas relevantes. No reemplaza Plane; sirve como memoria tecnica y de producto dentro del repo.
 
+## 2026-04-29 - SER-28 admin setup workflow
+
+Objetivo:
+
+- Hacer que `/admin` sea el punto oficial de setup antes de crear solicitudes.
+- Convertir la pantalla admin en una vista de readiness accionable, no solo en conteos.
+- Reforzar clientes, sedes, pacientes, carers y workflows con empty states y bloqueadores claros.
+
+Resultado:
+
+- `getAdminWorkspace` ahora calcula setup readiness, blockers, next action y alertas operativas.
+- `/admin` muestra si la red esta lista para que Mauricio cree la primera solicitud.
+- `/admin/clients` muestra metricas de clients, sites, contacts y patients, con empty state si no hay red.
+- `/admin/care-team` muestra carers listos, alertas de credenciales, carers sin disponibilidad y carers sin credenciales.
+- `/admin/workflows` muestra si los service workflows tienen checklist/care record configurado.
+- Los empty states explican el siguiente paso antes de provider operations.
+- `/admin/clients` permite agregar sedes a un cliente existente.
+- `/admin/care-team` usa revision individual por carer en desplegables para evitar solapamiento visual.
+- Admin puede actualizar el estado de credenciales con alerta desde la revision individual del carer.
+- `/admin/workflows` muestra duracion en horas y declara que el catalogo es read-only por ahora.
+
+Validacion ejecutada:
+
+- `npm run typecheck`
+- `npm run build`
+
+Resultado:
+
+- Typecheck paso.
+- Build paso.
+- Persiste el warning conocido de Next por `<img>` en `src/components/carers/carer-workspace.tsx`.
+
+Cierre:
+
+- `SER-28` queda funcionalmente cumplido como punto de partida admin-first.
+- Admin ya puede revisar readiness, administrar clientes/sedes/pacientes, revisar carers, resolver alertas de credenciales por carer y consultar workflows configurados.
+- Los workflows quedan intencionalmente controlados por seed/catalogo por ahora; crear y editar workflows desde UI se difiere hasta que el modelo este mas estable.
+- La deuda visual sigue abierta: el sistema actual de tarjetas y formularios funciona, pero no alcanza el nivel visual esperado. Esto debe tratarse como trabajo explicito de UI/design system, no como parte escondida de SER-28.
+- Separar frontend/backend no arregla la UI por si solo, pero una frontera frontend mas limpia puede facilitar un rediseño fuerte con mejores componentes, iconografia, layout y patrones visuales.
+
+Handoff recomendado:
+
+- Cerrar SER-28 en Plane como entrega funcional.
+- Mañana continuar con `SER-29 Validate Colombia zero-start scenario` o, si la frustracion visual bloquea el avance, adelantar `SER-35 Full visual QA across admin, provider, center, carer`.
+- Mantener `SER-34 Prepare backend boundary inside current monolith` como paso previo antes de separar fisicamente backend y frontend.
+
 ## 2026-04-29 - Version 2 direction defined
 
 Nota de cierre:
