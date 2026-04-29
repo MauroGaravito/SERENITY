@@ -106,7 +106,7 @@ export default async function ProviderOrdersPage({
   const params = await searchParams;
   const [orders, formData] = await Promise.all([
     listProviderOrders(providerId),
-    getProviderOrderFormData()
+    getProviderOrderFormData(providerId)
   ]);
   const filteredOrders = filterOrders(orders, params);
   const filterLabel = getFilterLabel(params);

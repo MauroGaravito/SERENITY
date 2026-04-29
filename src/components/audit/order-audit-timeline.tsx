@@ -1,14 +1,22 @@
 ﻿import { AuditEventRecord, formatDateTime, toTitleCase } from "@/lib/providers";
 
 export function OrderAuditTimeline({ events }: { events: AuditEventRecord[] }) {
+  const latestEvent = events[0];
+
   return (
-    <article className="ops-panel">
-      <div className="panel-heading">
-        <div>
-          <p className="card-tag">Activity log</p>
-          <h2>Order changes</h2>
-        </div>
-      </div>
+    <details className="ops-panel activity-log-panel">
+      <summary>
+        <span>
+          <span className="card-tag">Activity log</span>
+          <strong>Order changes</strong>
+          <small>
+            {latestEvent
+              ? `Last update: ${toTitleCase(latestEvent.type)} / ${formatDateTime(latestEvent.createdAt)}`
+              : "No workflow updates recorded yet"}
+          </small>
+        </span>
+        <span className="skill-pill">{events.length} events</span>
+      </summary>
 
       <div className="sequence-list audit-list">
         {events.length === 0 ? (
@@ -34,6 +42,6 @@ export function OrderAuditTimeline({ events }: { events: AuditEventRecord[] }) {
           ))
         )}
       </div>
-    </article>
+    </details>
   );
 }

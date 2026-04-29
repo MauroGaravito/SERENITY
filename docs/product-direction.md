@@ -4,13 +4,16 @@
 
 Serenity debe posicionarse como una plataforma vertical de operaciones para homecare.
 
+El contrato operativo canonico esta en [operating-model.md](./operating-model.md).
+
 No solo registra evidencia. Orquesta el ciclo completo:
 
-1. solicitud del servicio,
-2. asignacion del prestador,
-3. ejecucion de la visita,
-4. validacion de calidad,
-5. cierre administrativo y financiero.
+1. configuracion de clientes, sedes, pacientes, carers y workflows,
+2. solicitud del servicio,
+3. asignacion del prestador,
+4. ejecucion de la visita,
+5. validacion de calidad,
+6. cierre administrativo y financiero.
 
 ## 2. Problema central
 
@@ -55,15 +58,18 @@ Los tres actores importan, pero no conviene construirlos con igual prioridad al 
 
 Orden recomendado:
 
-1. Empresa prestadora.
-2. Centro de cuidado.
-3. Cuidador independiente.
+1. Admin de la prestadora.
+2. Coordinator de la prestadora.
+3. Reviewer de la prestadora.
+4. Centro de cuidado.
+5. Cuidador independiente.
 
 Razon:
 
 - La empresa prestadora es quien siente con mas fuerza el problema operativo completo.
 - Es el mejor punto de monetizacion y adopcion inicial.
 - Desde ahi se habilita el valor para centros y cuidadores sin dispersar el MVP.
+- El admin-first workflow evita que el coordinator construya datos maestros mientras coordina demanda urgente.
 
 ## 5. Jobs to be done
 
@@ -76,6 +82,7 @@ Razon:
 
 ### Empresa prestadora
 
+- Necesito configurar clientes, sedes, pacientes y carers antes de operar.
 - Necesito convertir demanda en cobertura rentable.
 - Necesito asignar personal apto y disponible.
 - Necesito controlar calidad y resolver excepciones.
@@ -92,8 +99,12 @@ Razon:
 
 ### Modulo 1. Red comercial y contractual
 
+- Admin de prestadora.
 - Centros y sedes.
+- Contactos del centro.
 - Prestadoras y equipos.
+- Relacion prestadora-cliente.
+- Pacientes o recipients por sede.
 - Tipos de servicio.
 - Tarifas, convenios y reglas base.
 
@@ -161,7 +172,7 @@ El MVP no debe intentar resolver toda la cadena financiera ni todo el universo c
 
 ### MVP fase 1
 
-- Alta de centros, prestadoras y cuidadores.
+- Admin workspace para alta de centros, sedes, pacientes, contactos y cuidadores.
 - Ordenes de servicio.
 - Matching basico por disponibilidad + credenciales.
 - Agenda de visitas.
@@ -189,6 +200,8 @@ El MVP no debe intentar resolver toda la cadena financiera ni todo el universo c
 - Centro
 - Sede
 - Prestadora
+- Relacion prestadora-cliente
+- Admin
 - Cuidador
 - Cliente final / receptor del servicio
 - Tipo de servicio
@@ -209,14 +222,17 @@ Cada actor debe ver solo lo que necesita para operar.
 ### Centro
 
 - Vista de demanda, cobertura, cumplimiento e incidencias.
+- Debe ver solo su centro y sus pacientes.
 
 ### Prestadora
 
 - Vista de coordinacion, capacidad, excepciones y cierre.
+- Debe separar admin setup, coordinator operations y reviewer decisions.
 
 ### Cuidador
 
 - Vista movil primero: agenda, tareas, evidencia, ingresos y pendientes.
+- Debe entender que falta para estar elegible y que falta para enviar una visita a review.
 
 ## 10. Recomendaciones de producto
 

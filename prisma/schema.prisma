@@ -137,12 +137,28 @@ model Organization {
   createdAt      DateTime         @default(now())
   updatedAt      DateTime         @updatedAt
   facilities     Facility[]
+  providerClients ProviderClient[] @relation("ProviderClients")
+  centerProviders ProviderClient[] @relation("CenterProviders")
   centerOrders   ServiceOrder[]   @relation("ServiceOrderCenter")
   providerOrders ServiceOrder[]   @relation("ServiceOrderProvider")
   users          User[]
   carers         Carer[]
   closingPeriods ClosingPeriod[]
   auditEvents    AuditEvent[]
+}
+
+model ProviderClient {
+  id         String       @id @default(cuid())
+  providerId String
+  centerId   String
+  status     String       @default("active")
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+  provider   Organization @relation("ProviderClients", fields: [providerId], references: [id])
+  center     Organization @relation("CenterProviders", fields: [centerId], references: [id])
+
+  @@unique([providerId, centerId])
+  @@index([centerId])
 }
 
 model Facility {

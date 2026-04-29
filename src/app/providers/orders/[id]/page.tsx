@@ -85,6 +85,14 @@ export default async function ProviderOrderDetailPage({
               <dd>{order.pendingAction}</dd>
             </div>
           </dl>
+          <details className="order-inline-toggle">
+            <summary>
+              <span>Edit request</span>
+              <strong>Update service request</strong>
+              <small>Title, priority, care window, skills, instructions and coordinator notes</small>
+            </summary>
+            <ProviderOrderEditForm order={order} />
+          </details>
         </article>
 
         <article className="ops-panel order-command-notes">
@@ -113,41 +121,22 @@ export default async function ProviderOrderDetailPage({
       </section>
 
       <section className="order-workbench">
-        <article className="ops-panel order-workbench-main">
-          <div className="panel-heading">
-            <div>
-              <p className="card-tag">Visits</p>
-              <h2>Visit schedule and coverage</h2>
-              <p className="panel-copy">
-                Select one visit to review its coverage, care record, evidence, and next action.
-              </p>
-            </div>
-          </div>
+        <div className="order-workbench-main">
           <VisitControlPanel
+            addVisitControl={
+              <details className="order-inline-toggle visit-add-toggle">
+                <summary>
+                  <span>Schedule</span>
+                  <strong>Add visit</strong>
+                  <small>Create an extra dated visit for this service order</small>
+                </summary>
+                <ProviderVisitCreateForm orderId={order.id} />
+              </details>
+            }
             canReviewVisits={session.role === UserRole.PROVIDER_REVIEWER}
             order={order}
           />
-        </article>
-
-        <aside className="order-workbench-side">
-          <details className="ops-panel workspace-detail-section order-detail-toggle">
-            <summary>
-              <span>Edit request</span>
-              <strong>Service request</strong>
-              <small>Update title, priority, care window, skills, and notes</small>
-            </summary>
-            <ProviderOrderEditForm order={order} />
-          </details>
-
-          <details className="ops-panel workspace-detail-section order-detail-toggle">
-            <summary>
-              <span>Schedule</span>
-              <strong>Add another visit</strong>
-              <small>Create an extra dated visit for this order</small>
-            </summary>
-            <ProviderVisitCreateForm orderId={order.id} />
-          </details>
-        </aside>
+        </div>
       </section>
 
       <OrderAuditTimeline events={auditEvents} />

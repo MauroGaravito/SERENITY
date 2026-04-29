@@ -29,6 +29,11 @@ const seedProfiles = {
       legalName: "Serenity Homecare Antioquia SAS",
       displayName: "Serenity Homecare Antioquia"
     },
+    blankStart: true,
+    admin: {
+      email: "admin@serenity.local",
+      fullName: "Serenity Admin"
+    },
     centers: [
       {
         legalName: "Centro de Cuidado Niquia SAS",
@@ -43,36 +48,6 @@ const seedProfiles = {
         manager: {
           email: "laura@serenity.local",
           fullName: "Laura Garavito"
-        }
-      },
-      {
-        legalName: "Centro de Cuidado Cabanas SAS",
-        displayName: "Centro de Cuidado Cabanas",
-        facility: {
-          name: "Sede Cabanas",
-          addressLine1: "Barrio Cabanas",
-          suburb: "Cabanas",
-          state: "Antioquia",
-          postalCode: "051052"
-        },
-        manager: {
-          email: "jose@serenity.local",
-          fullName: "Jose Garavito"
-        }
-      },
-      {
-        legalName: "Centro de Cuidado Bello Centro SAS",
-        displayName: "Centro de Cuidado Bello Centro",
-        facility: {
-          name: "Sede Bello Centro",
-          addressLine1: "Barrio Bello Centro",
-          suburb: "Bello Centro",
-          state: "Antioquia",
-          postalCode: "051053"
-        },
-        manager: {
-          email: "juan@serenity.local",
-          fullName: "Juan Correa"
         }
       }
     ],
@@ -93,11 +68,7 @@ const seedProfiles = {
       { name: "Melissa", email: "melissa@serenity.local" },
       { name: "Santiago", email: "santiago@serenity.local" }
     ],
-    recipients: [
-      { firstName: "Rosalba", lastName: "" },
-      { firstName: "Elizabeth", lastName: "Chaverra" },
-      { firstName: "Betzabeth", lastName: "Agudelo" }
-    ],
+    recipients: [{ firstName: "Rosalba", lastName: "" }],
     auditSummaries: {
       orderOneCreated: "Provider created SR-2401 for Centro de Cuidado Niquia.",
       visitOneAssigned: "Morning personal care visit assigned to Gabriel Ramirez.",
@@ -110,6 +81,10 @@ const seedProfiles = {
     provider: {
       legalName: "Serenity Care Partners Pty Ltd",
       displayName: "Serenity Care Partners"
+    },
+    admin: {
+      email: "admin@serenity.local",
+      fullName: "Serenity Admin"
     },
     centers: [
       {
@@ -222,6 +197,7 @@ async function resetDatabase() {
   await prisma.serviceOrder.deleteMany();
   await prisma.serviceType.deleteMany();
   await prisma.careRecipient.deleteMany();
+  await prisma.providerClient.deleteMany();
   await prisma.availabilityBlock.deleteMany();
   await prisma.credential.deleteMany();
   await prisma.carer.deleteMany();
@@ -242,68 +218,46 @@ async function main() {
     }
   });
 
-  const harbourView = await prisma.organization.create({
-    data: {
-      kind: OrganizationKind.CENTER,
-      legalName: seedProfile.centers[0].legalName,
-      displayName: seedProfile.centers[0].displayName,
-      timezone: seedProfile.timezone
-    }
-  });
+  const centerWorkspaces = [];
 
-  const evergreen = await prisma.organization.create({
-    data: {
-      kind: OrganizationKind.CENTER,
-      legalName: seedProfile.centers[1].legalName,
-      displayName: seedProfile.centers[1].displayName,
-      timezone: seedProfile.timezone
-    }
-  });
+  for (const center of seedProfile.centers) {
+    const organization = await prisma.organization.create({
+      data: {
+        kind: OrganizationKind.CENTER,
+        legalName: center.legalName,
+        displayName: center.displayName,
+        timezone: seedProfile.timezone
+      }
+    });
 
-  const blueWattle = await prisma.organization.create({
-    data: {
-      kind: OrganizationKind.CENTER,
-      legalName: seedProfile.centers[2].legalName,
-      displayName: seedProfile.centers[2].displayName,
-      timezone: seedProfile.timezone
-    }
-  });
+    const facility = await prisma.facility.create({
+      data: {
+        organizationId: organization.id,
+        name: center.facility.name,
+        addressLine1: center.facility.addressLine1,
+        suburb: center.facility.suburb,
+        state: center.facility.state,
+        postalCode: center.facility.postalCode,
+        timezone: seedProfile.timezone
+      }
+    });
 
-  const bondiFacility = await prisma.facility.create({
-    data: {
-      organizationId: harbourView.id,
-      name: seedProfile.centers[0].facility.name,
-      addressLine1: seedProfile.centers[0].facility.addressLine1,
-      suburb: seedProfile.centers[0].facility.suburb,
-      state: seedProfile.centers[0].facility.state,
-      postalCode: seedProfile.centers[0].facility.postalCode,
-      timezone: seedProfile.timezone
-    }
-  });
+    await prisma.providerClient.create({
+      data: {
+        providerId: provider.id,
+        centerId: organization.id
+      }
+    });
 
-  const innerWestFacility = await prisma.facility.create({
-    data: {
-      organizationId: evergreen.id,
-      name: seedProfile.centers[1].facility.name,
-      addressLine1: seedProfile.centers[1].facility.addressLine1,
-      suburb: seedProfile.centers[1].facility.suburb,
-      state: seedProfile.centers[1].facility.state,
-      postalCode: seedProfile.centers[1].facility.postalCode,
-      timezone: seedProfile.timezone
-    }
-  });
+    centerWorkspaces.push({ organization, facility, manager: center.manager });
+  }
 
-  const southSydneyFacility = await prisma.facility.create({
-    data: {
-      organizationId: blueWattle.id,
-      name: seedProfile.centers[2].facility.name,
-      addressLine1: seedProfile.centers[2].facility.addressLine1,
-      suburb: seedProfile.centers[2].facility.suburb,
-      state: seedProfile.centers[2].facility.state,
-      postalCode: seedProfile.centers[2].facility.postalCode,
-      timezone: seedProfile.timezone
-    }
-  });
+  const harbourView = centerWorkspaces[0].organization;
+  const evergreen = centerWorkspaces[1]?.organization;
+  const blueWattle = centerWorkspaces[2]?.organization;
+  const bondiFacility = centerWorkspaces[0].facility;
+  const innerWestFacility = centerWorkspaces[1]?.facility;
+  const southSydneyFacility = centerWorkspaces[2]?.facility;
 
   async function createUser({ organizationId, email, fullName, role }) {
     return prisma.user.create({
@@ -324,6 +278,13 @@ async function main() {
     role: UserRole.PROVIDER_COORDINATOR
   });
 
+  const admin = await createUser({
+    organizationId: provider.id,
+    email: seedProfile.admin.email,
+    fullName: seedProfile.admin.fullName,
+    role: UserRole.PLATFORM_ADMIN
+  });
+
   const reviewer = await createUser({
     organizationId: provider.id,
     email: seedProfile.reviewer.email,
@@ -331,26 +292,16 @@ async function main() {
     role: UserRole.PROVIDER_REVIEWER
   });
 
-  await Promise.all([
-    createUser({
-      organizationId: harbourView.id,
-      email: seedProfile.centers[0].manager.email,
-      fullName: seedProfile.centers[0].manager.fullName,
-      role: UserRole.CENTER_MANAGER
-    }),
-    createUser({
-      organizationId: evergreen.id,
-      email: seedProfile.centers[1].manager.email,
-      fullName: seedProfile.centers[1].manager.fullName,
-      role: UserRole.CENTER_MANAGER
-    }),
-    createUser({
-      organizationId: blueWattle.id,
-      email: seedProfile.centers[2].manager.email,
-      fullName: seedProfile.centers[2].manager.fullName,
-      role: UserRole.CENTER_MANAGER
-    })
-  ]);
+  await Promise.all(
+    centerWorkspaces.map((workspace) =>
+      createUser({
+        organizationId: workspace.organization.id,
+        email: workspace.manager.email,
+        fullName: workspace.manager.fullName,
+        role: UserRole.CENTER_MANAGER
+      })
+    )
+  );
 
   async function createCarer(data) {
     const user = await createUser({
@@ -535,25 +486,31 @@ async function main() {
     }
   });
 
-  const george = await prisma.careRecipient.create({
-    data: {
-      facilityId: innerWestFacility.id,
-      externalRef: "EV-1002",
-      firstName: seedProfile.recipients[1].firstName,
-      lastName: seedProfile.recipients[1].lastName,
-      notes: "Community transport with appointment escort"
-    }
-  });
+  const george =
+    seedProfile.recipients[1] && innerWestFacility
+      ? await prisma.careRecipient.create({
+          data: {
+            facilityId: innerWestFacility.id,
+            externalRef: "EV-1002",
+            firstName: seedProfile.recipients[1].firstName,
+            lastName: seedProfile.recipients[1].lastName,
+            notes: "Community transport with appointment escort"
+          }
+        })
+      : null;
 
-  const elaine = await prisma.careRecipient.create({
-    data: {
-      facilityId: southSydneyFacility.id,
-      externalRef: "BW-1003",
-      firstName: seedProfile.recipients[2].firstName,
-      lastName: seedProfile.recipients[2].lastName,
-      notes: "Overnight respite with safety checks"
-    }
-  });
+  const elaine =
+    seedProfile.recipients[2] && southSydneyFacility
+      ? await prisma.careRecipient.create({
+          data: {
+            facilityId: southSydneyFacility.id,
+            externalRef: "BW-1003",
+            firstName: seedProfile.recipients[2].firstName,
+            lastName: seedProfile.recipients[2].lastName,
+            notes: "Overnight respite with safety checks"
+          }
+        })
+      : null;
 
   const [domesticAssistanceType, communityAccessType, personalCareType, companionshipType] =
     await Promise.all(
@@ -602,6 +559,23 @@ async function main() {
     "Mood and participation noted",
     "Handover note captured"
   ]);
+
+  if (seedProfile.blankStart) {
+    console.log("Seed complete:", {
+      provider: provider.displayName,
+      admin: admin.fullName,
+      coordinator: coordinator.fullName,
+      reviewer: reviewer.fullName,
+      profile: requestedProfile,
+      demoPassword: DEMO_PASSWORD,
+      centers: centerWorkspaces.length,
+      recipients: 1,
+      carers: seedProfile.carers.length,
+      orders: 0,
+      visits: 0
+    });
+    return;
+  }
 
   const orderOne = await prisma.serviceOrder.create({
     data: {

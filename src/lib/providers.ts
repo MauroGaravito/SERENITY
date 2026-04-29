@@ -46,11 +46,16 @@ export type CoverageStatus =
 export type CarerOption = {
   id: string;
   name: string;
+  email?: string;
+  phone?: string;
   credentials: string[];
   availability: string;
   rating: number;
   readinessStatus: "ready" | "restricted" | "attention_needed";
   readinessSummary: string;
+  activeVisitCount: number;
+  credentialAlertCount: number;
+  workingBlockCount: number;
   isEligible: boolean;
   availabilityMatch: boolean;
   availabilityStatus: "available" | "partial" | "unavailable" | "conflict" | "unknown";

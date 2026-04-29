@@ -2,8 +2,8 @@ import Link from "next/link";
 import { ProviderShell } from "@/components/providers/provider-shell";
 import { StatusBadge } from "@/components/providers/status-badge";
 import { PROVIDER_ROLES, requireOrganizationUser } from "@/lib/auth";
-import { listProviderOrders } from "@/lib/providers-data";
-import { ServiceOrderRecord } from "@/lib/providers";
+import { listProviderCarers, listProviderOrders } from "@/lib/providers-data";
+import { CarerOption, ServiceOrderRecord, VisitRecord, formatDateTime } from "@/lib/providers";
 
 export const dynamic = "force-dynamic";
 
@@ -20,20 +20,15 @@ const riskWeight: Record<ServiceOrderRecord["coverageRisk"], number> = {
   stable: 2
 };
 
-function countBy<T extends string>(items: T[]) {
-  return items.reduce<Record<string, number>>((acc, item) => {
-    acc[item] = (acc[item] ?? 0) + 1;
-    return acc;
-  }, {});
-}
-
-function ratio(value: number, total: number) {
-  if (total === 0 || value === 0) {
-    return 0;
-  }
-
-  return Math.max(8, Math.round((value / total) * 100));
-}
+type VisitWithOrder = VisitRecord & {
+  centerName: string;
+  orderCode: string;
+  orderId: string;
+  orderPriority: ServiceOrderRecord["priority"];
+  orderTitle: string;
+  recipientName: string;
+  serviceType: string;
+};
 
 function sortByOperationalPressure(orders: ServiceOrderRecord[]) {
   return [...orders].sort((left, right) => {
@@ -53,269 +48,370 @@ function sortByOperationalPressure(orders: ServiceOrderRecord[]) {
   });
 }
 
+function isToday(value: string) {
+  const formatter = new Intl.DateTimeFormat("en-CA", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric"
+  });
+
+  return formatter.format(new Date(value)) === formatter.format(new Date());
+}
+
+function getVisitTime(value: string) {
+  return new Intl.DateTimeFormat("en-AU", {
+    hour: "2-digit",
+    minute: "2-digit"
+  }).format(new Date(value));
+}
+
+function getCarerRoster(orders: ServiceOrderRecord[]) {
+  const carers = new Map<string, CarerOption>();
+
+  orders.forEach((order) => {
+    order.eligibleCarers.forEach((carer) => {
+      if (!carers.has(carer.id)) {
+        carers.set(carer.id, carer);
+      }
+    });
+  });
+
+  return [...carers.values()].sort((left, right) => {
+    const readinessOrder = { ready: 0, attention_needed: 1, restricted: 2 };
+    const readinessDelta = readinessOrder[left.readinessStatus] - readinessOrder[right.readinessStatus];
+
+    if (readinessDelta !== 0) {
+      return readinessDelta;
+    }
+
+    return left.name.localeCompare(right.name);
+  });
+}
+
+function getVisitWorklist(orders: ServiceOrderRecord[]): VisitWithOrder[] {
+  return orders.flatMap((order) =>
+    order.visits.map((visit) => ({
+      ...visit,
+      centerName: order.centerName,
+      orderCode: order.code,
+      orderId: order.id,
+      orderPriority: order.priority,
+      orderTitle: order.title,
+      recipientName: order.recipientName,
+      serviceType: order.serviceType
+    }))
+  );
+}
+
+function getPriorityTone(priority: ServiceOrderRecord["priority"]) {
+  if (priority === "critical") {
+    return "critical";
+  }
+
+  if (priority === "high") {
+    return "warning";
+  }
+
+  return "stable";
+}
+
 export default async function ProvidersPage() {
   const session = await requireOrganizationUser(PROVIDER_ROLES);
-  const orders = await listProviderOrders(session.organizationId);
+  const [orders, carers] = await Promise.all([
+    listProviderOrders(session.organizationId),
+    listProviderCarers(session.organizationId)
+  ]);
 
-  const openOrders = orders.filter((order) => order.status !== "closed");
-  const allVisits = orders.flatMap((order) => order.visits);
-  const underReviewVisits = allVisits.filter((visit) => visit.status === "under_review").length;
-  const approvedVisits = allVisits.filter((visit) => visit.status === "approved").length;
-  const replacementVisits = allVisits.filter(
-    (visit) => visit.coverageStatus === "needs_replacement"
-  ).length;
-  const unassignedVisits = allVisits.filter((visit) => !visit.assignedCarerId).length;
-  const urgentCoverage = unassignedVisits + replacementVisits;
-  const coveragePressureOrders = orders.filter((order) =>
-    order.visits.some(
-      (visit) => !visit.assignedCarerId || visit.coverageStatus === "needs_replacement"
+  const allVisits = getVisitWorklist(orders);
+  const todayVisits = allVisits
+    .filter((visit) => isToday(visit.scheduledStart))
+    .sort((left, right) => left.scheduledStart.localeCompare(right.scheduledStart));
+  const coverageVisits = allVisits
+    .filter(
+      (visit) =>
+        !visit.assignedCarerId ||
+        visit.coverageStatus === "needs_replacement" ||
+        visit.status === "no_show"
     )
+    .sort((left, right) => left.scheduledStart.localeCompare(right.scheduledStart));
+  const reviewVisits = allVisits.filter((visit) => visit.status === "under_review");
+  const closingVisits = allVisits.filter((visit) => visit.status === "approved");
+  const activeOrders = orders.filter((order) => !["closed", "cancelled"].includes(order.status));
+  const prioritizedOrders = sortByOperationalPressure(orders).slice(0, 4);
+  const orderCarers = getCarerRoster(orders);
+  const rosterCarers = orderCarers.length > 0 ? orderCarers : carers;
+  const readyCarers = rosterCarers.filter((carer) => carer.readinessStatus === "ready");
+  const carersNeedingAttention = rosterCarers.filter((carer) => carer.readinessStatus !== "ready");
+  const credentialAlerts = rosterCarers.reduce((total, carer) => total + carer.credentialAlertCount, 0);
+  const uncoveredVisits = coverageVisits.filter((visit) => !visit.assignedCarerId).length;
+  const replacementVisits = coverageVisits.filter(
+    (visit) => visit.coverageStatus === "needs_replacement" || visit.status === "no_show"
   ).length;
-
-  const lifecycleCounts = countBy(orders.map((order) => order.status));
-  const priorityCounts = countBy(orders.map((order) => order.priority));
-  const riskCounts = countBy(orders.map((order) => order.coverageRisk));
-  const prioritizedOrders = sortByOperationalPressure(orders);
-  const nextOrders = prioritizedOrders.slice(0, 4);
-
-  const statusSegments = [
-    {
-      label: "Open",
-      value:
-        (lifecycleCounts.open ?? 0) +
-        (lifecycleCounts.partially_assigned ?? 0) +
-        (lifecycleCounts.assigned ?? 0),
-      href: "/providers/orders?status=open"
-    },
-    {
-      label: "Active",
-      value: lifecycleCounts.active ?? 0,
-      href: "/providers/orders?status=active"
-    },
-    {
-      label: "Review",
-      value: lifecycleCounts.completed ?? 0,
-      href: "/providers/orders?status=completed"
-    },
-    {
-      label: "Closed",
-      value: (lifecycleCounts.closed ?? 0) + (lifecycleCounts.cancelled ?? 0),
-      href: "/providers/orders?status=closed"
-    }
-  ];
-
-  const riskSegments = [
-    {
-      label: "Critical",
-      value: riskCounts.critical ?? 0,
-      tone: "critical",
-      href: "/providers/orders?risk=critical"
-    },
-    {
-      label: "Warning",
-      value: riskCounts.warning ?? 0,
-      tone: "warning",
-      href: "/providers/orders?risk=warning"
-    },
-    {
-      label: "Stable",
-      value: riskCounts.stable ?? 0,
-      tone: "positive",
-      href: "/providers/orders?risk=stable"
-    }
-  ];
-
-  const prioritySegments = [
-    {
-      label: "Critical",
-      value: priorityCounts.critical ?? 0,
-      tone: "critical",
-      href: "/providers/orders?priority=critical"
-    },
-    {
-      label: "High",
-      value: priorityCounts.high ?? 0,
-      tone: "warning",
-      href: "/providers/orders?priority=high"
-    },
-    {
-      label: "Medium",
-      value: priorityCounts.medium ?? 0,
-      tone: "neutral",
-      href: "/providers/orders?priority=medium"
-    },
-    {
-      label: "Low",
-      value: priorityCounts.low ?? 0,
-      tone: "positive",
-      href: "/providers/orders?priority=low"
-    }
-  ];
+  const nextCoverageVisit = coverageVisits[0];
 
   return (
     <ProviderShell
       currentSection="dashboard"
-      title="Operational command center"
-      subtitle="La prestadora opera cobertura, ejecucion, revision y cierre desde un solo lugar."
+      title="Coordinator workspace"
+      subtitle="Coordinate coverage, support carers, review completed visits and prepare operational closing."
     >
-      <section className="dashboard-control-room">
-        <article className="dashboard-summary-panel">
-          <div className="panel-heading">
+      <section className="coordinator-board">
+        <section className="coordinator-hero-grid">
+          <article className="coordinator-focus-card">
+            <div className="focus-card-copy">
+              <span className="metric-icon metric-icon-readiness" aria-hidden="true" />
+              <div>
+                <p className="card-tag">Next best action</p>
+                <h2>
+                  {nextCoverageVisit
+                    ? `Arrange coverage for ${nextCoverageVisit.recipientName}`
+                    : "Coverage is stable right now"}
+                </h2>
+                <p>
+                  {nextCoverageVisit
+                    ? `${nextCoverageVisit.orderCode} is scheduled ${formatDateTime(
+                        nextCoverageVisit.scheduledStart
+                      )}. ${nextCoverageVisit.assignedCarerName ?? "No carer is assigned yet."}`
+                    : "No uncovered or replacement visits need immediate coordination."}
+                </p>
+              </div>
+            </div>
+            <div className="focus-card-actions">
+              {nextCoverageVisit ? (
+                <Link className="primary-link" href={`/providers/orders/${nextCoverageVisit.orderId}`}>
+                  Open request
+                </Link>
+              ) : (
+                <Link className="primary-link" href="/providers/orders">
+                  Review requests
+                </Link>
+              )}
+              <Link className="ghost-link" href="/providers/orders?risk=critical">
+                View critical
+              </Link>
+            </div>
+          </article>
+
+          <aside className="coordinator-today-card">
+            <div className="split-row">
+              <div>
+                <p className="card-tag">Today</p>
+                <h2>{todayVisits.length} visits</h2>
+              </div>
+              <span className="metric-icon metric-icon-today" aria-hidden="true" />
+            </div>
+            <div className="today-rhythm">
+              {todayVisits.length > 0 ? (
+                todayVisits.slice(0, 4).map((visit) => (
+                  <Link className="today-rhythm-item" href={`/providers/orders/${visit.orderId}`} key={visit.id}>
+                    <span>{getVisitTime(visit.scheduledStart)}</span>
+                    <strong>{visit.recipientName}</strong>
+                    <small>{visit.assignedCarerName ?? "Unassigned"}</small>
+                  </Link>
+                ))
+              ) : (
+                <p className="panel-copy">No visits are scheduled for today.</p>
+              )}
+            </div>
+          </aside>
+        </section>
+
+        <section className="coordinator-widget-strip" aria-label="Coordinator status">
+          <Link className="coordinator-widget" href="/providers/orders">
+            <span className="metric-icon metric-icon-visits" aria-hidden="true" />
             <div>
-              <p className="card-tag">Operational picture</p>
-              <h2>Current workload</h2>
+              <strong>{activeOrders.length}</strong>
+              <p>service requests</p>
             </div>
-            <Link className="inline-link" href="/providers/orders">
-              View orders
-            </Link>
-          </div>
+          </Link>
+          <a className="coordinator-widget coordinator-widget-critical" href="#coverage-work">
+            <span className="metric-icon metric-icon-readiness" aria-hidden="true" />
+            <div>
+              <strong>{coverageVisits.length}</strong>
+              <p>coverage actions</p>
+            </div>
+          </a>
+          <a className="coordinator-widget coordinator-widget-warning" href="#care-team">
+            <span className="metric-icon metric-icon-credentials" aria-hidden="true" />
+            <div>
+              <strong>{credentialAlerts}</strong>
+              <p>credential alerts</p>
+            </div>
+          </a>
+          <Link className="coordinator-widget coordinator-widget-positive" href="/providers/closing">
+            <span className="metric-icon metric-icon-today" aria-hidden="true" />
+            <div>
+              <strong>{closingVisits.length}</strong>
+              <p>ready to close</p>
+            </div>
+          </Link>
+        </section>
 
-          <div className="dashboard-summary-strip">
-            <Link className="summary-stat-card" href="/providers/orders">
-              <span>Orders in flight</span>
-              <strong>{openOrders.length}</strong>
-              <p>Active demand under coordination.</p>
-            </Link>
-            <Link
-              className="summary-stat-card summary-stat-card-critical"
-              href="/providers/orders?risk=critical"
-            >
-              <span>Coverage pressure</span>
-              <strong>{coveragePressureOrders}</strong>
-              <p>{urgentCoverage} visits need assignment or replacement.</p>
-            </Link>
-            <Link
-              className="summary-stat-card summary-stat-card-warning"
-              href="/providers/orders?visitStatus=under_review"
-            >
-              <span>Pending review</span>
-              <strong>{underReviewVisits}</strong>
-              <p>Visits waiting for a decision.</p>
-            </Link>
-            <Link
-              className="summary-stat-card summary-stat-card-positive"
-              href="/providers/closing"
-            >
-              <span>Ready for closing</span>
-              <strong>{approvedVisits}</strong>
-              <p>Approved visits ready to settle.</p>
-            </Link>
+        <section className="coordinator-section" id="coverage-work">
+          <div className="section-title-row">
+            <div>
+              <p className="card-tag">Coverage</p>
+              <h2>Visits needing coordination</h2>
+            </div>
+            <div className="coverage-counts">
+              <span>{uncoveredVisits} unassigned</span>
+              <span>{replacementVisits} replacement</span>
+            </div>
           </div>
-        </article>
+          <div className="coverage-card-grid">
+            {coverageVisits.length > 0 ? (
+              coverageVisits.slice(0, 6).map((visit) => (
+                <Link className="coverage-work-card" href={`/providers/orders/${visit.orderId}`} key={visit.id}>
+                  <div className="coverage-card-icon">
+                    <span className="metric-icon metric-icon-readiness" aria-hidden="true" />
+                  </div>
+                  <div>
+                    <div className="split-row">
+                      <strong>{visit.recipientName}</strong>
+                      <StatusBadge value={visit.coverageStatus} />
+                    </div>
+                    <p>
+                      {visit.orderCode} / {formatDateTime(visit.scheduledStart)}
+                    </p>
+                    <p>{visit.assignedCarerName ?? "Assign a carer before the service window."}</p>
+                  </div>
+                  <span className={`risk-pill risk-${getPriorityTone(visit.orderPriority)}`}>
+                    {visit.orderPriority}
+                  </span>
+                </Link>
+              ))
+            ) : (
+              <div className="empty-state-card">
+                <span className="metric-icon metric-icon-visits" aria-hidden="true" />
+                <strong>All visits are covered</strong>
+                <p>No scheduled visit is waiting for assignment or replacement.</p>
+              </div>
+            )}
+          </div>
+        </section>
 
-        <section className="dashboard-signal-grid">
-          <article className="dashboard-chart-card">
-            <div className="dashboard-chart-head">
-              <strong>Lifecycle</strong>
-              <span>{orders.length} total orders</span>
+        <section className="coordinator-section" id="care-team">
+          <div className="section-title-row">
+            <div>
+              <p className="card-tag">Care team</p>
+              <h2>Availability and credentials</h2>
             </div>
-            <div className="stacked-bar">
-              {statusSegments.map((segment) => (
-                <Link
-                  className={`stacked-bar-segment stacked-bar-${segment.label.toLowerCase()}`}
-                  href={segment.href}
-                  key={segment.label}
-                  style={{ width: `${ratio(segment.value, orders.length)}%` }}
-                >
-                  {segment.value > 0 ? segment.value : null}
-                </Link>
-              ))}
+            <div className="coverage-counts">
+              <span>{readyCarers.length} ready</span>
+              <span>{carersNeedingAttention.length} attention</span>
             </div>
-            <div className="dashboard-mini-link-grid">
-              {statusSegments.map((segment) => (
-                <Link className="dashboard-filter-chip" href={segment.href} key={segment.label}>
-                  <span>{segment.label}</span>
-                  <strong>{segment.value}</strong>
-                </Link>
-              ))}
+          </div>
+          <div className="carer-pulse-grid">
+            {rosterCarers.slice(0, 6).map((carer) => (
+              <article className="carer-pulse-card" key={carer.id}>
+                <div className="carer-avatar" aria-hidden="true">
+                  {carer.name
+                    .split(" ")
+                    .slice(0, 2)
+                    .map((part) => part[0])
+                    .join("")}
+                </div>
+                <div className="carer-pulse-main">
+                  <div className="split-row">
+                    <strong>{carer.name}</strong>
+                    <StatusBadge value={carer.readinessStatus} />
+                  </div>
+                  <p>{carer.readinessSummary}</p>
+                  <div className="carer-mini-metrics">
+                    <span>{carer.activeVisitCount} visits</span>
+                    <span>{carer.workingBlockCount} working blocks</span>
+                    <span>{carer.credentialAlertCount} alerts</span>
+                  </div>
+                </div>
+                <div className="carer-contact-actions">
+                  {carer.email ? (
+                    <a
+                      className="icon-action icon-action-email"
+                      href={`mailto:${carer.email}`}
+                      aria-label={`Email ${carer.name}`}
+                    />
+                  ) : null}
+                  {carer.phone ? (
+                    <a
+                      className="icon-action icon-action-phone"
+                      href={`tel:${carer.phone}`}
+                      aria-label={`Call ${carer.name}`}
+                    />
+                  ) : null}
+                </div>
+              </article>
+            ))}
+          </div>
+        </section>
+
+        <section className="coordinator-lower-grid">
+          <article className="coordinator-section">
+            <div className="section-title-row">
+              <div>
+                <p className="card-tag">Review</p>
+                <h2>Completed work</h2>
+              </div>
+              <Link className="inline-link" href="/providers/orders?visitStatus=under_review">
+                Open review queue
+              </Link>
+            </div>
+            <div className="completion-widget-row">
+              <Link className="completion-widget" href="/providers/orders?visitStatus=under_review">
+                <span className="metric-icon metric-icon-credentials" aria-hidden="true" />
+                <strong>{reviewVisits.length}</strong>
+                <p>waiting for review</p>
+              </Link>
+              <Link className="completion-widget" href="/providers/closing">
+                <span className="metric-icon metric-icon-today" aria-hidden="true" />
+                <strong>{closingVisits.length}</strong>
+                <p>approved for closing</p>
+              </Link>
+            </div>
+            <div className="review-story-list">
+              {reviewVisits.length > 0 ? (
+                reviewVisits.slice(0, 3).map((visit) => (
+                  <Link className="review-story-card" href={`/providers/orders/${visit.orderId}`} key={visit.id}>
+                    <strong>
+                      {visit.orderCode} - {visit.recipientName}
+                    </strong>
+                    <p>
+                      {visit.assignedCarerName ?? "No carer"} submitted {visit.checklistCompletion}% checklist and{" "}
+                      {visit.evidenceCount} evidence file{visit.evidenceCount === 1 ? "" : "s"}.
+                    </p>
+                  </Link>
+                ))
+              ) : (
+                <p className="panel-copy">No visits are waiting for provider review.</p>
+              )}
             </div>
           </article>
 
-          <article className="dashboard-chart-card">
-            <div className="dashboard-chart-head">
-              <strong>Risk</strong>
-              <span>Coverage pressure by risk</span>
+          <article className="coordinator-section">
+            <div className="section-title-row">
+              <div>
+                <p className="card-tag">Requests</p>
+                <h2>Priority queue</h2>
+              </div>
+              <Link className="inline-link" href="/providers/orders">
+                View all
+              </Link>
             </div>
-            <div className="signal-bar-list">
-              {riskSegments.map((segment) => (
-                <Link className="signal-bar-row" href={segment.href} key={segment.label}>
-                  <div className="signal-bar-copy">
-                    <strong>{segment.label}</strong>
-                    <span>{segment.value} orders</span>
+            <div className="priority-request-stack">
+              {prioritizedOrders.map((order) => (
+                <Link className="priority-request-card" href={`/providers/orders/${order.id}`} key={order.id}>
+                  <div>
+                    <strong>{order.code}</strong>
+                    <p>{order.recipientName}</p>
                   </div>
-                  <div className="signal-bar-track">
-                    <div
-                      className={`signal-bar-fill signal-bar-${segment.tone}`}
-                      style={{ width: `${ratio(segment.value, orders.length)}%` }}
-                    />
-                  </div>
-                </Link>
-              ))}
-            </div>
-          </article>
-
-          <article className="dashboard-chart-card">
-            <div className="dashboard-chart-head">
-              <strong>Priority</strong>
-              <span>Demand urgency</span>
-            </div>
-            <div className="signal-bar-list">
-              {prioritySegments.map((segment) => (
-                <Link className="signal-bar-row" href={segment.href} key={segment.label}>
-                  <div className="signal-bar-copy">
-                    <strong>{segment.label}</strong>
-                    <span>{segment.value} orders</span>
-                  </div>
-                  <div className="signal-bar-track">
-                    <div
-                      className={`signal-bar-fill signal-bar-${segment.tone}`}
-                      style={{ width: `${ratio(segment.value, orders.length)}%` }}
-                    />
+                  <div>
+                    <span className={`risk-pill risk-${order.coverageRisk}`}>{order.coverageRisk}</span>
+                    <p>{order.pendingAction}</p>
                   </div>
                 </Link>
               ))}
             </div>
           </article>
         </section>
-
-        <article className="dashboard-summary-panel">
-          <div className="panel-heading">
-            <div>
-              <p className="card-tag">Next orders</p>
-              <h2>Priority queue</h2>
-            </div>
-          </div>
-          <div className="dashboard-action-list">
-            {nextOrders.map((order) => (
-              <Link className="dashboard-action-row" href={`/providers/orders/${order.id}`} key={order.id}>
-                <div>
-                  <strong>
-                    {order.code} - {order.title}
-                  </strong>
-                  <p>
-                    {order.centerName} - {order.facilityName}
-                  </p>
-                </div>
-                <div className="dashboard-action-meta">
-                  <StatusBadge value={order.status} />
-                  <span className={`risk-pill risk-${order.coverageRisk}`}>{order.coverageRisk}</span>
-                  <span
-                    className={`risk-pill risk-${
-                      order.priority === "critical"
-                        ? "critical"
-                        : order.priority === "high"
-                          ? "warning"
-                          : "stable"
-                    }`}
-                  >
-                    {order.priority}
-                  </span>
-                </div>
-                <p>{order.pendingAction}</p>
-              </Link>
-            ))}
-          </div>
-        </article>
       </section>
     </ProviderShell>
   );

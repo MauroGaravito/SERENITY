@@ -1,21 +1,43 @@
 # Workflows
 
-## 1. Flujo operativo principal
+El flujo canonico de roles, propiedad de datos y happy path esta definido en [operating-model.md](./operating-model.md).
+
+## 1. Flujo de setup administrativo
+
+El sistema debe empezar antes de la primera orden. Serenity necesita un admin que prepare la red operativa:
+
+1. Crear o confirmar la prestadora Serenity.
+2. Crear centros cliente.
+3. Crear sedes de cada centro.
+4. Crear contactos del centro.
+5. Crear pacientes o recipients en la sede correcta.
+6. Crear carers de Serenity y definir si son `EMPLOYEE` o `INDEPENDENT`.
+7. Revisar credenciales, disponibilidad y datos de contacto.
+8. Revisar tipos de servicio y checklist esperado para el care record.
+
+Salida esperada:
+
+- Mauricio no coordina sobre datos improvisados.
+- Los centros existen aunque no haya ordenes.
+- Los carers pertenecen a Serenity y son visibles antes de asignar.
+- El flujo de orden empieza con cliente, sede y paciente claros.
+
+## 2. Flujo operativo principal
 
 El flujo central recomendado para Serenity es este:
 
-1. El centro o la prestadora crea una orden de servicio.
-2. La orden define requisitos, ventana horaria, frecuencia y condiciones.
-3. Serenity calcula cuidadores elegibles.
-4. La prestadora asigna o invita a uno o varios cuidadores.
-5. El cuidador acepta el servicio.
+1. El coordinator crea una orden para un centro cliente ya configurado.
+2. La orden define paciente, sede, requisitos, ventana horaria, frecuencia y condiciones.
+3. Serenity muestra agenda, disponibilidad y carers elegibles.
+4. El coordinator asigna o reemplaza carers.
+5. El cuidador acepta o ejecuta la visita segun el flujo habilitado.
 6. El dia de la visita, el cuidador hace check-in, ejecuta checklist y carga evidencia.
 7. Si hay incidencia, la reporta durante o al cierre de la visita.
 8. La visita entra a revision.
-9. La prestadora aprueba, observa o rechaza.
+9. El reviewer aprueba, observa o rechaza.
 10. Las visitas aprobadas pasan al cierre del periodo.
 
-## 2. Estados sugeridos
+## 3. Estados sugeridos
 
 ### Orden de servicio
 
@@ -40,13 +62,13 @@ El flujo central recomendado para Serenity es este:
 - `cancelled`
 - `no_show`
 
-## 3. Flujo del centro de cuidado
+## 4. Flujo del centro de cuidado
 
-1. Crear requerimiento.
-2. Definir reglas y restricciones.
-3. Seguir cobertura.
-4. Ver excepciones.
-5. Validar cumplimiento por periodo.
+1. Mantener contexto de centro, sede y pacientes dentro de su alcance.
+2. Crear requerimiento cuando la politica lo permita.
+3. Definir restricciones y notas de servicio visibles para provider.
+4. Seguir cobertura y excepciones.
+5. Ver care records aprobados y cumplimiento por periodo.
 
 Salida esperada:
 
@@ -54,15 +76,15 @@ Salida esperada:
 - mas trazabilidad,
 - mejor visibilidad de cumplimiento.
 
-## 4. Flujo de la empresa prestadora
+## 5. Flujo de la empresa prestadora
 
-1. Recibir o cargar demanda.
-2. Ver capacidad disponible.
-3. Asignar y cubrir.
-4. Gestionar reemplazos.
-5. Supervisar ejecucion.
-6. Revisar y aprobar.
-7. Consolidar cierre.
+1. Admin configura la red operativa.
+2. Coordinator recibe o carga demanda desde datos configurados.
+3. Coordinator ve capacidad disponible.
+4. Coordinator asigna, cubre y gestiona reemplazos.
+5. Carer ejecuta y documenta.
+6. Reviewer revisa y aprueba.
+7. Provider operations consolida cierre y export.
 
 Salida esperada:
 
@@ -72,7 +94,7 @@ Salida esperada:
 
 ### Superficie provider actual
 
-El flujo provider quedo separado en cinco pantallas para reducir friccion:
+El flujo provider queda para operacion diaria, no para configuracion maestra:
 
 1. `Dashboard`: responde "que esta pasando ahora". Muestra carga actual, presion de cobertura, pendientes de review, ready for closing y links filtrados para abrir ordenes por estado, riesgo o prioridad.
 2. `Orders`: responde "que orden tengo que tocar". Lista la demanda activa y permite crear una nueva orden desde un modal sin empujar la tabla fuera de pantalla.
@@ -82,7 +104,7 @@ El flujo provider quedo separado en cinco pantallas para reducir friccion:
 
 El criterio es que cada pantalla tenga una mision unica y que las tarjetas funcionen como acceso a trabajo, no como repeticion de la misma lista.
 
-## 5. Flujo del cuidador independiente
+## 6. Flujo del cuidador independiente
 
 1. Mantener disponibilidad y documentos al dia.
 2. Recibir propuesta o asignacion.
@@ -98,7 +120,7 @@ Salida esperada:
 - mas profesionalizacion,
 - mejor orden administrativo.
 
-## 6. Manejo de excepciones
+## 7. Manejo de excepciones
 
 ### No-show
 
@@ -120,7 +142,7 @@ Salida esperada:
 3. Revision prioritaria.
 4. El cierre se bloquea hasta definicion.
 
-## 7. Ritual operativo semanal
+## 8. Ritual operativo semanal
 
 ### Diario
 

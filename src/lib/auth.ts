@@ -8,11 +8,12 @@ import { prisma } from "@/lib/prisma";
 
 const SESSION_COOKIE_NAME = "serenity_session";
 const SESSION_TTL_SECONDS = 60 * 60 * 12;
+const ADMIN_ROLES = [UserRole.PLATFORM_ADMIN] as const;
 const PROVIDER_ROLES = [UserRole.PROVIDER_COORDINATOR, UserRole.PROVIDER_REVIEWER] as const;
 const CENTER_ROLES = [UserRole.CENTER_MANAGER] as const;
 const CARER_ROLES = [UserRole.CARER] as const;
 
-export { CARER_ROLES, CENTER_ROLES, PROVIDER_ROLES };
+export { ADMIN_ROLES, CARER_ROLES, CENTER_ROLES, PROVIDER_ROLES };
 
 export type SessionUser = {
   userId: string;
@@ -154,6 +155,8 @@ export async function getOptionalSession() {
 
 export function getHomeForRole(role: UserRole) {
   switch (role) {
+    case UserRole.PLATFORM_ADMIN:
+      return "/admin";
     case UserRole.PROVIDER_COORDINATOR:
     case UserRole.PROVIDER_REVIEWER:
       return "/providers";
@@ -168,6 +171,8 @@ export function getHomeForRole(role: UserRole) {
 
 export function getRoleLabel(role: UserRole) {
   switch (role) {
+    case UserRole.PLATFORM_ADMIN:
+      return "Serenity admin";
     case UserRole.PROVIDER_COORDINATOR:
       return "Provider coordinator";
     case UserRole.PROVIDER_REVIEWER:
@@ -177,7 +182,7 @@ export function getRoleLabel(role: UserRole) {
     case UserRole.CARER:
       return "Independent carer";
     default:
-      return "Platform admin";
+      return "Platform user";
   }
 }
 

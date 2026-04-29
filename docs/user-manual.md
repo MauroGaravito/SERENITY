@@ -23,11 +23,10 @@ Comandos:
 
 ### Perfil Colombia
 
+- Serenity admin: `admin@serenity.local`
 - Provider coordinator: `mauricio@serenity.local`
 - Provider reviewer: `diana@serenity.local`
 - Center manager Niquia: `laura@serenity.local`
-- Center manager Cabanas: `jose@serenity.local`
-- Center manager Bello Centro: `juan@serenity.local`
 - Carer demo principal: `gabriel@serenity.local`
 
 ### Perfil Australia
@@ -46,16 +45,10 @@ Comandos:
 - Prestadora: `Serenity Homecare Antioquia`
 - Centros:
   - `Centro de Cuidado Niquia`
-  - `Centro de Cuidado Cabanas`
-  - `Centro de Cuidado Bello Centro`
 - Facilities:
   - `Sede Niquia` en Niquia
-  - `Sede Cabanas` en Cabanas
-  - `Sede Bello Centro` en Bello Centro
 - Recipients:
   - `Rosalba`
-  - `Elizabeth Chaverra`
-  - `Betzabeth Agudelo`
 - Carers:
   - `Alvaro Ramirez`
   - `Gabriel Ramirez`
@@ -64,6 +57,9 @@ Comandos:
   - `Mariana`
   - `Melissa`
   - `Santiago`
+- Ordenes iniciales: ninguna.
+- Visitas iniciales: ninguna.
+- Closing/export/audit inicial: vacio.
 
 ### Perfil Australia
 
@@ -111,6 +107,8 @@ La demo actual ya usa catalogos cerrados para `service types` y `skills`.
 
 ### Ordenes sembradas
 
+El perfil Colombia no trae ordenes iniciales. Las siguientes ordenes pertenecen al perfil Australia.
+
 - `SR-2401`: Morning personal care support
   - Centro: `Harbour View Care`
   - Recipient: `Maria Thompson`
@@ -146,12 +144,45 @@ La demo actual ya usa catalogos cerrados para `service types` y `skills`.
 ## Reglas de acceso actuales
 
 - El login redirige segun rol a una superficie distinta.
+- `Serenity admin` entra a `/admin`.
 - `Provider coordinator` y `Provider reviewer` entran a `/providers`.
 - `Center manager` entra a `/centers`.
 - `Carer` entra a `/carers`.
 - Un `center manager` solo ve ordenes de su propio centro.
 - Un usuario provider solo opera ordenes de su propia prestadora.
 - Solo `Provider reviewer` puede aprobar o rechazar visitas.
+
+## Perfil: Serenity admin
+
+### Usuario demo
+
+- Colombia: `Serenity Admin` / `admin@serenity.local`
+- Ruta principal: `/admin`
+
+### Que puede hacer hoy
+
+- Ver si la red operativa esta lista antes de crear demanda.
+- Crear centros cliente y su primera sede.
+- Crear el usuario contacto del centro.
+- Crear pacientes dentro de una sede.
+- Crear carers vinculados a Serenity.
+- Diferenciar carers `Independent` y `Employee`.
+- Ver contacto, disponibilidad, credenciales y bloques de disponibilidad del care team.
+- Revisar el catalogo de servicios y el checklist esperado por tipo de servicio.
+
+### Que no resuelve todavia
+
+- No diferencia carers permanentes vs casuals.
+- No edita tarifas ni contratos.
+- No tiene constructor visual completo de workflows; por ahora muestra el catalogo sembrado.
+
+### Recorrido recomendado Colombia
+
+1. Entrar con `admin@serenity.local`.
+2. Revisar `/admin`: debe mostrar Niquia, Rosalba y 7 carers.
+3. Abrir `/admin/clients`: confirmar `Centro de Cuidado Niquia`, `Sede Niquia`, Laura como contacto y Rosalba como patient.
+4. Abrir `/admin/care-team`: confirmar que los carers pertenecen a Serenity y tienen datos de contacto.
+5. Abrir `/admin/workflows`: revisar los tipos de servicio disponibles antes de que Mauricio cree la primera solicitud.
 
 ## Perfil: Provider coordinator
 
@@ -195,7 +226,18 @@ La demo actual ya usa catalogos cerrados para `service types` y `skills`.
 - No tiene un modulo dedicado de incident creation desde UI.
 - No ejecuta payroll ni pagos.
 
-### Recorrido recomendado en la semilla
+### Recorrido recomendado en Colombia
+
+Colombia arranca sin ordenes para validar el flujo desde cero.
+
+1. Entrar a `/providers` con `mauricio@serenity.local`.
+2. Confirmar que el dashboard no muestra demanda activa.
+3. Ir a `/providers/orders`.
+4. Click en `New order`.
+5. Seleccionar `Centro de Cuidado Niquia`, `Sede Niquia` y `Rosalba`.
+6. Crear la primera solicitud y continuar a agenda, cobertura y asignacion.
+
+### Recorrido recomendado en Australia
 
 #### Ejemplo 1: orden parcialmente cubierta
 
@@ -432,6 +474,9 @@ La implementacion actual sigue siendo una capa de handoff:
 
 ### Usuarios demo
 
+- Colombia:
+  - `laura@serenity.local` -> `Centro de Cuidado Niquia`
+- Australia:
 - `harbour.manager@serenity.local` -> `Harbour View Care`
 - `evergreen.manager@serenity.local` -> `Evergreen Support Services`
 - `bluewattle.manager@serenity.local` -> `BlueWattle Homecare`
@@ -456,7 +501,13 @@ La implementacion actual sigue siendo una capa de handoff:
 - No puede aprobar o rechazar visitas.
 - No puede editar operacion fina de la prestadora.
 
-### Ejemplos por centro
+### Ejemplo Colombia
+
+Usa `laura@serenity.local`.
+
+Lo esperable es ver Niquia y Rosalba sin orden inicial. Las solicitudes apareceran despues de crearlas desde center o provider.
+
+### Ejemplos Australia por centro
 
 #### Harbour View center manager
 

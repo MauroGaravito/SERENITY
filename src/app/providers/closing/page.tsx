@@ -14,31 +14,57 @@ export const dynamic = "force-dynamic";
 
 type ClosingPeriodItem = Awaited<ReturnType<typeof getProviderClosingWorkspace>>["periods"][number];
 
-function getClosingMission(period?: ClosingPeriodItem) {
+function getClosingStep(period?: ClosingPeriodItem) {
+  if (!period) {
+    return 0;
+  }
+
+  if (period.status !== "open") {
+    return 4;
+  }
+
+  if (period.unsettledVisitsCount > 0) {
+    return 2;
+  }
+
+  if (period.excludedVisitsCount > 0) {
+    return 3;
+  }
+
+  return 4;
+}
+
+function getClosingFocus(period?: ClosingPeriodItem) {
   if (!period) {
     return {
-      title: "Select a period",
-      copy: "Choose a closing period to review approved visits and settlement values."
+      action: "Choose a period",
+      copy: "Start by selecting a closing period.",
+      title: "Select the period to close"
     };
   }
 
   if (period.status !== "open") {
     return {
-      title: "Period locked",
-      copy: "This period is no longer editable here. Use External export to manage delivery."
+      action: "Go to external export",
+      copy: "The operational values are locked. Delivery now happens in External export.",
+      title: `${period.label} is locked`
     };
   }
 
   if (period.unsettledVisitsCount > 0) {
     return {
-      title: "Settle approved visits",
-      copy: `${period.unsettledVisitsCount} approved visit${period.unsettledVisitsCount === 1 ? "" : "s"} still need final minutes and rates.`
+      action: "Settle visit values",
+      copy: `${period.unsettledVisitsCount} approved visit${
+        period.unsettledVisitsCount === 1 ? "" : "s"
+      } still need final minutes and amounts.`,
+      title: "Finish settlement before locking"
     };
   }
 
   return {
-    title: "Ready to lock",
-    copy: "All approved visits are settled. Lock the period when the operational values are final."
+    action: "Lock period",
+    copy: "All approved visits have settlement values. Lock the period when exceptions look correct.",
+    title: "Ready for operational lock"
   };
 }
 
@@ -54,310 +80,254 @@ export default async function ProviderClosingPage({
     workspace.periods.find((item) => item.id === period) ?? workspace.periods[0];
   const selectedVisit =
     selectedPeriod?.visits.find((item) => item.id === visit) ?? selectedPeriod?.visits[0];
-  const mission = getClosingMission(selectedPeriod);
   const selectedVisitExpenses = selectedVisit?.expenses ?? [];
-  const lockedPeriods = workspace.periods.filter((item) => item.status !== "open").length;
+  const focus = getClosingFocus(selectedPeriod);
+  const currentStep = getClosingStep(selectedPeriod);
+
+  const steps = [
+    { label: "1", title: "Select period", detail: "Choose the closing window." },
+    { label: "2", title: "Settle visits", detail: "Confirm minutes and values." },
+    { label: "3", title: "Review exceptions", detail: "Check expenses and exclusions." },
+    { label: "4", title: "Lock for export", detail: "Freeze operational values." }
+  ];
 
   return (
     <ProviderShell
       currentSection="closing"
       title="Operational closing"
-      subtitle="Review approved visits, settle values and lock periods for export."
+      subtitle="Turn approved visits into a locked operational package ready for external delivery."
     >
-      <section className="closing-cockpit">
-        <article className="closing-mission-panel">
+      <section className="workflow-page">
+        <article className="workflow-focus-card">
           <div>
-            <p className="card-tag">Closing mission</p>
-            <h2>{mission.title}</h2>
-            <p className="panel-copy">{mission.copy}</p>
+            <p className="card-tag">Next step</p>
+            <h2>{focus.title}</h2>
+            <p>{focus.copy}</p>
           </div>
-          {selectedPeriod ? (
-            <div className="closing-mission-actions">
-              <StatusBadge value={selectedPeriod.status} />
+          <div className="workflow-focus-actions">
+            {selectedPeriod ? <StatusBadge value={selectedPeriod.status} /> : null}
+            {selectedPeriod?.status === "open" ? (
               <ClosingPeriodStatusForm period={selectedPeriod} />
-            </div>
-          ) : null}
-        </article>
-
-        <section className="closing-summary-row">
-          <Link className="summary-stat-card" href="/providers/closing">
-            <span>Open periods</span>
-            <strong>{workspace.summary.periodsOpen}</strong>
-            <p>Periods still editable.</p>
-          </Link>
-          <a className="summary-stat-card summary-stat-card-warning" href="#settlement-work">
-            <span>Need settlement</span>
-            <strong>{workspace.summary.visitsReadyForSettlement}</strong>
-            <p>Approved visits missing final values.</p>
-          </a>
-          <a className="summary-stat-card summary-stat-card-critical" href="#exceptions-work">
-            <span>Excluded visits</span>
-            <strong>{selectedPeriod?.excludedVisitsCount ?? 0}</strong>
-            <p>Visits outside this closing package.</p>
-          </a>
-          <Link className="summary-stat-card summary-stat-card-positive" href="/providers/export">
-            <span>Locked periods</span>
-            <strong>{lockedPeriods}</strong>
-            <p>Periods ready for external export.</p>
-          </Link>
-        </section>
-      </section>
-
-      <section className="closing-workbench" id="settlement-work">
-        <article className="ops-panel closing-period-selector">
-          <div className="panel-heading">
-            <div>
-              <p className="card-tag">Period</p>
-              <h2>Select period</h2>
-            </div>
-          </div>
-          <div className="visit-list">
-            {workspace.periods.map((item) => (
-              <Link
-                className={`visit-list-item ${selectedPeriod?.id === item.id ? "is-active" : ""}`}
-                href={`/providers/closing?period=${item.id}`}
-                key={item.id}
-              >
-                <div>
-                  <strong>{item.label}</strong>
-                  <p>
-                    {item.approvedVisitsCount} approved / {item.unsettledVisitsCount} pending /{" "}
-                    {item.excludedVisitsCount} excluded
-                  </p>
-                </div>
-                <StatusBadge value={item.status} />
+            ) : selectedPeriod ? (
+              <Link className="primary-link" href={`/providers/export?period=${selectedPeriod.id}`}>
+                {focus.action}
               </Link>
-            ))}
+            ) : null}
           </div>
         </article>
 
-        {selectedPeriod ? (
-          <article className="ops-panel closing-period-overview">
-            <div className="panel-heading">
-              <div>
-                <p className="card-tag">Current period</p>
-                <h2>{selectedPeriod.label}</h2>
+        <section className="workflow-stepper" aria-label="Closing workflow">
+          {steps.map((step, index) => (
+            <div
+              className={`workflow-step-card ${
+                currentStep === index + 1 ? "is-current" : currentStep > index + 1 ? "is-complete" : ""
+              }`}
+              key={step.title}
+            >
+              <span>{step.label}</span>
+              <strong>{step.title}</strong>
+              <p>{step.detail}</p>
+            </div>
+          ))}
+        </section>
+
+        <section className="workflow-package-card">
+          <div className="section-title-row">
+            <div>
+              <p className="card-tag">Closing package</p>
+              <h2>{selectedPeriod?.label ?? "No period selected"}</h2>
+              {selectedPeriod ? (
                 <p className="panel-copy">
                   {formatDateTime(selectedPeriod.startsAt)} - {formatDateTime(selectedPeriod.endsAt)}
                 </p>
-              </div>
-              <StatusBadge value={selectedPeriod.status} />
+              ) : null}
             </div>
-            <dl className="meta-grid closing-meta-grid">
-              <div>
-                <dt>Approved visits</dt>
-                <dd>{selectedPeriod.approvedVisitsCount}</dd>
-              </div>
-              <div>
-                <dt>Settled visits</dt>
-                <dd>{selectedPeriod.settledVisitsCount}</dd>
-              </div>
-              <div>
-                <dt>Excluded visits</dt>
-                <dd>{selectedPeriod.excludedVisitsCount}</dd>
-              </div>
-              <div>
-                <dt>Approved minutes</dt>
-                <dd>{selectedPeriod.approvedMinutesTotal}</dd>
-              </div>
-              <div>
-                <dt>Billable</dt>
-                <dd>{formatCurrency(selectedPeriod.billableCentsTotal)}</dd>
-              </div>
-              <div>
-                <dt>Payable</dt>
-                <dd>{formatCurrency(selectedPeriod.payableCentsTotal)}</dd>
-              </div>
-            </dl>
-          </article>
-        ) : null}
-      </section>
+            <div className="workflow-period-switcher">
+              {workspace.periods.map((item) => (
+                <Link
+                  className={`period-chip ${selectedPeriod?.id === item.id ? "is-active" : ""}`}
+                  href={`/providers/closing?period=${item.id}`}
+                  key={item.id}
+                >
+                  <span>{item.label}</span>
+                  <StatusBadge value={item.status} />
+                </Link>
+              ))}
+            </div>
+          </div>
 
-      {selectedPeriod ? (
-        <section className="closing-workbench closing-workbench-main">
-          <article className="ops-panel">
-            <div className="panel-heading">
+          {selectedPeriod ? (
+            <div className="package-metric-grid">
               <div>
-                <p className="card-tag">Approved visits</p>
-                <h2>Settle visits</h2>
+                <span className="metric-icon metric-icon-visits" aria-hidden="true" />
+                <strong>{selectedPeriod.approvedVisitsCount}</strong>
+                <p>approved visits</p>
+              </div>
+              <div>
+                <span className="metric-icon metric-icon-readiness" aria-hidden="true" />
+                <strong>{selectedPeriod.unsettledVisitsCount}</strong>
+                <p>need settlement</p>
+              </div>
+              <div>
+                <span className="metric-icon metric-icon-today" aria-hidden="true" />
+                <strong>{selectedPeriod.approvedMinutesTotal}</strong>
+                <p>approved minutes</p>
+              </div>
+              <div>
+                <span className="metric-icon metric-icon-credentials" aria-hidden="true" />
+                <strong>{formatCurrency(selectedPeriod.billableCentsTotal)}</strong>
+                <p>billable</p>
               </div>
             </div>
-            <div className="visit-list">
-              {selectedPeriod.visits.length > 0 ? (
-                selectedPeriod.visits.map((item) => (
-                  <Link
-                    className={`visit-list-item ${selectedVisit?.id === item.id ? "is-active" : ""}`}
-                    href={`/providers/closing?period=${selectedPeriod.id}&visit=${item.id}`}
-                    key={item.id}
-                  >
-                    <div>
-                      <strong>
-                        {item.orderCode} / {item.recipientName}
-                      </strong>
-                      <p>
-                        {item.carerName ?? "No carer"} / {item.serviceType}
-                      </p>
-                      <p>
-                        {item.approvedMinutes ?? item.suggestedApprovedMinutes} min /{" "}
-                        {formatCurrency(item.payableCents ?? 0)}
-                      </p>
-                    </div>
-                    <StatusBadge value={item.isReadyForExport ? "locked" : item.status} />
-                  </Link>
-                ))
-              ) : (
-                <p className="panel-copy">No approved visits fall inside this period yet.</p>
-              )}
-            </div>
-          </article>
-
-          <article className="ops-panel">
-            <div className="panel-heading">
-              <div>
-                <p className="card-tag">Selected visit</p>
-                <h2>Settlement values</h2>
-              </div>
-            </div>
-            {selectedVisit ? (
-              <>
-                <div className="split-row">
-                  <strong>
-                    {selectedVisit.orderCode} / {selectedVisit.orderTitle}
-                  </strong>
-                  <StatusBadge value={selectedVisit.status} />
-                </div>
-                <dl className="meta-grid top-gap">
-                  <div>
-                    <dt>Recipient</dt>
-                    <dd>{selectedVisit.recipientName}</dd>
-                  </div>
-                  <div>
-                    <dt>Carer</dt>
-                    <dd>{selectedVisit.carerName ?? "Unassigned"}</dd>
-                  </div>
-                  <div>
-                    <dt>Suggested minutes</dt>
-                    <dd>{selectedVisit.suggestedApprovedMinutes}</dd>
-                  </div>
-                  <div>
-                    <dt>Approved minutes</dt>
-                    <dd>{selectedVisit.approvedMinutes ?? "Pending"}</dd>
-                  </div>
-                  <div>
-                    <dt>Billable</dt>
-                    <dd>
-                      {typeof selectedVisit.billableCents === "number"
-                        ? formatCurrency(selectedVisit.billableCents)
-                        : "Pending"}
-                    </dd>
-                  </div>
-                  <div>
-                    <dt>Payable</dt>
-                    <dd>
-                      {typeof selectedVisit.payableCents === "number"
-                        ? formatCurrency(selectedVisit.payableCents)
-                        : "Pending"}
-                    </dd>
-                  </div>
-                </dl>
-                <div className="top-gap">
-                  {selectedPeriod.status === "open" ? (
-                    <VisitSettlementForm periodId={selectedPeriod.id} visit={selectedVisit} />
-                  ) : (
-                    <div className="note-block">
-                      <strong>Settlement locked</strong>
-                      <p>This period is no longer editable from Serenity.</p>
-                    </div>
-                  )}
-                </div>
-              </>
-            ) : (
-              <p className="panel-copy">Choose a visit to review settlement values.</p>
-            )}
-          </article>
+          ) : null}
         </section>
-      ) : null}
 
-      {selectedPeriod ? (
-        <details className="ops-panel closing-detail-panel" id="exceptions-work">
-          <summary>
-            <span>
-              <span className="card-tag">Exceptions and adjustments</span>
-              <strong>Expenses and excluded visits</strong>
-            </span>
-            <span className="skill-pill">
-              {selectedVisitExpenses.length + selectedPeriod.excludedVisits.length} items
-            </span>
-          </summary>
-          <div className="closing-detail-content closing-detail-grid">
-            <article>
-              <h3>Expenses and travel</h3>
-              {selectedVisit && selectedPeriod.status === "open" ? (
-                <VisitExpenseForm periodId={selectedPeriod.id} visitId={selectedVisit.id} />
-              ) : (
-                <div className="note-block">
-                  <strong>Expenses locked</strong>
-                  <p>Open periods allow expense capture; locked periods are read-only.</p>
-                </div>
-              )}
-              <div className="sequence-list compact-sequence-list top-gap">
-                {selectedVisitExpenses.length > 0 ? (
-                  selectedVisitExpenses.map((expense) => (
-                    <div className="note-block compact-note-block" key={expense.id}>
-                      <strong>
-                        {expense.type} / {formatCurrency(expense.amountCents, expense.currency)}
-                      </strong>
-                      <p>{expense.note ?? "No note recorded."}</p>
-                    </div>
+        {selectedPeriod ? (
+          <section className="workflow-work-card" id="settlement-work">
+            <div className="section-title-row">
+              <div>
+                <p className="card-tag">Settlement</p>
+                <h2>Approved visits</h2>
+              </div>
+              <span className="skill-pill">{selectedPeriod.visits.length} visits</span>
+            </div>
+
+            <div className="settlement-board">
+              <div className="settlement-visit-rail">
+                {selectedPeriod.visits.length > 0 ? (
+                  selectedPeriod.visits.map((item) => (
+                    <Link
+                      className={`settlement-visit-card ${selectedVisit?.id === item.id ? "is-active" : ""}`}
+                      href={`/providers/closing?period=${selectedPeriod.id}&visit=${item.id}`}
+                      key={item.id}
+                    >
+                      <div>
+                        <strong>
+                          {item.orderCode} / {item.recipientName}
+                        </strong>
+                        <p>{item.carerName ?? "No carer"} / {item.serviceType}</p>
+                      </div>
+                      <div>
+                        <span>{item.approvedMinutes ?? item.suggestedApprovedMinutes} min</span>
+                        <StatusBadge value={item.isReadyForExport ? "locked" : item.status} />
+                      </div>
+                    </Link>
                   ))
                 ) : (
-                  <p className="panel-copy">No expenses recorded for this visit.</p>
+                  <p className="panel-copy">No approved visits fall inside this period yet.</p>
                 )}
               </div>
-            </article>
 
-            <article>
-              <h3>Excluded visits</h3>
-              <div className="sequence-list compact-sequence-list">
-                {selectedPeriod.excludedVisits.length > 0 ? (
-                  selectedPeriod.excludedVisits.map((excludedVisit) => (
-                    <div className="note-block compact-note-block" key={excludedVisit.id}>
-                      <div className="split-row">
+              <article className="settlement-detail-card">
+                {selectedVisit ? (
+                  <>
+                    <div className="split-row">
+                      <div>
+                        <p className="card-tag">Selected visit</p>
+                        <h3>{selectedVisit.recipientName}</h3>
+                        <p className="panel-copy">{selectedVisit.orderCode} / {selectedVisit.orderTitle}</p>
+                      </div>
+                      <StatusBadge value={selectedVisit.status} />
+                    </div>
+                    <div className="settlement-value-grid">
+                      <div>
+                        <span>Carer</span>
+                        <strong>{selectedVisit.carerName ?? "Unassigned"}</strong>
+                      </div>
+                      <div>
+                        <span>Approved minutes</span>
+                        <strong>{selectedVisit.approvedMinutes ?? "Pending"}</strong>
+                      </div>
+                      <div>
+                        <span>Billable</span>
+                        <strong>
+                          {typeof selectedVisit.billableCents === "number"
+                            ? formatCurrency(selectedVisit.billableCents)
+                            : "Pending"}
+                        </strong>
+                      </div>
+                      <div>
+                        <span>Payable</span>
+                        <strong>
+                          {typeof selectedVisit.payableCents === "number"
+                            ? formatCurrency(selectedVisit.payableCents)
+                            : "Pending"}
+                        </strong>
+                      </div>
+                    </div>
+                    {selectedPeriod.status === "open" ? (
+                      <VisitSettlementForm periodId={selectedPeriod.id} visit={selectedVisit} />
+                    ) : (
+                      <div className="note-block top-gap">
+                        <strong>Settlement locked</strong>
+                        <p>This period is no longer editable from Serenity.</p>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <p className="panel-copy">Choose a visit to review settlement values.</p>
+                )}
+              </article>
+            </div>
+          </section>
+        ) : null}
+
+        {selectedPeriod ? (
+          <details className="workflow-work-card workflow-disclosure" id="exceptions-work">
+            <summary>
+              <span>
+                <span className="card-tag">Exceptions</span>
+                <strong>Expenses and excluded visits</strong>
+              </span>
+              <span className="skill-pill">
+                {selectedVisitExpenses.length + selectedPeriod.excludedVisits.length} items
+              </span>
+            </summary>
+            <div className="exception-grid">
+              <article>
+                <h3>Expenses</h3>
+                {selectedVisit && selectedPeriod.status === "open" ? (
+                  <VisitExpenseForm periodId={selectedPeriod.id} visitId={selectedVisit.id} />
+                ) : (
+                  <p className="panel-copy">Expenses are read-only when the period is locked.</p>
+                )}
+                <div className="compact-sequence-list top-gap">
+                  {selectedVisitExpenses.length > 0 ? (
+                    selectedVisitExpenses.map((expense) => (
+                      <div className="note-block compact-note-block" key={expense.id}>
+                        <strong>
+                          {expense.type} / {formatCurrency(expense.amountCents, expense.currency)}
+                        </strong>
+                        <p>{expense.note ?? "No note recorded."}</p>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="panel-copy">No expenses recorded for this visit.</p>
+                  )}
+                </div>
+              </article>
+              <article>
+                <h3>Excluded visits</h3>
+                <div className="compact-sequence-list">
+                  {selectedPeriod.excludedVisits.length > 0 ? (
+                    selectedPeriod.excludedVisits.map((excludedVisit) => (
+                      <div className="note-block compact-note-block" key={excludedVisit.id}>
                         <strong>
                           {excludedVisit.orderCode} / {excludedVisit.recipientName}
                         </strong>
-                        <StatusBadge value={excludedVisit.status} />
+                        <p>{excludedVisit.exclusionReason}</p>
+                        <p>Next step: {excludedVisit.nextStep}</p>
                       </div>
-                      <p>{excludedVisit.exclusionReason}</p>
-                      <p>Next step: {excludedVisit.nextStep}</p>
-                    </div>
-                  ))
-                ) : (
-                  <p className="panel-copy">No visits are excluded from this period.</p>
-                )}
-              </div>
-            </article>
-
-            <article>
-              <h3>Closing rules</h3>
-              <div className="sequence-list compact-sequence-list">
-                <div className="note-block compact-note-block">
-                  <strong>Open means editable</strong>
-                  <p>Settlement values and expenses can still be updated.</p>
+                    ))
+                  ) : (
+                    <p className="panel-copy">No visits are excluded from this period.</p>
+                  )}
                 </div>
-                <div className="note-block compact-note-block">
-                  <strong>Locked means ready for export</strong>
-                  <p>Operational values should no longer change after locking.</p>
-                </div>
-                <div className="note-block compact-note-block">
-                  <strong>Export happens elsewhere</strong>
-                  <p>Use External export for packages, sync jobs and acknowledgements.</p>
-                </div>
-              </div>
-            </article>
-          </div>
-        </details>
-      ) : null}
+              </article>
+            </div>
+          </details>
+        ) : null}
+      </section>
     </ProviderShell>
   );
 }

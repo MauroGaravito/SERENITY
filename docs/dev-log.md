@@ -2,6 +2,71 @@
 
 Registro breve de decisiones y entregas relevantes. No reemplaza Plane; sirve como memoria tecnica y de producto dentro del repo.
 
+## 2026-04-29 - Version 2 direction defined
+
+Nota de cierre:
+
+- Serenity queda versionada como `2.0.0`.
+- La direccion del producto queda definida alrededor de un operating model admin-first.
+- Plane fue reorganizado para continuar desde nuevos work items SER-27 a SER-36.
+- Los modulos anteriores fueron removidos para evitar ruido y deuda conceptual.
+- `SER-27` queda como contrato rector de roles, propiedad de datos y flujo de negocio.
+
+Estado del producto:
+
+- Admin configura la red: prestadora, centros cliente, sedes, contactos, pacientes, carers y workflows.
+- Coordinator opera demanda, agenda, cobertura, asignaciones y reemplazos.
+- Carer ejecuta visitas y produce el care record.
+- Reviewer aprueba o rechaza care records.
+- Closing/export/audit quedan despues de visitas reales aprobadas, no como datos sembrados que confunden el flujo.
+- Colombia es el escenario canonico de cero inicio: Niquia, Rosalba, siete carers y cero ordenes.
+
+Validacion final ejecutada:
+
+- `npm run db:generate`
+- `npm run db:push`
+- `npm run db:seed:colombia`
+- `npm run typecheck`
+- `npm run build`
+
+Resultado:
+
+- Todas las validaciones pasaron.
+- Persiste el warning conocido de Next por `<img>` en `src/components/carers/carer-workspace.tsx`.
+
+Siguiente sesion recomendada:
+
+- Cerrar/revisar `SER-27` contra [operating-model.md](./operating-model.md).
+- Continuar con `SER-29 Validate Colombia zero-start scenario`.
+- Despues avanzar `SER-28`, `SER-30` y `SER-31` para completar el primer flujo Niquia / Rosalba.
+
+## 2026-04-29 - SER-27 operating model reset
+
+Objetivo:
+
+- Redefinir Serenity alrededor de un operating model admin-first.
+- Separar configuracion maestra de operacion diaria.
+- Clarificar que hace cada actor y que datos le pertenecen.
+
+Resultado:
+
+- Se creo [operating-model.md](./operating-model.md) como contrato canonico de SER-27.
+- El modelo establece cinco actores: Admin, Provider Coordinator, Provider Reviewer, Center Manager y Carer.
+- Se documento la matriz de propiedad para provider, center, site, patient, carer, service request, visit, care record, review, closing, export y audit.
+- Se definio el happy path desde admin setup hasta external export.
+- Se establecio que `EMPLOYEE` e `INDEPENDENT` son suficientes para el MVP hasta que SER-32 decida si `permanent` / `casual` entran al modelo.
+- Se actualizo product direction, workflows, business rules, domain model, architecture y current demo QA para referenciar el operating model.
+
+Decision:
+
+- No separar backend/frontend todavia.
+- Primero estabilizar boundaries de dominio dentro del monolito Next.
+
+Validacion recomendada:
+
+- Revisar SER-27 en Plane contra [operating-model.md](./operating-model.md).
+- Marcar SER-26 como antecedente visual y continuar la ejecucion desde SER-27.
+
 ## 2026-04-28 - SER-26 UI hierarchy redesign checkpoint
 
 Objetivo:

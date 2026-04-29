@@ -18,6 +18,7 @@ import { prisma } from "@/lib/prisma";
 import { assessAvailabilityForVisit } from "@/lib/availability";
 import { SKILL_CATALOG } from "@/lib/catalogs";
 import {
+  CarerOption,
   ClosingExportPackage,
   ClosingWorkspaceRecord,
   ExportTargetSystem,
@@ -578,11 +579,33 @@ function mapOrder(order: ProviderOrderRow): ServiceOrderRecord {
     return {
       id: carer.id,
       name: `${carer.firstName} ${carer.lastName}`,
+      email: carer.email ?? undefined,
+      phone: carer.phone ?? undefined,
       credentials: validCredentials.map((credential) => credential.name),
       availability: carer.availabilityNote ?? "Availability to be confirmed",
       rating: carer.rating,
       readinessStatus: readiness.status,
       readinessSummary: readiness.summary,
+      activeVisitCount: carer.visits.length,
+      credentialAlertCount: carer.credentials.filter((credential) => {
+        if (
+          credential.status === CredentialStatus.EXPIRED ||
+          credential.status === CredentialStatus.REJECTED ||
+          credential.status === CredentialStatus.PENDING
+        ) {
+          return true;
+        }
+
+        if (!credential.expiresAt) {
+          return false;
+        }
+
+        const daysToExpiry = Math.ceil(
+          (credential.expiresAt.getTime() - Date.now()) / (1000 * 60 * 60 * 24)
+        );
+        return daysToExpiry >= 0 && daysToExpiry <= 45;
+      }).length,
+      workingBlockCount: carer.availabilityBlocks.filter((block) => block.isWorking).length,
       isEligible: eligibilityReasons.length === 0,
       availabilityMatch,
       availabilityStatus: availabilityAssessment.status,
@@ -681,6 +704,103 @@ export async function listProviderOrders(providerId: string): Promise<ServiceOrd
   });
 
   return orders.map(mapOrder);
+}
+
+export async function listProviderCarers(providerId: string): Promise<CarerOption[]> {
+  noStore();
+  const carers = await prisma.carer.findMany({
+    where: { providerId, isActive: true },
+    include: {
+      credentials: {
+        orderBy: [{ status: "asc" }, { expiresAt: "asc" }, { name: "asc" }]
+      },
+      availabilityBlocks: {
+        where: {
+          endsAt: {
+            gte: new Date(Date.now() - 1000 * 60 * 60 * 24)
+          }
+        },
+        orderBy: [{ startsAt: "asc" }]
+      },
+      visits: {
+        where: {
+          status: {
+            in: [
+              PrismaVisitStatus.SCHEDULED,
+              PrismaVisitStatus.CONFIRMED,
+              PrismaVisitStatus.IN_PROGRESS,
+              PrismaVisitStatus.COMPLETED,
+              PrismaVisitStatus.UNDER_REVIEW
+            ]
+          }
+        },
+        select: {
+          id: true,
+          scheduledStart: true,
+          scheduledEnd: true,
+          status: true,
+          serviceOrder: {
+            select: {
+              code: true
+            }
+          }
+        }
+      }
+    },
+    orderBy: [{ rating: "desc" }, { lastName: "asc" }]
+  });
+
+  return carers.map((carer) => {
+    const readiness = getCarerReadinessForMatching(carer);
+    const validCredentials = carer.credentials.filter(
+      (credential) =>
+        credential.status === CredentialStatus.VALID &&
+        (!credential.expiresAt || credential.expiresAt > new Date())
+    );
+    const credentialAlertCount = carer.credentials.filter((credential) => {
+      if (
+        credential.status === CredentialStatus.EXPIRED ||
+        credential.status === CredentialStatus.REJECTED ||
+        credential.status === CredentialStatus.PENDING
+      ) {
+        return true;
+      }
+
+      if (!credential.expiresAt) {
+        return false;
+      }
+
+      const daysToExpiry = Math.ceil(
+        (credential.expiresAt.getTime() - Date.now()) / (1000 * 60 * 60 * 24)
+      );
+      return daysToExpiry >= 0 && daysToExpiry <= 45;
+    }).length;
+
+    return {
+      id: carer.id,
+      name: `${carer.firstName} ${carer.lastName}`.trim(),
+      email: carer.email ?? undefined,
+      phone: carer.phone ?? undefined,
+      credentials: validCredentials.map((credential) => credential.name),
+      availability: carer.availabilityNote ?? "Availability to be confirmed",
+      rating: carer.rating,
+      readinessStatus: readiness.status,
+      readinessSummary: readiness.summary,
+      activeVisitCount: carer.visits.length,
+      credentialAlertCount,
+      workingBlockCount: carer.availabilityBlocks.filter((block) => block.isWorking).length,
+      isEligible: readiness.status === "ready",
+      availabilityMatch: true,
+      availabilityStatus: carer.availabilityBlocks.some((block) => block.isWorking)
+        ? "available"
+        : "unknown",
+      availabilitySummary:
+        carer.availabilityBlocks.filter((block) => block.isWorking).length > 0
+          ? `${carer.availabilityBlocks.filter((block) => block.isWorking).length} working blocks declared`
+          : "No working availability blocks declared",
+      eligibilityReasons: []
+    };
+  });
 }
 
 export async function getProviderOrder(
@@ -1774,27 +1894,38 @@ export async function runSentClosingExportChecks(
   };
 }
 
-export async function getProviderOrderFormData(): Promise<ProviderOrderFormData> {
+export async function getProviderOrderFormData(providerId: string): Promise<ProviderOrderFormData> {
   noStore();
 
-  const [centers, serviceTypes] = await Promise.all([
-    prisma.organization.findMany({
-      where: { kind: "CENTER" },
-      orderBy: { displayName: "asc" },
+  const [clientLinks, serviceTypes] = await Promise.all([
+    prisma.providerClient.findMany({
+      where: {
+        providerId,
+        status: "active"
+      },
+      orderBy: {
+        center: {
+          displayName: "asc"
+        }
+      },
       select: {
-        id: true,
-        displayName: true,
-        facilities: {
-          orderBy: { name: "asc" },
+        center: {
           select: {
             id: true,
-            name: true,
-            recipients: {
-              orderBy: [{ firstName: "asc" }, { lastName: "asc" }],
+            displayName: true,
+            facilities: {
+              orderBy: { name: "asc" },
               select: {
                 id: true,
-                firstName: true,
-                lastName: true
+                name: true,
+                recipients: {
+                  orderBy: [{ firstName: "asc" }, { lastName: "asc" }],
+                  select: {
+                    id: true,
+                    firstName: true,
+                    lastName: true
+                  }
+                }
               }
             }
           }
@@ -1813,7 +1944,7 @@ export async function getProviderOrderFormData(): Promise<ProviderOrderFormData>
   ]);
 
   return {
-    centers: centers.map((center) => ({
+    centers: clientLinks.map(({ center }) => ({
       id: center.id,
       name: center.displayName,
       facilities: center.facilities.map((facility) => ({

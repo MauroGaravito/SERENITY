@@ -1,5 +1,11 @@
 # Estado Actual de la Demo y Pruebas Manuales
 
+## Version
+
+Version actual: `2.0.0`
+
+La version 2 marca la direccion definida del producto: Serenity opera con setup administrativo primero, coordinator operations despues, care record ejecutado por carer, review humano, closing/export y audit como trazabilidad posterior.
+
 ## Alcance
 
 Este documento describe el estado actual de la demo local usando el seed `colombia`.
@@ -19,27 +25,46 @@ SerenityDemo!2026
 
 ## Situacion actual
 
-Serenity modela una red de homecare donde una prestadora coordina servicios para varios centros de cuidado. Los centros crean o necesitan demanda, la prestadora coordina cobertura y los cuidadores ejecutan visitas. Las visitas aprobadas alimentan el cierre operativo y luego se preparan para exportacion externa.
+Serenity modela una red de homecare donde una prestadora coordina servicios para centros de cuidado. Los centros crean o necesitan demanda, la prestadora coordina cobertura y los cuidadores ejecutan visitas. Las visitas aprobadas alimentan el cierre operativo y luego se preparan para exportacion externa.
 
 La demo local esta configurada con:
 
 - 1 prestadora.
-- 3 centros de cuidado.
-- 3 sedes.
-- 3 recipients.
+- 1 centro de cuidado.
+- 1 sede.
+- 1 recipient.
+- 1 admin provider.
 - 2 usuarios provider.
-- 3 center managers.
+- 1 center manager.
 - 7 carers independientes.
-- 3 ordenes de servicio.
-- 7 visitas.
-- 2 closing periods.
-- export jobs y audit events sembrados.
+- 0 ordenes de servicio.
+- 0 visitas.
+- 0 closing periods.
+- 0 export jobs y audit events.
+
+El seed `colombia` queda intencionalmente como escenario limpio para iniciar el flujo desde cero: crear demanda para una sola paciente de Niquia, coordinar cobertura, ejecutar visitas, revisar, cerrar y exportar sin ruido de datos preexistentes.
+
+## SER-27 operating model status
+
+SER-27 es ahora el item rector del producto. El contrato canonico esta en [operating-model.md](./operating-model.md).
+
+Decisiones vigentes:
+
+- Admin setup ocurre antes de provider operations.
+- Coordinator usa datos configurados; no crea jerarquia maestra durante una solicitud.
+- Reviewer aprueba care records; coordinator no aprueba.
+- Center manager queda limitado a su centro.
+- Carer queda limitado a su perfil y visitas asignadas.
+- Audit explica historia; no es una cola operativa diaria.
+- La separacion backend/frontend queda diferida; primero se estabilizan boundaries de dominio.
 
 ## SER-26 status para QA visual
 
-SER-26 esta activo como trabajo transversal de jerarquia de informacion y claridad UI.
+SER-26 queda como antecedente visual. El trabajo nuevo debe guiarse por SER-27 y por el flujo admin-first.
 
-Estado al cierre del 2026-04-28:
+Estado actualizado el 2026-04-29:
+
+Nota actual: se agrego `/admin` como capa de setup para clientes, sedes, pacientes, carers y workflows. Tambien se agrego `ProviderClient` para que los centros cliente existan antes de crear ordenes. Colombia ahora es un escenario limpio para empezar desde cero.
 
 - Backend y reglas operativas se mantienen estables.
 - El rediseño se concentra en frontend, lenguaje de producto y separacion de dominios operativos.
@@ -58,18 +83,14 @@ Ambas pasaron. El build mantiene el warning conocido de Next por uso de `<img>` 
 
 Prioridad de QA para el 2026-04-29:
 
-1. Entrar como `mauricio@serenity.local`.
-2. Revisar `/providers/orders/[id]` para `SR-2401`.
-3. Confirmar que el lenguaje visible es entendible para un coordinador:
-   - `Service request`
-   - `Visit schedule and coverage`
-   - `Selected visit`
-   - `Care record`
-   - `Care coordination note`
-   - `Order changes`
-4. Confirmar que `Request new coverage` explica que elimina la asignacion actual, mantiene la visita programada y marca la visita para cobertura de reemplazo.
-5. Decidir si schedule, coverage diagnostics y order changes deben quedarse como detalles plegables o pasar a paginas/secciones propias.
-6. Revisar responsive basico en carer y provider antes de cerrar SER-26.
+1. Entrar como `admin@serenity.local`.
+2. Validar `/admin`, `/admin/clients`, `/admin/care-team` y `/admin/workflows`.
+3. Entrar como `mauricio@serenity.local`.
+4. Confirmar que `/providers` explica claramente el estado inicial sin ordenes.
+5. Entrar a `/providers/orders` y crear la primera solicitud para Rosalba / Centro de Cuidado Niquia.
+6. Confirmar que la orden creada guia al coordinador hacia agenda, cobertura y asignacion.
+7. Probar el flujo de cobertura con los carers sembrados.
+8. Continuar hacia ejecucion, review, closing, external export y audit solo cuando existan datos creados por el flujo.
 
 ## Organizaciones y responsables
 
@@ -83,6 +104,7 @@ Prioridad de QA para el 2026-04-29:
 
 | Persona | Rol | Que valida |
 | --- | --- | --- |
+| Serenity Admin | Platform admin | Clientes, sedes, patients, carers y workflows |
 | Mauricio Garavito | Provider coordinator | Dashboard, ordenes, cobertura, closing, external export y audit trail |
 | Diana Chaverra | Provider reviewer | Revision/aprobacion de visitas y consulta operativa provider |
 
@@ -91,16 +113,12 @@ Prioridad de QA para el 2026-04-29:
 | Centro | Sede | Barrio | Manager | Email |
 | --- | --- | --- | --- | --- |
 | Centro de Cuidado Niquia | Sede Niquia | Niquia | Laura Garavito | `laura@serenity.local` |
-| Centro de Cuidado Cabanas | Sede Cabanas | Cabanas | Jose Garavito | `jose@serenity.local` |
-| Centro de Cuidado Bello Centro | Sede Bello Centro | Bello Centro | Juan Correa | `juan@serenity.local` |
 
 ### Recipients
 
 | Recipient | Centro | Orden principal |
 | --- | --- | --- |
-| Rosalba | Centro de Cuidado Niquia | `SR-2401` |
-| Elizabeth Chaverra | Centro de Cuidado Cabanas | `SR-2402` |
-| Betzabeth Agudelo | Centro de Cuidado Bello Centro | `SR-2403` |
+| Rosalba | Centro de Cuidado Niquia | Sin orden inicial |
 
 ### Cuidadores
 
@@ -114,53 +132,17 @@ Prioridad de QA para el 2026-04-29:
 | Melissa | `melissa@serenity.local` | Sat overnight | Social engagement, medication prompt, meal preparation, manual handling |
 | Santiago | `santiago@serenity.local` | Sat-Sun overnight | Social engagement, medication prompt, community participation |
 
-## Ordenes sembradas
+## Ordenes, visitas, closing, export y audit
 
-| Orden | Centro | Recipient | Tipo | Estado | Prioridad | Lectura operativa |
-| --- | --- | --- | --- | --- | --- | --- |
-| `SR-2401` | Centro de Cuidado Niquia | Rosalba | Personal Care | Partially assigned | High | Orden parcialmente cubierta; sirve para probar cobertura, reemplazos y visitas del carer |
-| `SR-2402` | Centro de Cuidado Cabanas | Elizabeth Chaverra | Community Access | Active | Medium | Orden activa con visita en review y visita aprobada lista para closing/export |
-| `SR-2403` | Centro de Cuidado Bello Centro | Betzabeth Agudelo | Companionship | Open | Critical | Orden critica con cobertura rota/no-show; sirve para probar riesgo y accion prioritaria |
+El seed Colombia no crea ordenes, visitas, closing periods, export jobs ni audit events. Estos datos deben aparecer solo despues de recorrer el flujo desde cero en la app.
 
-## Visitas sembradas
+Resultado esperado del estado inicial:
 
-| Orden | Estado de visita | Cuidador | Para que sirve |
-| --- | --- | --- | --- |
-| `SR-2401` | Approved | Gabriel Ramirez | Alimenta `Apr 2026 - Week 1` en closing |
-| `SR-2401` | Confirmed | Gabriel Ramirez | Permite probar el workspace del carer |
-| `SR-2401` | Scheduled | Sin asignar | Permite probar asignacion o replacement |
-| `SR-2401` | Cancelled | Alvaro Ramirez | Muestra excepcion de cobertura |
-| `SR-2402` | Under review | Rocio Agudelo | Permite probar aprobacion/rechazo con reviewer |
-| `SR-2402` | Approved | Rocio Agudelo | Alimenta `Apr 2026 - Week 2` y external export |
-| `SR-2403` | Scheduled / No-show | Sin asignar / Melissa | Muestra riesgo critico, cobertura rota y outside settlement |
-
-## Closing, export y audit
-
-### Closing periods
-
-| Periodo | Estado | Contenido esperado |
-| --- | --- | --- |
-| Apr 2026 - Week 1 | Open | 1 visita aprobada de `SR-2401`; todavia acepta cambios |
-| Apr 2026 - Week 2 | Locked | 1 visita aprobada de `SR-2402`; listo para external export |
-
-### External export
-
-`Apr 2026 - Week 2` tiene jobs sembrados para validar varios estados:
-
-- `manual_handoff`: acknowledged.
-- `xero_custom_connection`: acknowledged en sandbox.
-- `mock_payroll_gateway`: sent, esperando acknowledgement.
-- `qa_failure_simulation`: failed/rejected, listo para retry.
-
-### Audit trail
-
-El audit trail debe mostrar eventos como:
-
-- orden creada,
-- visita asignada,
-- visita aprobada,
-- visita movida a under review,
-- orden critica creada.
+- Provider dashboard: sin solicitudes activas, sin cobertura pendiente y sin cierre operativo.
+- Provider orders: lista vacia y accion clara para crear la primera solicitud.
+- Center Niquia: Rosalba existe como recipient, pero sin orden activa.
+- Carers: la red existe con disponibilidad y credenciales para probar matching cuando se cree una orden.
+- Closing/export/audit: deben comunicar que aun no hay paquetes o eventos porque no hay visitas aprobadas.
 
 ## Como leer cada pantalla provider
 
@@ -255,9 +237,30 @@ Pruebas:
 Resultado esperado:
 
 - Mauricio puede operar la superficie provider completa.
-- Los filtros abren ordenes relevantes y no tarjetas duplicadas.
+- El dashboard muestra estado vacio hasta que se cree la primera solicitud.
 
-### 3. Orders y modal de nueva orden
+### 3. Admin workspace
+
+Usuario:
+
+```text
+admin@serenity.local
+```
+
+Pruebas:
+
+1. Entrar a `/admin`.
+2. Confirmar que existe una prestadora, un centro cliente, una sede, una paciente y 7 carers.
+3. Entrar a `/admin/clients` y confirmar Niquia / Sede Niquia / Rosalba.
+4. Entrar a `/admin/care-team` y confirmar contacto, tipo y credenciales de carers.
+5. Entrar a `/admin/workflows` y confirmar catalogo de servicios.
+
+Resultado esperado:
+
+- El admin explica la jerarquia del negocio antes de que exista demanda.
+- Mauricio no necesita crear centros o carers desde el dashboard operativo.
+
+### 4. Orders y modal de nueva orden
 
 Usuario:
 
@@ -272,7 +275,8 @@ Pruebas:
 3. Click en `New order`.
 4. Confirmar que el formulario abre en modal.
 5. Cerrar el modal.
-6. Abrir `SR-2401`, `SR-2402` y `SR-2403`.
+6. Crear una solicitud para Rosalba.
+7. Abrir la orden creada.
 
 Resultado esperado:
 
@@ -281,7 +285,7 @@ Resultado esperado:
 - El formulario separa demanda, agenda, requisitos, instrucciones e internos.
 - Una orden valida redirige al detalle para continuar cobertura/asignacion.
 - Ordenes sin skills, con ventana invalida o con duracion mayor que la ventana quedan bloqueadas.
-- Cada orden abre su detalle correctamente.
+- La orden creada abre su detalle correctamente.
 
 ### 4. Review con provider reviewer
 
@@ -294,10 +298,11 @@ diana@serenity.local
 Pruebas:
 
 1. Entrar a `/providers/orders`.
-2. Abrir `SR-2402`.
-3. Ubicar la visita en `under_review`.
-4. Verificar que existen controles de review.
-5. Probar approve o reject solo si quieres modificar el estado de la demo.
+2. Confirmar que no hay visitas `under_review` en el estado inicial.
+3. Despues de crear y ejecutar una visita, entrar a la orden generada.
+4. Ubicar la visita en `under_review`.
+5. Verificar que existen controles de review.
+6. Probar approve o reject solo si quieres modificar el estado de la demo.
 
 Resultado esperado:
 
@@ -310,15 +315,13 @@ Usuarios:
 
 ```text
 laura@serenity.local
-jose@serenity.local
-juan@serenity.local
 ```
 
 Pruebas:
 
-1. Entrar con Laura y confirmar que ve informacion de Niquia / `SR-2401`.
-2. Entrar con Jose y confirmar que ve Cabanas / `SR-2402`.
-3. Entrar con Juan y confirmar que ve Bello Centro / `SR-2403`.
+1. Entrar con Laura y confirmar que ve informacion de Niquia.
+2. Confirmar que Rosalba existe como recipient.
+3. Confirmar que no hay ordenes iniciales.
 4. Confirmar que un center manager no opera asignaciones provider ni closing/export.
 
 Resultado esperado:
@@ -363,10 +366,8 @@ mauricio@serenity.local
 Pruebas:
 
 1. Entrar a `/providers/closing`.
-2. Confirmar que aparecen `Apr 2026 - Week 1` y `Apr 2026 - Week 2`.
-3. Confirmar que Week 1 esta `Open`.
-4. Confirmar que Week 2 esta `Locked`.
-5. Confirmar que las visitas fuera de settlement muestran motivo.
+2. Confirmar que no hay periodos hasta que existan visitas aprobadas.
+3. Confirmar que la pantalla explica el siguiente paso operativo.
 
 Resultado esperado:
 
@@ -384,11 +385,8 @@ mauricio@serenity.local
 Pruebas:
 
 1. Entrar a `/providers/export`.
-2. Confirmar que Week 2 tiene paquete exportable.
-3. Descargar JSON.
-4. Descargar CSV.
-5. Confirmar que existen jobs acknowledged, sent y failed.
-6. Probar `Retry` en el job fallido solo si quieres modificar la demo.
+2. Confirmar que no hay paquetes exportables al inicio.
+3. Confirmar que la pantalla dirige al cierre antes del handoff externo.
 
 Resultado esperado:
 
@@ -406,8 +404,8 @@ mauricio@serenity.local
 Pruebas:
 
 1. Entrar a `/providers/audit`.
-2. Confirmar que se ven eventos criticos.
-3. Abrir una orden y comparar que su historia operativa tenga sentido.
+2. Confirmar que no hay eventos criticos antes de operar el flujo.
+3. Crear una orden y volver para confirmar que aparecen eventos nuevos.
 
 Resultado esperado:
 

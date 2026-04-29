@@ -1,7 +1,10 @@
 # Business Rules
 
+Las reglas de permisos y propiedad de datos deben leerse junto con [operating-model.md](./operating-model.md), que es el contrato canonico de SER-27.
+
 ## 1. Reglas de elegibilidad
 
+Regla previa: una prestadora debe tener centros cliente configurados mediante `ProviderClient` antes de crear ordenes. Una orden solo puede usar centros, sedes y pacientes vinculados a la prestadora de la sesion.
 1. Ningun cuidador puede ser asignado a un servicio si tiene credenciales vencidas o faltantes para ese tipo de servicio.
 2. Ninguna visita puede confirmarse sin una ventana horaria, duracion y ubicacion definidas.
 3. Todo servicio debe pertenecer a un centro y a una prestadora responsable.
@@ -93,22 +96,36 @@ Reglas adicionales:
 
 ## 8. Reglas de permisos
 
+### Admin Serenity
+
+- Puede crear centros cliente, sedes, contactos, pacientes y carers.
+- Puede revisar workflows de servicio y el care record esperado.
+- No debe operar reemplazos, reviews o cierres diarios salvo que tambien tenga rol operativo.
+- Es responsable de que exista red operativa antes de la primera solicitud.
+
 ### Centro de cuidado
 
 - Puede crear y monitorear ordenes.
 - Puede ver cumplimiento, incidencias y aprobaciones.
 - No puede editar registros operativos cerrados sin trazabilidad.
+- Solo ve informacion dentro de su propio centro.
+- No ve datos privados de otros centros ni operaciones internas del pool completo de carers.
 
 ### Prestadora
 
 - Puede asignar, reemplazar, revisar y cerrar.
 - Es responsable final de la calidad operativa ante el centro.
+- El coordinator opera la demanda; el reviewer aprueba resultados. La configuracion maestra queda en admin.
+- El coordinator no aprueba care records.
+- El reviewer no usa closing para saltarse validaciones de review.
 
 ### Cuidador
 
 - Puede aceptar o rechazar servicios.
 - Puede ejecutar la visita y cargar evidencia.
 - No puede autoaprobar su propia visita.
+- En el modelo actual el cuidador puede ser `EMPLOYEE` o `INDEPENDENT`; permanente/casual no esta modelado aun.
+- No puede autoasignarse trabajo ni modificar settlement.
 
 ## 9. Reglas de datos
 
