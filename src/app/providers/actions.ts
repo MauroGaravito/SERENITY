@@ -195,6 +195,69 @@ async function assertVisitHasReviewContext(visitId: string) {
   }
 }
 
+function getUtcWeekWindow(date: Date) {
+  const startsAt = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+  const day = startsAt.getUTCDay();
+  const mondayOffset = day === 0 ? -6 : 1 - day;
+
+  startsAt.setUTCDate(startsAt.getUTCDate() + mondayOffset);
+
+  const endsAt = new Date(startsAt);
+  endsAt.setUTCDate(endsAt.getUTCDate() + 6);
+  endsAt.setUTCHours(23, 59, 59, 999);
+
+  return { startsAt, endsAt };
+}
+
+function getClosingPeriodLabel(startsAt: Date) {
+  const month = new Intl.DateTimeFormat("en-AU", {
+    month: "short",
+    timeZone: "UTC"
+  }).format(startsAt);
+  const weekOfMonth = Math.ceil(startsAt.getUTCDate() / 7);
+
+  return `${month} ${startsAt.getUTCFullYear()} - Week ${weekOfMonth}`;
+}
+
+async function ensureOpenClosingPeriodForVisit({
+  providerId,
+  visit
+}: {
+  providerId: string;
+  visit: {
+    actualEnd: Date | null;
+    scheduledEnd: Date;
+  };
+}) {
+  const visitEnd = visit.actualEnd ?? visit.scheduledEnd;
+  const { startsAt, endsAt } = getUtcWeekWindow(visitEnd);
+  const existingPeriod = await prisma.closingPeriod.findFirst({
+    where: {
+      providerId,
+      startsAt: { lte: visitEnd },
+      endsAt: { gte: visitEnd }
+    },
+    select: { id: true }
+  });
+
+  if (existingPeriod) {
+    return existingPeriod.id;
+  }
+
+  const period = await prisma.closingPeriod.create({
+    data: {
+      providerId,
+      label: getClosingPeriodLabel(startsAt),
+      startsAt,
+      endsAt,
+      status: ClosingPeriodStatus.OPEN
+    },
+    select: { id: true }
+  });
+
+  return period.id;
+}
+
 async function getScopedExportJob(jobId: string, providerId: string) {
   return prisma.exportJob.findFirst({
     where: {
@@ -584,6 +647,14 @@ export async function reviewVisit({
     }
   });
 
+  const closingPeriodId =
+    outcome === "approved"
+      ? await ensureOpenClosingPeriodForVisit({
+          providerId: reviewer.organizationId,
+          visit
+        })
+      : null;
+
   await logAuditEvent({
     organizationId: reviewer.organizationId,
     actorUserId: reviewer.userId,
@@ -592,7 +663,8 @@ export async function reviewVisit({
     type: AuditEventType.VISIT_REVIEWED,
     summary: `Visit reviewed with outcome ${outcome}.`,
     payload: {
-      outcome
+      outcome,
+      closingPeriodId
     }
   });
 
@@ -1133,6 +1205,7 @@ export async function addVisitExpense(formData: FormData) {
     type: AuditEventType.ORDER_UPDATED,
     summary: `Expense added to ${visit.serviceOrder.code} for operational closing.`,
     payload: {
+      periodId: period.id,
       type: type.toLowerCase(),
       amountCents
     }

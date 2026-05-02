@@ -110,6 +110,21 @@ Reglas adicionales:
 - No puede editar registros operativos cerrados sin trazabilidad.
 - Solo ve informacion dentro de su propio centro.
 - No ve datos privados de otros centros ni operaciones internas del pool completo de carers.
+- Puede mantener contexto de pacientes dentro de su centro cuando la politica lo habilite.
+- Puede editar detalles de una solicitud solo antes de que exista cobertura confirmada o ejecucion iniciada.
+- Despues de cobertura confirmada, cambios del centro deben entrar como request change o nota de coordinacion.
+- Puede cancelar antes de ejecucion con motivo obligatorio; despues de inicio/completado debe solicitar cambio a la prestadora.
+- No aprueba ni rechaza care records; eso pertenece a Provider Reviewer.
+- No accede a closing/export provider.
+
+### Center manager ownership
+
+- El centro es dueño del contexto de demanda: sede, paciente, notas de servicio y necesidad operativa.
+- Admin/provider governance mantiene datos legales, relacion provider-client y setup estructural.
+- Provider coordinator mantiene cobertura, asignacion, reemplazo y cambios operativos de visita.
+- Center manager ve carer identity solo para visitas asignadas de su centro.
+- Center manager no ve disponibilidad global, credenciales completas, ratings internos ni restriction reasons del carer.
+- Center manager puede ver audit events solo para ordenes o eventos scopeados a su centro.
 
 ### Prestadora
 
@@ -118,14 +133,27 @@ Reglas adicionales:
 - El coordinator opera la demanda; el reviewer aprueba resultados. La configuracion maestra queda en admin.
 - El coordinator no aprueba care records.
 - El reviewer no usa closing para saltarse validaciones de review.
+- La prestadora es la dueña operacional del carer mediante `Carer.providerId`.
+- El coordinator puede ver disponibilidad, readiness, credenciales relevantes, skills, idioma, carga activa y razones de restriccion para carers de su prestadora.
+- El coordinator no debe convertir el flujo diario de cobertura en edicion completa del perfil administrativo del carer.
 
 ### Cuidador
 
 - Puede aceptar o rechazar servicios.
 - Puede ejecutar la visita y cargar evidencia.
 - No puede autoaprobar su propia visita.
-- En el modelo actual el cuidador puede ser `EMPLOYEE` o `INDEPENDENT`; permanente/casual no esta modelado aun.
+- En el modelo MVP el cuidador puede ser `EMPLOYEE` o `INDEPENDENT`.
+- Permanente/casual queda diferido como atributo de politica contractual o roster, no como tipo principal de carer.
 - No puede autoasignarse trabajo ni modificar settlement.
+
+### Relacion del carer
+
+- Un centro no posee carers; solo ve el carer asignado en visitas de su propio scope.
+- Admin crea el carer, define `EMPLOYEE` o `INDEPENDENT`, vincula el provider y gobierna estado activo/credenciales.
+- Carer puede mantener disponibilidad, datos operativos propios donde la politica lo permita, evidencia de credenciales y care records.
+- `INDEPENDENT` requiere para MVP contacto, business/tax id cuando exista, disponibilidad, credenciales y estado activo.
+- `EMPLOYEE` requiere para MVP contacto, etiqueta employee, disponibilidad, credenciales y estado activo.
+- Payroll id, permanente/casual, reglas laborales, payout, seguros y tarifas quedan fuera del MVP de SER-32.
 
 ## 9. Reglas de datos
 

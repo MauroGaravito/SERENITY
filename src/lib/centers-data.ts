@@ -38,6 +38,31 @@ export type CenterOrderFormData = {
   skills: string[];
 };
 
+export type CenterPortalData = {
+  id: string;
+  name: string;
+  legalName: string;
+  managerName: string;
+  managerEmail: string;
+  providerName: string;
+  sites: Array<{
+    id: string;
+    name: string;
+    suburb: string;
+    state: string;
+    address: string;
+    recipientsCount: number;
+    activeOrdersCount: number;
+  }>;
+  recipients: Array<{
+    id: string;
+    name: string;
+    siteName: string;
+    notes: string;
+    activeOrdersCount: number;
+  }>;
+};
+
 const centerOrderInclude = {
   center: true,
   facility: true,
@@ -296,6 +321,111 @@ export async function listCenterOrders(centerId: string): Promise<ServiceOrderRe
   return orders.map(mapOrder);
 }
 
+export async function getCenterPortalData(
+  centerId: string,
+  managerUserId: string
+): Promise<CenterPortalData> {
+  noStore();
+
+  const [center, manager, providerClient, activeOrders] = await Promise.all([
+    prisma.organization.findUniqueOrThrow({
+      where: { id: centerId },
+      select: {
+        id: true,
+        displayName: true,
+        legalName: true,
+        facilities: {
+          orderBy: { name: "asc" },
+          select: {
+            id: true,
+            name: true,
+            addressLine1: true,
+            suburb: true,
+            state: true,
+            recipients: {
+              orderBy: [{ firstName: "asc" }, { lastName: "asc" }],
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                notes: true
+              }
+            }
+          }
+        }
+      }
+    }),
+    prisma.user.findUniqueOrThrow({
+      where: { id: managerUserId },
+      select: {
+        fullName: true,
+        email: true
+      }
+    }),
+    prisma.providerClient.findFirst({
+      where: { centerId },
+      include: {
+        provider: {
+          select: {
+            displayName: true
+          }
+        }
+      },
+      orderBy: { createdAt: "asc" }
+    }),
+    prisma.serviceOrder.findMany({
+      where: {
+        centerId,
+        status: {
+          notIn: [ServiceOrderStatus.CANCELLED, ServiceOrderStatus.CLOSED]
+        }
+      },
+      select: {
+        facilityId: true,
+        recipientId: true
+      }
+    })
+  ]);
+
+  const activeOrdersBySite = new Map<string, number>();
+  const activeOrdersByRecipient = new Map<string, number>();
+
+  for (const order of activeOrders) {
+    activeOrdersBySite.set(order.facilityId, (activeOrdersBySite.get(order.facilityId) ?? 0) + 1);
+    activeOrdersByRecipient.set(
+      order.recipientId,
+      (activeOrdersByRecipient.get(order.recipientId) ?? 0) + 1
+    );
+  }
+
+  return {
+    id: center.id,
+    name: center.displayName,
+    legalName: center.legalName,
+    managerName: manager.fullName,
+    managerEmail: manager.email,
+    providerName: providerClient?.provider.displayName ?? "No provider linked",
+    sites: center.facilities.map((facility) => ({
+      id: facility.id,
+      name: facility.name,
+      suburb: facility.suburb,
+      state: facility.state,
+      address: facility.addressLine1,
+      recipientsCount: facility.recipients.length,
+      activeOrdersCount: activeOrdersBySite.get(facility.id) ?? 0
+    })),
+    recipients: center.facilities.flatMap((facility) =>
+      facility.recipients.map((recipient) => ({
+        id: recipient.id,
+        name: `${recipient.firstName} ${recipient.lastName}`.trim(),
+        siteName: facility.name,
+        notes: recipient.notes ?? "No center notes recorded.",
+        activeOrdersCount: activeOrdersByRecipient.get(recipient.id) ?? 0
+      }))
+    )
+  };
+}
+
 export async function getCenterOrder(
   orderId: string,
   centerId: string
@@ -355,13 +485,20 @@ export async function getCenterMetrics(centerId: string): Promise<ProviderMetric
 export async function getCenterOrderFormData(centerId: string): Promise<CenterOrderFormData> {
   noStore();
 
-  const [providers, facilities, serviceTypes] = await Promise.all([
-    prisma.organization.findMany({
-      where: { kind: "PROVIDER" },
-      orderBy: { displayName: "asc" },
+  const [providerClients, facilities, serviceTypes] = await Promise.all([
+    prisma.providerClient.findMany({
+      where: {
+        centerId,
+        status: "active"
+      },
+      orderBy: { createdAt: "asc" },
       select: {
-        id: true,
-        displayName: true
+        provider: {
+          select: {
+            id: true,
+            displayName: true
+          }
+        }
       }
     }),
     prisma.facility.findMany({
@@ -393,9 +530,9 @@ export async function getCenterOrderFormData(centerId: string): Promise<CenterOr
 
   return {
     centerId,
-    providers: providers.map((provider) => ({
-      id: provider.id,
-      name: provider.displayName
+    providers: providerClients.map((providerClient) => ({
+      id: providerClient.provider.id,
+      name: providerClient.provider.displayName
     })),
     facilities: facilities.map((facility) => ({
       id: facility.id,

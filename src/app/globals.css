@@ -3436,6 +3436,109 @@ ul {
     rgba(255, 247, 240, 0.82);
 }
 
+.center-portal-hero,
+.center-directory-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(300px, 0.6fr);
+  gap: 1rem;
+}
+
+.center-identity-card,
+.center-next-card {
+  align-content: start;
+}
+
+.center-identity-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.center-identity-grid div {
+  min-height: 5.2rem;
+  padding: 0.9rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  background: var(--surface-subtle);
+}
+
+.center-identity-grid span,
+.center-directory-meta span {
+  display: block;
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.center-identity-grid strong {
+  display: block;
+  margin-top: 0.45rem;
+  color: var(--surface-strong);
+  font-size: 1.05rem;
+  line-height: 1.2;
+}
+
+.center-next-card {
+  display: grid;
+  gap: 0.8rem;
+}
+
+.center-next-card .primary-link {
+  justify-self: start;
+}
+
+.center-directory-list {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.center-directory-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 0.85rem;
+  align-items: center;
+  padding: 0.9rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  background: var(--surface);
+}
+
+.center-directory-row strong {
+  color: var(--surface-strong);
+  font-size: 1rem;
+}
+
+.center-directory-row p {
+  margin-top: 0.25rem;
+  color: var(--muted);
+  font-size: 0.86rem;
+  line-height: 1.45;
+}
+
+.center-directory-meta {
+  display: grid;
+  justify-items: end;
+  gap: 0.35rem;
+  min-width: 8.5rem;
+}
+
+.center-directory-grid .ops-panel:nth-child(2) .center-directory-row {
+  grid-template-columns: auto minmax(0, 1fr);
+}
+
+.center-directory-grid .ops-panel:nth-child(2) .center-directory-meta {
+  grid-column: 2;
+  justify-items: start;
+  min-width: 0;
+}
+
+.center-requests-grid .empty-state-card {
+  gap: 0.7rem;
+}
+
 .auth-page-shell {
   width: min(1080px, calc(100% - 2rem));
   margin: 0 auto;
@@ -5426,6 +5529,8 @@ body {
   .order-command-bar,
   .order-workbench,
   .order-operations-grid,
+  .center-portal-hero,
+  .center-directory-grid,
   .split-workspace,
   .visit-report-grid,
   .visit-checklist-grid,
@@ -5499,6 +5604,8 @@ body {
   .order-widget-grid,
   .order-visit-row,
   .order-carer-card,
+  .center-identity-grid,
+  .center-directory-row,
   .split-workspace-credentials .sequence-list,
   .carer-command-grid .readiness-lanes,
   .visit-checklist-panel .checklist-item-card,
@@ -5507,9 +5614,21 @@ body {
   .visit-control-bar,
   .range-builder-days,
   .range-time-grid,
+  .availability-planner,
+  .visit-calendar-grid,
   .report-document-grid,
   .report-summary-list {
     grid-template-columns: 1fr;
+  }
+
+  .availability-planner,
+  .visit-calendar-grid {
+    overflow-x: visible;
+  }
+
+  .availability-day,
+  .visit-calendar-day {
+    min-height: auto;
   }
 
   .report-document-grid div,
@@ -5526,6 +5645,11 @@ body {
 
   .report-document-footer {
     flex-direction: column;
+  }
+
+  .center-directory-meta {
+    justify-items: start;
+    min-width: 0;
   }
 }
 

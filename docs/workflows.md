@@ -21,6 +21,7 @@ Salida esperada:
 - Los centros existen aunque no haya ordenes.
 - Los carers pertenecen a Serenity y son visibles antes de asignar.
 - El flujo de orden empieza con cliente, sede y paciente claros.
+- Permanente/casual no se decide durante setup MVP; queda para una politica futura de roster/contrato.
 
 ## 2. Flujo operativo principal
 
@@ -69,12 +70,21 @@ El flujo central recomendado para Serenity es este:
 3. Definir restricciones y notas de servicio visibles para provider.
 4. Seguir cobertura y excepciones.
 5. Ver care records aprobados y cumplimiento por periodo.
+6. Pedir cambios cuando una solicitud ya tiene cobertura o ejecucion en curso.
 
 Salida esperada:
 
 - menos llamadas manuales,
 - mas trazabilidad,
 - mejor visibilidad de cumplimiento.
+
+Decision SER-33:
+
+- El centro crea solicitudes y monitorea outcomes.
+- El centro puede editar datos de solicitud solo en etapa temprana; despues de cobertura confirmada los cambios pasan a coordinacion provider.
+- El centro puede mantener pacientes por politica, pero nuevas sedes quedan admin-owned en el MVP.
+- El centro no asigna carers, no aprueba care records y no opera closing/export.
+- El portal center se organiza por Centro, Sedes, Pacientes y Solicitudes.
 
 ## 5. Flujo de la empresa prestadora
 
@@ -103,6 +113,20 @@ El flujo provider queda para operacion diaria, no para configuracion maestra:
 5. `Audit trail`: responde "que paso y quien lo hizo". Mantiene eventos criticos fuera del flujo operativo diario.
 
 El criterio es que cada pantalla tenga una mision unica y que las tarjetas funcionen como acceso a trabajo, no como repeticion de la misma lista.
+
+### Flujo post-zero-start para review, closing, export y audit
+
+En Colombia, el producto arranca sin ordenes, visitas, periodos, export jobs ni audit operativo. Por eso el tramo final no debe simular actividad vieja:
+
+1. `Orders` empieza vacio y explica que review necesita una visita real completada y enviada.
+2. `Review` ocurre dentro del detalle de la orden, sobre visitas en `under_review`.
+3. Al aprobar una visita, Serenity crea o reutiliza un closing period `open` para la fecha de la visita.
+4. `Closing` aparece como trabajo operativo solo cuando hay visitas aprobadas dentro de un periodo.
+5. El periodo `open` permite settlement, gastos y revision de exclusiones, pero no export.
+6. `External export` aparece solo cuando el periodo esta `locked`.
+7. `Audit trail` del periodo empieza vacio y se llena con aprobacion, settlement, lock/export y sync jobs.
+
+Regla clave: nada en closing/export/audit depende de actividad pre-seeded. Todo debe nacer de la primera solicitud real y de la visita aprobada.
 
 ## 6. Flujo del cuidador independiente
 

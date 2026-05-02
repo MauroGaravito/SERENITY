@@ -6,12 +6,15 @@ La base tecnica inicial de Serenity sera una sola aplicacion web con `Next.js`, 
 
 La arquitectura funcional debe seguir el contrato de roles y propiedad definido en [operating-model.md](./operating-model.md).
 
+SER-34 define la preparacion para una futura separacion backend/frontend sin ejecutar el split ahora. El plan detallado esta en [backend-boundary-plan.md](./backend-boundary-plan.md).
+
 ## Por que esta base
 
 1. Reduce complejidad al inicio.
 2. Permite construir panel de prestadora, portal de centro y vista movil del cuidador en una misma base.
 3. Mantiene una sola capa de autenticacion, permisos, dominio y auditoria.
 4. No cierra la puerta a extraer una app movil nativa mas adelante.
+5. Evita separar servicios mientras el operating model y los workflows siguen cambiando.
 
 ## Stack inicial
 
@@ -89,12 +92,53 @@ La arquitectura funcional debe seguir el contrato de roles y propiedad definido 
 - `src/app`: rutas y UI
 - `src/app/admin`: superficie administrativa para configurar clientes, care team y workflows
 - `src/app/providers`: superficie provider reorganizada en dashboard, orders, closing, export y audit
+- `src/app/*/actions.ts`: server actions actuales; deben convertirse gradualmente en adapters del futuro service layer
 - `src/components/admin`: shell y componentes de administracion
 - `src/components/providers`: componentes compartidos del provider workspace
-- `src/lib`: datos base y utilidades
+- `src/lib`: datos base y utilidades; hoy contiene funciones Prisma que deben migrar detras de boundaries internos
 - `prisma/schema.prisma`: modelo inicial del dominio
 - `prisma/seed.mjs`: semilla parametrizada con perfiles `colombia` y `australia`
 - `docs/`: definiciones de producto, reglas y arquitectura
+
+## SER-34 backend boundary inside monolith
+
+La decision es mantener un unico proceso Next.js y preparar boundaries internos por dominio.
+
+Dominios futuros:
+
+| Dominio | Responsabilidad | Codigo actual principal |
+| --- | --- | --- |
+| Auth | login, sesion, roles, throttling | `src/app/login/actions.ts`, `src/app/auth/actions.ts`, `src/lib/auth.ts`, `src/lib/security.ts` |
+| Admin | setup de provider, centros, sedes, patients, carers, workflows | `src/app/admin/actions.ts`, `src/lib/admin-data.ts` |
+| Provider operations | ordenes, visitas, asignacion, reemplazo, notas | `src/app/providers/actions.ts`, `src/lib/providers-data.ts` |
+| Center portal | demanda y visibilidad scopeada del centro | `src/app/centers/actions.ts`, `src/lib/centers-data.ts` |
+| Carer execution | disponibilidad, credenciales, ejecucion, checklist, evidencia, incidentes | `src/app/carers/actions.ts`, `src/lib/carers-data.ts` |
+| Review | aprobacion/rechazo y reglas de care record | `reviewVisit`, `src/lib/visit-state.ts` |
+| Closing/export | periodos, settlement, expenses, export packages/jobs/connectors | provider closing/export actions, export routes, `src/lib/export-connectors.ts` |
+| Audit | eventos criticos y lecturas scopeadas | `src/lib/audit.ts`, `src/lib/audit-data.ts` |
+
+Forma objetivo interna antes de exponer APIs:
+
+```text
+src/server/
+  auth/
+  admin/
+  provider/
+  center/
+  carer/
+  review/
+  closing/
+  export/
+  audit/
+  shared/
+```
+
+Regla tecnica:
+
+- UI components no importan Prisma.
+- Server actions parsean `FormData`, resuelven sesion, llaman servicios y hacen `revalidate/redirect`.
+- Las reglas de negocio, audit y scope checks viven en service functions.
+- API routes futuras deben llamar los mismos services, no duplicar logica.
 
 ## Admin workspace actual
 
@@ -121,7 +165,7 @@ Esta division mantiene el flujo profesional sin duplicar la misma informacion en
 
 ## Demo data profiles
 
-La demo local usa `colombia` por defecto para trabajar con nombres y barrios familiares. Colombia arranca deliberadamente desde cero: una prestadora, un admin, Mauricio como coordinador, Diana como reviewer, un centro cliente Niquia, una paciente Rosalba, siete carers y cero ordenes. La demo `australia` se conserva para presentaciones o despliegues que necesiten la narrativa original con actividad precargada.
+La demo local usa `colombia` por defecto para trabajar con nombres y barrios familiares. Colombia arranca deliberadamente desde cero: una prestadora, un admin, Mauricio como coordinador, Diana como reviewer, un centro cliente Niquia, una paciente Rosalba, tres carers y cero ordenes. La demo `australia` se conserva para presentaciones o despliegues que necesiten la narrativa original con actividad precargada.
 
 - `npm run db:seed:colombia`
 - `npm run db:seed:australia`
@@ -131,7 +175,8 @@ La demo local usa `colombia` por defecto para trabajar con nombres y barrios fam
 Cuando el MVP tenga traccion:
 
 1. mover logica de dominio hacia servicios server internos por boundary,
-2. agregar autenticacion real,
-3. sumar jobs asincronos para alertas y cierre,
-4. exponer APIs cuando el boundary interno este estable,
-5. evaluar app movil dedicada para cuidador.
+2. mantener server actions como adapters mientras la UI siga en Next,
+3. agregar API routes que llamen esos mismos services,
+4. sumar jobs asincronos para alertas y cierre,
+5. extraer backend fisico solo si mobile, jobs o integraciones lo justifican,
+6. evaluar app movil dedicada para cuidador.

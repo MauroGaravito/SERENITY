@@ -14,6 +14,7 @@ import {
 } from "@/lib/centers-data";
 import { SKILL_CATALOG } from "@/lib/catalogs";
 import { prisma } from "@/lib/prisma";
+import { redirect } from "next/navigation";
 
 function requiredString(value: FormDataEntryValue | null, field: string) {
   if (typeof value !== "string" || value.trim().length === 0) {
@@ -63,6 +64,31 @@ function parsePriority(value: string) {
   }
 }
 
+function parseServiceWindow(scheduledStart: string, scheduledEnd: string, plannedDurationMin: number) {
+  const startsAt = new Date(scheduledStart);
+  const endsAt = new Date(scheduledEnd);
+
+  if (Number.isNaN(startsAt.getTime()) || Number.isNaN(endsAt.getTime())) {
+    throw new Error("Service window dates are invalid.");
+  }
+
+  if (endsAt <= startsAt) {
+    throw new Error("Scheduled end must be after scheduled start.");
+  }
+
+  if (!Number.isFinite(plannedDurationMin) || plannedDurationMin <= 0) {
+    throw new Error("Planned duration must be greater than zero.");
+  }
+
+  const windowMinutes = Math.round((endsAt.getTime() - startsAt.getTime()) / 60000);
+
+  if (plannedDurationMin > windowMinutes) {
+    throw new Error("Planned duration cannot exceed the scheduled window.");
+  }
+
+  return { endsAt, startsAt };
+}
+
 export async function createCenterServiceOrder(formData: FormData) {
   const session = await requireOrganizationUser(CENTER_ROLES);
   const centerId = session.organizationId;
@@ -77,16 +103,25 @@ export async function createCenterServiceOrder(formData: FormData) {
   const plannedDurationMin = Number(
     requiredString(formData.get("plannedDurationMin"), "plannedDurationMin")
   );
+  const serviceWindow = parseServiceWindow(scheduledStart, scheduledEnd, plannedDurationMin);
   const priority = parsePriority(requiredString(formData.get("priority"), "priority"));
   const requiredSkills = parseRequiredSkills(formData);
 
-  const [provider, facility, serviceType] = await Promise.all([
-    prisma.organization.findFirst({
+  const [providerClient, facility, serviceType] = await Promise.all([
+    prisma.providerClient.findFirst({
       where: {
-        id: providerId,
-        kind: "PROVIDER"
+        centerId,
+        providerId,
+        status: "active"
       },
-      select: { id: true }
+      include: {
+        provider: {
+          select: {
+            displayName: true,
+            id: true
+          }
+        }
+      }
     }),
     prisma.facility.findFirst({
       where: {
@@ -104,8 +139,8 @@ export async function createCenterServiceOrder(formData: FormData) {
     })
   ]);
 
-  if (!provider) {
-    throw new Error("Provider not found.");
+  if (!providerClient) {
+    throw new Error("Provider is not linked to this center.");
   }
 
   if (!facility) {
@@ -134,18 +169,18 @@ export async function createCenterServiceOrder(formData: FormData) {
       requiredSkills,
       requiredLanguage: optionalString(formData.get("requiredLanguage")),
       plannedDurationMin,
-      startsOn: new Date(scheduledStart),
-      endsOn: new Date(scheduledEnd),
+      startsOn: serviceWindow.startsAt,
+      endsOn: serviceWindow.endsAt,
       recurrenceRule
     }
   });
 
-  await prisma.visit.create({
+  const visit = await prisma.visit.create({
     data: {
       serviceOrderId: order.id,
       status: PrismaVisitStatus.SCHEDULED,
-      scheduledStart: new Date(scheduledStart),
-      scheduledEnd: new Date(scheduledEnd),
+      scheduledStart: serviceWindow.startsAt,
+      scheduledEnd: serviceWindow.endsAt,
       exceptionReason: "Center request submitted and waiting for provider coverage."
     }
   });
@@ -155,11 +190,14 @@ export async function createCenterServiceOrder(formData: FormData) {
     actorUserId: session.userId,
     serviceOrderId: order.id,
     type: AuditEventType.ORDER_CREATED,
-    summary: `Center submitted service order ${code} to provider ${providerId}.`,
+    summary: `${session.fullName} submitted ${code} from center demand to ${providerClient.provider.displayName}.`,
     payload: {
+      centerId,
+      facilityId,
       orderCode: code,
       providerId,
-      recipientId
+      recipientId,
+      serviceTypeId
     }
   });
 
@@ -167,6 +205,7 @@ export async function createCenterServiceOrder(formData: FormData) {
     organizationId: centerId,
     actorUserId: session.userId,
     serviceOrderId: order.id,
+    visitId: visit.id,
     type: AuditEventType.VISIT_CREATED,
     summary: "Initial visit request created from center demand.",
     payload: {
@@ -181,4 +220,5 @@ export async function createCenterServiceOrder(formData: FormData) {
   revalidatePath("/centers/orders");
   revalidatePath("/providers");
   revalidatePath("/providers/orders");
+  redirect(`/centers/orders/${order.id}`);
 }

@@ -97,6 +97,7 @@ La unidad central es la **prestacion de servicio verificable**:
 - `docs/workflows.md`: flujo operativo end-to-end.
 - `docs/roadmap.md`: propuesta de roadmap por fases.
 - `docs/architecture.md`: base tecnica inicial.
+- `docs/backend-boundary-plan.md`: plan SER-34 para preparar backend boundary dentro del monolito.
 - `docs/domain-model.md`: modelo de dominio inicial.
 - `docs/user-manual.md`: manual de usuario basado en la semilla demo actual.
 - `docs/current-demo-state-and-qa.md`: mapa actual de la demo local y pruebas manuales recomendadas.
@@ -142,10 +143,12 @@ Ese enfoque tiene mejor coherencia, menor dispersion y una narrativa comercial m
 
 La semilla soporta dos perfiles:
 
-- `npm run db:seed` o `npm run db:seed:colombia`: demo local por defecto con nombres familiares y sedes en Bello, Antioquia.
+- `npm run db:seed` o `npm run db:seed:colombia`: demo local por defecto con escenario limpio en Bello, Antioquia.
 - `npm run db:seed:australia`: demo original de Australia, alineada con la narrativa usada en produccion/VPS.
 
-Ambas semillas mantienen la misma estructura operativa: 1 prestadora, 3 centros, 3 recipients, 7 carers, 3 ordenes, 7 visitas, closing periods, settlements, export jobs y audit events.
+Colombia es el escenario canonico zero-start: 1 prestadora, 1 centro, 1 sede, 1 recipient, 3 carers y cero ordenes, visitas, closing periods, export jobs o audit events.
+
+Australia conserva la demo precargada original: 1 prestadora, 3 centros, 3 recipients, 7 carers, 3 ordenes, 7 visitas, closing periods, settlements, export jobs y audit events.
 
 ## Demo Access
 
@@ -166,6 +169,7 @@ Ambas semillas mantienen la misma estructura operativa: 1 prestadora, 3 centros,
 - Dokploy compose file: `docker-compose.prod.yml`
 - Container build: `Dockerfile`
 - Internal sync runner endpoint: `POST /api/internal/export-jobs/run`
+- SER-34 keeps deployment as one Next.js app plus PostgreSQL while internal backend boundaries are prepared.
 
 ## Estado actual
 

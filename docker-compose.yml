@@ -8,7 +8,7 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
     ports:
-      - "54329:5432"
+      - "55432:5432"
     volumes:
       - serenity-postgres-data:/var/lib/postgresql/data
 

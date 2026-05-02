@@ -40,30 +40,38 @@ export default async function CenterOrdersPage() {
             <span>Status</span>
           </div>
 
-          {orders.map((order) => (
-            <Link className="orders-table-row" href={`/centers/orders/${order.id}`} key={order.id}>
-              <div>
-                <strong>{order.code}</strong>
-                <p>{order.title}</p>
-              </div>
-              <div>
-                <strong>{order.serviceType}</strong>
-                <p>{order.frequency}</p>
-              </div>
-              <div>
-                <strong>{order.recipientName}</strong>
-                <p>{order.facilityName}</p>
-              </div>
-              <div>
-                <span className={`risk-pill risk-${order.coverageRisk}`}>
-                  {order.coverageRisk}
-                </span>
-              </div>
-              <div>
-                <StatusBadge value={order.status} />
-              </div>
-            </Link>
-          ))}
+          {orders.length > 0 ? (
+            orders.map((order) => (
+              <Link className="orders-table-row" href={`/centers/orders/${order.id}`} key={order.id}>
+                <div>
+                  <strong>{order.code}</strong>
+                  <p>{order.title}</p>
+                </div>
+                <div>
+                  <strong>{order.serviceType}</strong>
+                  <p>{order.frequency}</p>
+                </div>
+                <div>
+                  <strong>{order.recipientName}</strong>
+                  <p>{order.facilityName}</p>
+                </div>
+                <div>
+                  <span className={`risk-pill risk-${order.coverageRisk}`}>
+                    {order.coverageRisk}
+                  </span>
+                </div>
+                <div>
+                  <StatusBadge value={order.status} />
+                </div>
+              </Link>
+            ))
+          ) : (
+            <div className="empty-state-card">
+              <span className="metric-icon metric-icon-visits" aria-hidden="true" />
+              <strong>No service requests yet</strong>
+              <p>Rosalba is configured for Niquia, but no center request has been submitted.</p>
+            </div>
+          )}
         </div>
       </section>
     </CenterShell>

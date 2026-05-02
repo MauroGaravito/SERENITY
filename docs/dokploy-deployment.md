@@ -10,6 +10,8 @@ Serenity is currently deployed as:
 There is no separate backend service yet.
 The UI, server actions and Prisma access all live in the same process.
 
+SER-34 keeps this deployment shape. Backend/frontend separation is being prepared inside the monolith through domain boundaries, not by adding a second service yet. See [backend-boundary-plan.md](./backend-boundary-plan.md).
+
 ## Recommended deploy mode in Dokploy
 
 Use Dokploy in `Compose` mode with:
@@ -107,6 +109,19 @@ If you keep the old split:
 - `/api/*` will go to a backend service that does not exist in this repo
 - Next.js routes and server actions will be routed incorrectly
 - auth and page rendering will fail unpredictably
+
+## Future backend split path
+
+Do not add a Dokploy backend app until Serenity has stable internal service boundaries.
+
+The expected sequence is:
+
+1. Keep one Next.js container and one PostgreSQL container.
+2. Move business logic from server actions into internal domain services.
+3. Add `/api/*` route adapters that call the same services.
+4. Only then consider a separate backend container if mobile clients, background jobs, external integrations or independent deploy velocity require it.
+
+Until then, Caddy should continue routing all traffic to the single Next.js app container.
 
 ## Build source
 

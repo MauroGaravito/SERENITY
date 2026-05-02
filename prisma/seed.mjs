@@ -62,11 +62,7 @@ const seedProfiles = {
     carers: [
       { name: "Alvaro Ramirez", email: "alvaro@serenity.local" },
       { name: "Gabriel Ramirez", email: "gabriel@serenity.local" },
-      { name: "Gloria Palacio", email: "gloria@serenity.local" },
-      { name: "Rocio Agudelo", email: "rocio@serenity.local" },
-      { name: "Mariana", email: "mariana@serenity.local" },
-      { name: "Melissa", email: "melissa@serenity.local" },
-      { name: "Santiago", email: "santiago@serenity.local" }
+      { name: "Gloria Palacio", email: "gloria@serenity.local" }
     ],
     recipients: [{ firstName: "Rosalba", lastName: "" }],
     auditSummaries: {
@@ -332,69 +328,70 @@ async function main() {
     });
   }
 
-  const sofia = await createCarer({
-    name: seedProfile.carers[0].name,
-    email: seedProfile.carers[0].email,
-    phone: "+61 400 111 111",
-    language: "English",
-    taxId: "51884400111",
-    availability: "Available Thu-Fri mornings",
-    rating: 4.9
-  });
-  const liam = await createCarer({
-    name: seedProfile.carers[1].name,
-    email: seedProfile.carers[1].email,
-    phone: "+61 400 111 112",
-    language: "English",
-    taxId: "51884400112",
-    availability: "Available Mon-Fri mornings",
-    rating: 4.7
-  });
-  const anika = await createCarer({
-    name: seedProfile.carers[2].name,
-    email: seedProfile.carers[2].email,
-    phone: "+61 400 111 113",
-    language: "English",
-    taxId: "51884400113",
-    availability: "Available Thu mornings",
-    rating: 4.8
-  });
-  const emily = await createCarer({
-    name: seedProfile.carers[3].name,
-    email: seedProfile.carers[3].email,
-    phone: "+61 400 111 114",
-    language: "English",
-    taxId: "51884400114",
-    availability: "Available Tue-Wed day shifts",
-    rating: 4.8
-  });
-  const noah = await createCarer({
-    name: seedProfile.carers[4].name,
-    email: seedProfile.carers[4].email,
-    phone: "+61 400 111 115",
-    language: "English",
-    taxId: "51884400115",
-    availability: "Available Tue day shifts",
-    rating: 4.6
-  });
-  const grace = await createCarer({
-    name: seedProfile.carers[5].name,
-    email: seedProfile.carers[5].email,
-    phone: "+61 400 111 116",
-    language: "English",
-    taxId: "51884400116",
-    availability: "Available Sat overnight",
-    rating: 4.9
-  });
-  const daniel = await createCarer({
-    name: seedProfile.carers[6].name,
-    email: seedProfile.carers[6].email,
-    phone: "+61 400 111 117",
-    language: "English",
-    taxId: "51884400117",
-    availability: "Available Sat-Sun overnight",
-    rating: 4.5
-  });
+  const carerDefaults = [
+    {
+      phone: "+61 400 111 111",
+      language: "English",
+      taxId: "51884400111",
+      availability: "Available Thu-Fri mornings",
+      rating: 4.9
+    },
+    {
+      phone: "+61 400 111 112",
+      language: "English",
+      taxId: "51884400112",
+      availability: "Available Mon-Fri mornings",
+      rating: 4.7
+    },
+    {
+      phone: "+61 400 111 113",
+      language: "English",
+      taxId: "51884400113",
+      availability: "Available Thu mornings",
+      rating: 4.8
+    },
+    {
+      phone: "+61 400 111 114",
+      language: "English",
+      taxId: "51884400114",
+      availability: "Available Tue-Wed day shifts",
+      rating: 4.8
+    },
+    {
+      phone: "+61 400 111 115",
+      language: "English",
+      taxId: "51884400115",
+      availability: "Available Tue day shifts",
+      rating: 4.6
+    },
+    {
+      phone: "+61 400 111 116",
+      language: "English",
+      taxId: "51884400116",
+      availability: "Available Sat overnight",
+      rating: 4.9
+    },
+    {
+      phone: "+61 400 111 117",
+      language: "English",
+      taxId: "51884400117",
+      availability: "Available Sat-Sun overnight",
+      rating: 4.5
+    }
+  ];
+
+  const seededCarers = [];
+  for (const [index, carer] of seedProfile.carers.entries()) {
+    seededCarers.push(
+      await createCarer({
+        name: carer.name,
+        email: carer.email,
+        ...carerDefaults[index]
+      })
+    );
+  }
+
+  const [sofia, liam, anika, emily, noah, grace, daniel] = seededCarers;
 
   async function addCredential(carerId, name, expiresAt, options = {}) {
     await prisma.credential.create({
@@ -414,11 +411,11 @@ async function main() {
     [sofia.id, ["Domestic cleaning", "Meal preparation", "Manual handling", "Personal hygiene support"]],
     [liam.id, ["Personal hygiene support", "Manual handling", "Medication prompt", "Meal preparation"]],
     [anika.id, ["Personal hygiene support", "Manual handling", "Medication prompt", "Social engagement"]],
-    [emily.id, ["Transport escort", "Community participation", "Social engagement"]],
-    [noah.id, ["Transport escort", "Community participation", "Domestic cleaning"]],
-    [grace.id, ["Social engagement", "Medication prompt", "Meal preparation", "Manual handling"]],
-    [daniel.id, ["Social engagement", "Medication prompt", "Community participation"]]
-  ];
+    [emily?.id, ["Transport escort", "Community participation", "Social engagement"]],
+    [noah?.id, ["Transport escort", "Community participation", "Domestic cleaning"]],
+    [grace?.id, ["Social engagement", "Medication prompt", "Meal preparation", "Manual handling"]],
+    [daniel?.id, ["Social engagement", "Medication prompt", "Community participation"]]
+  ].filter(([carerId]) => carerId);
 
   for (const [carerId, credentials] of credentialMap) {
     for (const name of credentials) {
@@ -438,7 +435,7 @@ async function main() {
     documentUrl: `manual://credentials/${seedProfile.credentialSlug}-police-check.pdf`
   });
 
-  for (const [index, carer] of [sofia, anika, emily, noah, grace, daniel].entries()) {
+  for (const [index, carer] of [sofia, anika, emily, noah, grace, daniel].filter(Boolean).entries()) {
     await prisma.availabilityBlock.create({
       data: {
         carerId: carer.id,
@@ -450,6 +447,11 @@ async function main() {
   }
 
   for (const block of [
+    {
+      startsAt: "2026-04-05T21:00:00.000Z",
+      endsAt: "2026-04-05T23:00:00.000Z",
+      isWorking: true
+    },
     {
       startsAt: "2026-04-13T20:30:00.000Z",
       endsAt: "2026-04-13T23:30:00.000Z",

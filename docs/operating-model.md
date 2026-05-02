@@ -118,6 +118,8 @@ Can:
 - monitor requests for their center,
 - view coverage, incidents and approved outcomes in their scope,
 - maintain center-side notes where allowed.
+- create or maintain patients in their center when product policy enables it.
+- request new sites or create site drafts when product policy enables approval workflow.
 
 Cannot:
 
@@ -126,6 +128,8 @@ Cannot:
 - approve provider review,
 - operate provider closing/export,
 - inspect audit events outside their center scope.
+- edit provider legal/contract configuration.
+- directly change covered or in-progress visits; those changes must become change requests or coordination notes.
 
 ### Carer
 
@@ -178,6 +182,38 @@ Cannot:
 | Export job | Provider operations | Coordinator | Coordinator/system | Admin, Coordinator, Reviewer | External target acknowledgement |
 | Audit event | System | System | Immutable | Role-scoped readers | N/A |
 
+## SER-33 Center Manager Workflow Decision
+
+Center managers are not passive viewers. In the MVP they can both create demand and monitor outcomes, but only inside their center scope.
+
+MVP decision:
+
+- Center managers can create service requests from configured center, site and patient data.
+- Center managers monitor request status, coverage status, incidents, evidence summaries, review outcomes and scoped audit events for their own orders.
+- Center managers can maintain center-side notes/contact context where enabled.
+- Center managers can create or edit patient context within their center when policy enables it.
+- New sites should be admin-owned in the MVP. A center may request a new site or create a draft later, but provider/admin approval is deferred.
+- Request edits are direct only while a request is still early and no provider execution has started. After provider coverage is confirmed or a visit has started, center changes should become change requests or notes for coordinator handling.
+- Cancellation is allowed before execution with a required reason. Once a visit is in progress or completed, the center cannot cancel directly and must request a change.
+
+Center managers cannot:
+
+- see provider-wide carer pool internals,
+- see carer credentials, availability blocks, ratings or restriction reasons beyond the assigned visit context,
+- assign or replace carers,
+- approve or reject care records,
+- access provider closing or external export,
+- see audit events beyond their center/order scope,
+- edit provider legal, contract or billing setup.
+
+Recommended center dashboard structure:
+
+- Center identity and provider relationship.
+- Sites.
+- Patients.
+- Service requests and outcomes.
+- Clear empty states for zero-start: configured center, configured first site, configured first patient, no submitted requests yet, CTA to create first request.
+
 ## End-To-End Happy Path
 
 1. Admin creates Serenity provider setup.
@@ -219,7 +255,42 @@ For the current MVP:
 - Center Manager scope is limited to their center.
 - Carer scope is limited to their profile and assigned visits.
 - `EMPLOYEE` and `INDEPENDENT` are the only modeled carer relationship types.
-- `permanent` and `casual` remain deferred until SER-32 decides whether they are needed.
+- `permanent` and `casual` are deferred. They should become roster/contract policy attributes later, not primary carer relationship types in the MVP.
+
+## SER-32 Carer Relationship Decision
+
+Serenity models carers as part of the provider network. A center can request service and see the assigned carer in the context of its own visits, but the center does not own the carer relationship.
+
+MVP decision:
+
+- Keep `CarerKind.INDEPENDENT` and `CarerKind.EMPLOYEE`.
+- Do not add `permanent` or `casual` now.
+- Treat permanent/casual as future employment or roster policy fields if payroll, awards, leave, or shift entitlements require them.
+- Keep `Carer.providerId` as the operational ownership link to the provider.
+- Keep `Carer.ownerUserId` as the optional self-service identity link for the carer workspace.
+
+Data required by relationship type:
+
+| Relationship | Required MVP data | Deferred data |
+| --- | --- | --- |
+| `INDEPENDENT` | Provider link, owner user, name, contact, tax/business identifier when known, availability, credentials, skills derived from credentials, active status | Contract terms, insurance policy, payout method, rate card, document expiry automations |
+| `EMPLOYEE` | Provider link, owner user, name, contact, employee classification label, availability, credentials, active status | Payroll id, permanent/casual status, award/contract rules, leave balances, HR onboarding |
+
+Coordinator visibility:
+
+- Can see the provider's active carers.
+- Can see contact information needed for coordination.
+- Can see availability, assigned visits, readiness, credential status, required skill match and restriction reasons.
+- Should not edit the whole personal/admin profile during daily coverage.
+- Should not see carers from another provider.
+
+Admin ownership versus carer self-maintenance:
+
+- Admin owns creation, provider link, relationship type, active status, and governance of credentials.
+- Admin can correct setup gaps and credential status.
+- Carer can maintain availability, practical contact details where enabled, credential evidence, and visit execution records.
+- Reviewer reads care records and credential context but does not own carer setup.
+- Center Manager only sees carer identity and care record context for visits in its own center.
 
 ## UX Implications
 

@@ -50,7 +50,9 @@ export async function listClosingAuditEvents(
   const events = await prisma.auditEvent.findMany({
     where: {
       organizationId,
-      type: "ORDER_UPDATED"
+      type: {
+        in: ["ORDER_UPDATED", "VISIT_REVIEWED"]
+      }
     },
     include: auditInclude,
     orderBy: { createdAt: "desc" },
@@ -60,7 +62,7 @@ export async function listClosingAuditEvents(
   return events
     .filter((event) => {
       const payload = event.payload as Record<string, unknown> | null;
-      return payload?.periodId === periodId;
+      return payload?.periodId === periodId || payload?.closingPeriodId === periodId;
     })
     .map((event) => ({
       id: event.id,

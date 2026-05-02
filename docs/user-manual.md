@@ -53,13 +53,10 @@ Comandos:
   - `Alvaro Ramirez`
   - `Gabriel Ramirez`
   - `Gloria Palacio`
-  - `Rocio Agudelo`
-  - `Mariana`
-  - `Melissa`
-  - `Santiago`
 - Ordenes iniciales: ninguna.
 - Visitas iniciales: ninguna.
 - Closing/export/audit inicial: vacio.
+- Gabriel tiene disponibilidad para cubrir la primera solicitud Niquia/Rosalba cuando Laura cree `SR-2401`.
 
 ### Perfil Australia
 
@@ -167,19 +164,20 @@ El perfil Colombia no trae ordenes iniciales. Las siguientes ordenes pertenecen 
 - Crear pacientes dentro de una sede.
 - Crear carers vinculados a Serenity.
 - Diferenciar carers `Independent` y `Employee`.
+- Gobernar estado activo, relacion con la prestadora y credenciales del carer.
 - Ver contacto, disponibilidad, credenciales y bloques de disponibilidad del care team.
 - Revisar el catalogo de servicios y el checklist esperado por tipo de servicio.
 
 ### Que no resuelve todavia
 
-- No diferencia carers permanentes vs casuals.
+- No diferencia carers permanentes vs casuals; eso queda como politica futura de contrato/roster.
 - No edita tarifas ni contratos.
 - No tiene constructor visual completo de workflows; por ahora muestra el catalogo sembrado.
 
 ### Recorrido recomendado Colombia
 
 1. Entrar con `admin@serenity.local`.
-2. Revisar `/admin`: debe mostrar Niquia, Rosalba y 7 carers.
+2. Revisar `/admin`: debe mostrar Niquia, Rosalba y 3 carers.
 3. Abrir `/admin/clients`: confirmar `Centro de Cuidado Niquia`, `Sede Niquia`, Laura como contacto y Rosalba como patient.
 4. Abrir `/admin/care-team`: confirmar que los carers pertenecen a Serenity y tienen datos de contacto.
 5. Abrir `/admin/workflows`: revisar los tipos de servicio disponibles antes de que Mauricio cree la primera solicitud.
@@ -230,12 +228,32 @@ El perfil Colombia no trae ordenes iniciales. Las siguientes ordenes pertenecen 
 
 Colombia arranca sin ordenes para validar el flujo desde cero.
 
-1. Entrar a `/providers` con `mauricio@serenity.local`.
-2. Confirmar que el dashboard no muestra demanda activa.
-3. Ir a `/providers/orders`.
-4. Click en `New order`.
-5. Seleccionar `Centro de Cuidado Niquia`, `Sede Niquia` y `Rosalba`.
-6. Crear la primera solicitud y continuar a agenda, cobertura y asignacion.
+1. Entrar a `/centers` con `laura@serenity.local`.
+2. Confirmar que Laura ve Centro de Cuidado Niquia, Sede Niquia y Rosalba.
+3. Ir a `/centers/orders`.
+4. Crear la primera solicitud para Rosalba usando los datos configurados.
+5. Confirmar que Laura aterriza en el detalle de la orden creada.
+6. Entrar a `/providers` con `mauricio@serenity.local`.
+7. Confirmar que la solicitud aparece como demanda entrante en `/providers/orders`.
+8. Continuar a agenda, cobertura y asignacion desde provider operations.
+
+Despues de SER-30, el punto de partida esperado para continuar la demo es:
+
+- Orden: `SR-2401`
+- Centro: `Centro de Cuidado Niquia`
+- Sede: `Sede Niquia`
+- Recipient: `Rosalba`
+- Estado inicial provider: solicitud abierta con una visita `scheduled` sin carer asignado.
+- Siguiente usuario: `mauricio@serenity.local`, para coordinar cobertura.
+
+Despues de SER-31, el flujo esperado queda asi:
+
+1. Mauricio asigna Gabriel a la visita inicial.
+2. Gabriel pasa la visita por `in_progress` y `completed`.
+3. Gabriel completa checklist, agrega evidencia y puede registrar una incidencia.
+4. Gabriel envia la visita a `under_review`.
+5. Diana aprueba el care record.
+6. La visita queda `approved` y aparece en closing dentro de un periodo `open`.
 
 ### Recorrido recomendado en Australia
 
@@ -323,6 +341,8 @@ En `/providers/closing` puedes:
 - registrar gastos basicos
 - marcar un periodo como `locked`
 
+En Colombia zero-start, `/providers/closing` empieza vacio. Aparece un periodo `open` solo despues de que Diana aprueba una visita real.
+
 En `/providers/export` puedes:
 
 - encolar un `sync job` hacia un target externo mock, manual o `xero_custom_connection`
@@ -335,18 +355,22 @@ En `/providers/export` puedes:
 - descargar el export package en `json`
 - descargar el export package en `csv`
 
+En Colombia zero-start, `/providers/export` no muestra paquete si no existe un periodo `locked`. Si solo existe un periodo `open`, el siguiente paso sigue siendo closing.
+
 En `/providers/audit` puedes:
 
 - ver eventos criticos recientes
 - confirmar quien cambio una orden, visita, cierre o exportacion
 - explicar la historia operativa sin mezclarla con el trabajo diario
 
+En Colombia zero-start, `/providers/audit` empieza vacio y se vuelve util cuando review, settlement, lock/export o sync jobs registran eventos del periodo.
+
 ## Perfil: Provider reviewer
 
 ### Usuario demo
 
-- Nombre sembrado: `Diana Cole`
-- Email: `review@serenity.local`
+- Colombia: `Diana Chaverra` / `diana@serenity.local`
+- Australia: `Diana Cole` / `review@serenity.local`
 - Ruta principal: `/providers`
 
 ### Que puede hacer hoy
@@ -356,7 +380,15 @@ En `/providers/audit` puedes:
 - Aprobar o rechazar visitas.
 - Consultar el `audit trail` por orden.
 
-### Recorrido recomendado en la semilla
+### Recorrido recomendado en Colombia zero-start
+
+1. Laura crea `SR-2401` desde `/centers/orders`.
+2. Mauricio asigna una visita a Gabriel desde `/providers/orders`.
+3. Gabriel ejecuta, completa checklist, agrega evidencia y envia a `under_review`.
+4. Diana entra a `/providers/orders`, abre la orden real y aprueba o rechaza la visita.
+5. Si aprueba, Serenity crea un closing period `open` para esa visita.
+
+### Recorrido recomendado en Australia seeded demo
 
 #### Ejemplo principal: visita en revision
 
@@ -493,6 +525,8 @@ La implementacion actual sigue siendo una capa de handoff:
 - Abrir el detalle de una orden.
 - Ver cobertura, incidencias, evidencia y review desde el limite del centro.
 - Ver la auditoria de la orden.
+- Ver el carer asignado solo cuando pertenece a una visita de su centro.
+- Mantener contexto de pacientes cuando la politica del producto lo habilite.
 
 ### Que no puede hacer hoy
 
@@ -500,6 +534,19 @@ La implementacion actual sigue siendo una capa de handoff:
 - No puede mover estados de visita.
 - No puede aprobar o rechazar visitas.
 - No puede editar operacion fina de la prestadora.
+- No puede ver credenciales completas, disponibilidad global, rating interno ni razones internas de restriccion del pool de carers.
+- No puede operar closing/export provider.
+- No puede ver audit fuera de su centro.
+- No puede crear sedes directamente en el MVP; puede solicitar una nueva sede en una extension futura.
+
+### Ownership definido para SER-33
+
+- El centro es dueño del contexto de demanda: paciente, sede, necesidad, restricciones y notas de servicio.
+- Admin/provider governance mantiene datos legales, vinculo con la prestadora y setup estructural.
+- Provider coordinator mantiene cobertura, asignacion, reemplazos y cambios operativos de visita.
+- Center manager puede editar una solicitud solo mientras este en etapa temprana y sin cobertura/ejecucion iniciada.
+- Cuando ya existe cobertura confirmada, los cambios del centro deben entrar como solicitud de cambio o nota para coordinacion.
+- La aprobacion del care record pertenece a Diana como provider reviewer.
 
 ### Ejemplo Colombia
 
@@ -573,8 +620,8 @@ En `/centers/orders` puedes crear una solicitud nueva con:
 
 ### Usuario demo
 
-- Nombre sembrado: `Liam Ortega`
-- Email: `liam@serenity.local`
+- Colombia: `Gabriel Ramirez` / `gabriel@serenity.local`
+- Australia: `Liam Ortega` / `liam@serenity.local`
 - Ruta principal: `/carers`
 
 ### Estado actual del producto
@@ -614,13 +661,11 @@ Hoy `/carers` ya funciona como workspace ejecutable para el carer.
 
 ### Recorrido recomendado en la semilla
 
-Usa `liam@serenity.local`.
+Usa `gabriel@serenity.local` en Colombia o `liam@serenity.local` en Australia.
 
 - Entra a `/carers`.
-- Veras:
-  - una visita ya `approved`
-  - una visita `confirmed` lista para iniciar
-  - una visita futura sin asignar que no aparece en la agenda del carer
+- En Colombia zero-start no veras visitas asignadas hasta que Laura cree `SR-2401` y Mauricio asigne Gabriel.
+- En Australia veras visitas ya sembradas para Liam.
 - En la visita `confirmed` puedes recorrer:
   - `Start visit`
   - completar checklist
@@ -635,6 +680,13 @@ Reglas actuales del carer:
 - `Submit for review` requiere al menos una evidencia capturada.
 - El bloque de readiness de ejecucion explica que falta antes de enviar la visita.
 
+Relacion con Serenity:
+
+- El carer pertenece operativamente a la prestadora, no al centro.
+- En el MVP puede ser `Independent` o `Employee`.
+- `Permanent` y `casual` no se modelan todavia; entrarian despues como politica contractual o de roster.
+- El centro solo ve la identidad del carer cuando esta asignado a una visita dentro de su scope.
+
 Readiness del perfil:
 
 - `ready`: tiene skills verificadas y disponibilidad declarada.
@@ -647,7 +699,19 @@ Provider ve razones compatibles en el coverage pool, de modo que el cuidador y e
 
 ### Datos sembrados relevantes
 
-La semilla actual ya deja visible tanto ejecucion como perfil operativo del carer:
+La semilla Colombia deja a Gabriel listo para validar el primer flujo Niquia/Rosalba:
+
+- `Gabriel Ramirez`
+  - rating `4.7`
+  - disponibilidad `Available Mon-Fri mornings`
+  - disponibilidad especifica para la primera ventana de `SR-2401`
+  - skills validas `Personal hygiene support`, `Manual handling`, `Medication prompt`, `Meal preparation`
+  - credencial valida adicional `NDIS Worker Screening`
+  - credencial `pending` `First Aid Certificate`
+  - credencial `expired` `Police Check`
+  - readiness restringida por credencial expirada, pero elegible para `SR-2401` porque las skills requeridas estan vigentes
+
+La semilla Australia deja visible tanto ejecucion como perfil operativo del carer:
 
 - `Liam Ortega`
   - rating `4.7`

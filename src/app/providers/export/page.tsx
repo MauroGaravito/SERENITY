@@ -43,13 +43,15 @@ export default async function ProviderExportPage({
   const { period } = await searchParams;
   const exportablePeriods = workspace.periods.filter((item) => item.status !== "open");
   const selectedPeriod =
-    exportablePeriods.find((item) => item.id === period) ?? exportablePeriods[0] ?? workspace.periods[0];
+    exportablePeriods.find((item) => item.id === period) ?? exportablePeriods[0];
   const jobs = selectedPeriod?.exportJobs ?? [];
   const failedJobs = jobs.filter((job) => job.status === "failed").length;
   const sentJobs = jobs.filter((job) => job.status === "sent").length;
   const queuedJobs = jobs.filter((job) => job.status === "queued").length;
   const completeJobs = jobs.filter((job) => job.status === "acknowledged").length;
-  const exportBlocked = selectedPeriod?.status === "open";
+  const exportBlocked = !selectedPeriod;
+  const hasPeriods = workspace.periods.length > 0;
+  const hasOpenPeriods = workspace.periods.some((item) => item.status === "open");
 
   return (
     <ProviderShell
@@ -62,7 +64,9 @@ export default async function ProviderExportPage({
           <div>
             <p className="card-tag">Delivery focus</p>
             <h2>
-              {exportBlocked
+              {!hasPeriods
+                ? "No export packages yet"
+                : exportBlocked
                 ? "Lock a closing period first"
                 : failedJobs > 0
                   ? "Resolve failed delivery"
@@ -71,8 +75,10 @@ export default async function ProviderExportPage({
                     : "Prepare package delivery"}
             </h2>
             <p>
-              {exportBlocked
-                ? "External delivery starts only after the operational period is locked."
+              {!hasPeriods
+                ? "External delivery starts after visits are approved, closed and locked."
+                : exportBlocked
+                ? "A closing period exists, but it is still open. Settle approved visits and lock the period before export."
                 : `${selectedPeriod?.label} has ${jobs.length} delivery job${
                     jobs.length === 1 ? "" : "s"
                   }: ${queuedJobs} queued, ${sentJobs} sent, ${failedJobs} failed, ${completeJobs} acknowledged.`}
@@ -81,8 +87,8 @@ export default async function ProviderExportPage({
           <div className="workflow-focus-actions">
             {selectedPeriod ? <StatusBadge value={selectedPeriod.status} /> : null}
             {exportBlocked ? (
-              <Link className="primary-link" href="/providers/closing">
-                Go to closing
+              <Link className="primary-link" href={hasOpenPeriods ? "/providers/closing" : "/providers/orders"}>
+                {hasOpenPeriods ? "Go to closing" : "Start from requests"}
               </Link>
             ) : selectedPeriod ? (
               <ClosingPeriodStatusForm period={selectedPeriod} />
@@ -134,7 +140,7 @@ export default async function ProviderExportPage({
               ) : null}
             </div>
             <div className="workflow-period-switcher">
-              {workspace.periods.map((item) => (
+              {exportablePeriods.map((item) => (
                 <Link
                   className={`period-chip ${selectedPeriod?.id === item.id ? "is-active" : ""}`}
                   href={`/providers/export?period=${item.id}`}
@@ -189,7 +195,16 @@ export default async function ProviderExportPage({
                 )}
               </div>
             </>
-          ) : null}
+          ) : (
+            <div className="empty-state-card">
+              <span className="metric-icon metric-icon-readiness" aria-hidden="true" />
+              <strong>No export packages yet</strong>
+              <p>
+                Export packages appear only after a real approved visit is settled and the
+                closing period is locked.
+              </p>
+            </div>
+          )}
         </section>
 
         {selectedPeriod ? (

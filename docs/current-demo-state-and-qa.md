@@ -2,9 +2,11 @@
 
 ## Version
 
-Version actual: `2.0.0`
+Version actual: `2.1.0`
 
 La version 2 marca la direccion definida del producto: Serenity opera con setup administrativo primero, coordinator operations despues, care record ejecutado por carer, review humano, closing/export y audit como trazabilidad posterior.
+
+La version `2.1.0` fija el reset Colombia como escenario canonico: zero-start limpio, portal center para Laura, primera solicitud desde el centro, flujo Niquia/Rosalba end-to-end, carer relationship model, center data ownership, backend boundary plan, QA visual y review/closing/export/audit alineados al flujo real.
 
 ## Alcance
 
@@ -36,7 +38,7 @@ La demo local esta configurada con:
 - 1 admin provider.
 - 2 usuarios provider.
 - 1 center manager.
-- 7 carers independientes.
+- 3 carers independientes.
 - 0 ordenes de servicio.
 - 0 visitas.
 - 0 closing periods.
@@ -78,6 +80,169 @@ Riesgo abierto:
 - La referencia visual preferida usa una navegacion mas limpia, tarjetas con iconografia, graficas simples y menos cajas anidadas. Ese criterio debe alimentar `SER-35` y la decision de arquitectura frontend.
 - Separar frontend/backend puede ayudar a trabajar la UI con mas libertad, pero la mejora visual debe tratarse como un rediseño de frontend y design system, no como una consecuencia automatica del split.
 
+## SER-30A center manager portal status
+
+SER-30A aclara que Laura no administra carers ni datos maestros provider. Laura representa al Centro de Cuidado Niquia y debe iniciar demanda desde contexto de centro.
+
+Estado:
+
+- `/centers` funciona como portal del centro, no solo como dashboard de metricas.
+- Laura ve identidad del centro, manager, relacion con Serenity, sedes, pacientes y solicitudes.
+- Sede Niquia y Rosalba son visibles antes de que exista una orden.
+- El estado vacio explica que Laura puede crear la primera solicitud desde `/centers/orders`.
+- El limite de rol queda visible: Laura define demanda y monitorea; Mauricio coordina cobertura; Diana revisa; carers ejecutan.
+
+Implicacion para SER-30:
+
+- La primera solicitud debe nacer desde el portal del centro con Laura.
+- Mauricio debe verla luego como demanda entrante en provider operations.
+
+## SER-30 first request status
+
+SER-30 valida el primer paso operativo posterior al zero-start.
+
+Estado:
+
+- Laura puede crear la primera solicitud desde `/centers/orders`.
+- El formulario usa datos configurados: Serenity Homecare Antioquia, Sede Niquia, Rosalba, service types y skills.
+- La accion server-side valida provider vinculado al centro, facility/recipient del centro, service type, skills, ventana y duracion.
+- La solicitud creada redirige al detalle center.
+- Mauricio ve la solicitud en `/providers/orders` para continuar agenda y cobertura.
+- Audit registra la orden creada y la visita inicial.
+
+Resultado validado:
+
+- `SR-2401` / `Morning personal care support` para Rosalba.
+- 1 visita inicial `scheduled`.
+- 2 audit events iniciales.
+
+Handoff para la proxima sesion:
+
+- Para empezar SER-31 desde cero, ejecutar `npm run db:seed:colombia` y luego crear `SR-2401` con Laura desde `/centers/orders`.
+- Si la base local ya conserva la validacion de SER-30, usar la orden existente `SR-2401` como punto de partida.
+- El siguiente paso natural es que Mauricio abra `SR-2401` en `/providers/orders`, revise la visita `scheduled` y coordine cobertura con Alvaro, Gabriel o Gloria.
+- SER-31 debe validar el flujo Niquia / Rosalba end-to-end: coverage, assignment, carer execution, reviewer approval, center visibility, closing/export readiness y audit.
+
+## SER-31 Niquia / Rosalba end-to-end status
+
+SER-31 valida el primer flujo operacional completo despues de crear demanda desde el centro.
+
+Decision de producto:
+
+- Laura solicita desde el centro.
+- Mauricio coordina cobertura y asigna carer.
+- Gabriel ejecuta la visita asignada.
+- Diana aprueba o rechaza el care record.
+- Una visita aprobada debe aparecer en closing como trabajo operativo listo para settlement.
+
+Estado:
+
+- El seed Colombia sigue arrancando con 0 ordenes y 0 visitas.
+- Gabriel tiene disponibilidad sembrada para cubrir la primera ventana de `SR-2401`.
+- La aprobacion de una visita crea automaticamente un closing period `open` cuando no existe uno que cubra la fecha de la visita.
+- Esto mantiene el zero-start limpio y evita que el primer flujo aprobado quede invisible para closing.
+
+Resultado validado localmente:
+
+- `SR-2401` / `Morning personal care support`.
+- Rosalba, Sede Niquia, Centro de Cuidado Niquia.
+- Visita asignada a `Gabriel Ramirez`.
+- Estados recorridos: `scheduled` -> `confirmed` -> `in_progress` -> `completed` -> `under_review` -> `approved`.
+- Checklist de `Personal Care`: 3 items completos.
+- Evidencia: 1 item.
+- Incidente: 1 nota de observacion de severidad baja.
+- Review: 1 aprobacion por Diana.
+- Closing: 1 periodo `open` creado para contener la visita aprobada.
+
+Handoff para la proxima sesion:
+
+- Si se quiere retomar desde cero, ejecutar `npm run db:seed:colombia`, crear `SR-2401` con Laura y repetir SER-31 desde la UI.
+- Si se quiere retomar desde el estado ya validado, usar `SR-2401` aprobado y continuar en `/providers/closing`.
+- Siguiente work item recomendado: `SER-32 Define carer relationship model`.
+
+## SER-32 carer relationship model status
+
+SER-32 queda como decision de modelo sin migracion.
+
+Decision vigente:
+
+- `EMPLOYEE` y `INDEPENDENT` son suficientes para el MVP.
+- `permanent` y `casual` quedan diferidos como atributos futuros de politica contractual o roster.
+- El carer pertenece operativamente a la prestadora mediante `Carer.providerId`.
+- El centro no posee carers; solo ve el carer asignado y el care record dentro de visitas de su propio centro.
+- Admin crea y gobierna setup del carer.
+- Carer mantiene disponibilidad, evidencia de credenciales donde aplique y care records.
+- Coordinator ve readiness, disponibilidad, skills, idioma, carga activa y razones de restriccion solo para carers de su provider.
+
+Implicacion:
+
+- No se requiere cambio de schema para SER-32.
+- La documentacion rectoria ya refleja la decision.
+- El siguiente paso recomendado es `SER-33 Define center manager workflow and data ownership`.
+
+## SER-33 center manager workflow and data ownership status
+
+SER-33 define que el center manager no es solo un lector, pero tampoco opera la prestadora.
+
+Decision vigente:
+
+- Center manager puede crear solicitudes y monitorear resultados dentro de su centro.
+- Center manager puede ver centro, sedes, pacientes, solicitudes, cobertura, carer asignado, incidentes, evidencia resumida, review outcome y audit de sus propias ordenes.
+- Center manager puede mantener contexto de pacientes cuando la politica lo habilite.
+- Nuevas sedes quedan admin-owned en el MVP; mas adelante el centro puede solicitar o crear drafts sujetos a aprobacion.
+- Center manager puede editar detalles de solicitud solo en etapa temprana, antes de cobertura confirmada o ejecucion.
+- Despues de cobertura confirmada, cambios del centro deben entrar como request change o nota para coordinator.
+- Center manager puede cancelar antes de ejecucion con motivo obligatorio; despues de ejecucion debe solicitar cambio.
+- Center manager no ve pool interno de carers, credenciales completas, disponibilidad global, ratings internos, closing/export provider ni audit fuera de su scope.
+- Center manager no asigna carers ni aprueba/rechaza care records.
+
+Estado UI:
+
+- `/centers` ya se organiza por centro, sedes, pacientes y solicitudes.
+- El estado vacio Niquia muestra contexto configurado y CTA para crear solicitud.
+- Los textos del portal ya no dependen de nombres hardcoded de Laura/Rosalba/Niquia.
+- El audit de creacion usa el nombre de la sesion center manager.
+
+Implicacion:
+
+- No se requiere schema nuevo para SER-33.
+- Request changes, site drafts y patient self-maintenance quedan como extensiones futuras.
+- Siguiente paso recomendado: `SER-34 Prepare backend boundary inside current monolith`.
+
+## SER-34 backend boundary inside current monolith status
+
+SER-34 prepara arquitectura sin separar servicios todavia.
+
+Decision vigente:
+
+- Serenity sigue como una sola app Next.js con PostgreSQL.
+- No se agrega backend container en Dokploy por ahora.
+- La separacion futura se prepara con boundaries internos por dominio.
+- Server actions deben quedar como adapters: parsean `FormData`, resuelven sesion, llaman servicios internos y hacen `revalidate/redirect`.
+- Prisma debe quedar detras de service/data modules, no en componentes UI.
+- API routes futuras deben llamar los mismos services que las server actions.
+
+Boundaries definidos:
+
+- Auth.
+- Admin setup.
+- Provider operations.
+- Center portal.
+- Carer execution.
+- Review.
+- Closing/export.
+- Audit.
+
+Documentacion:
+
+- Plan detallado: [backend-boundary-plan.md](./backend-boundary-plan.md).
+- Arquitectura actualizada: [architecture.md](./architecture.md).
+- Deployment Dokploy actualizado: [dokploy-deployment.md](./dokploy-deployment.md).
+
+Siguiente implementacion tecnica recomendada:
+
+- Refactorizar primero provider operations, especialmente `assignCarerToVisit`, `updateVisitStatus` y `reviewVisit`, hacia un service layer interno sin cambiar la UI.
+
 ## SER-26 status para QA visual
 
 SER-26 queda como antecedente visual. El trabajo nuevo debe guiarse por SER-27 y por el flujo admin-first.
@@ -105,12 +270,18 @@ Prioridad de QA para el 2026-04-29:
 
 1. Entrar como `admin@serenity.local`.
 2. Validar `/admin`, `/admin/clients`, `/admin/care-team` y `/admin/workflows`.
-3. Entrar como `mauricio@serenity.local`.
-4. Confirmar que `/providers` explica claramente el estado inicial sin ordenes.
-5. Entrar a `/providers/orders` y crear la primera solicitud para Rosalba / Centro de Cuidado Niquia.
-6. Confirmar que la orden creada guia al coordinador hacia agenda, cobertura y asignacion.
-7. Probar el flujo de cobertura con los carers sembrados.
-8. Continuar hacia ejecucion, review, closing, external export y audit solo cuando existan datos creados por el flujo.
+3. Entrar como `laura@serenity.local`.
+4. Confirmar que `/centers` muestra Centro de Cuidado Niquia, Sede Niquia, Rosalba y el CTA para crear la primera solicitud.
+5. Entrar como `mauricio@serenity.local`.
+6. Confirmar que `/providers` explica claramente el estado inicial sin ordenes.
+7. Crear la primera solicitud para Rosalba desde `/centers/orders`.
+8. Confirmar que Laura aterriza en el detalle de la orden creada y ve audit inicial.
+9. Entrar como Mauricio y confirmar que la solicitud aparece en `/providers/orders`.
+10. Probar el flujo de cobertura con Gabriel para la visita inicial de Rosalba.
+11. Entrar como Gabriel, ejecutar checklist/evidencia/incidente y enviar a review.
+12. Entrar como Diana, aprobar o rechazar el care record.
+13. Confirmar que la visita aprobada aparece elegible en closing.
+14. Continuar hacia settlement, external export y audit solo cuando existan datos creados por el flujo.
 
 ## Organizaciones y responsables
 
@@ -145,12 +316,8 @@ Prioridad de QA para el 2026-04-29:
 | Cuidador | Email | Disponibilidad sembrada | Skills principales |
 | --- | --- | --- | --- |
 | Alvaro Ramirez | `alvaro@serenity.local` | Thu-Fri mornings | Domestic cleaning, meal preparation, manual handling, personal hygiene support |
-| Gabriel Ramirez | `gabriel@serenity.local` | Mon-Fri mornings | Personal hygiene support, manual handling, medication prompt, meal preparation |
+| Gabriel Ramirez | `gabriel@serenity.local` | Mon-Fri mornings, including first Niquia/Rosalba request window | Personal hygiene support, manual handling, medication prompt, meal preparation |
 | Gloria Palacio | `gloria@serenity.local` | Thu mornings | Personal hygiene support, manual handling, medication prompt, social engagement |
-| Rocio Agudelo | `rocio@serenity.local` | Tue-Wed day shifts | Transport escort, community participation, social engagement |
-| Mariana | `mariana@serenity.local` | Tue day shifts | Transport escort, community participation, domestic cleaning |
-| Melissa | `melissa@serenity.local` | Sat overnight | Social engagement, medication prompt, meal preparation, manual handling |
-| Santiago | `santiago@serenity.local` | Sat-Sun overnight | Social engagement, medication prompt, community participation |
 
 ## Ordenes, visitas, closing, export y audit
 
@@ -271,7 +438,7 @@ Pruebas:
 
 1. Entrar a `/admin`.
 2. Confirmar que el bloque `Setup readiness` indica si falta algo antes de crear solicitudes.
-3. Confirmar que existe una prestadora, un centro cliente, una sede, una paciente y 7 carers.
+3. Confirmar que existe una prestadora, un centro cliente, una sede, una paciente y 3 carers.
 4. Entrar a `/admin/clients` y confirmar Niquia / Sede Niquia / Laura / Rosalba.
 5. Confirmar que `/admin/clients` permite agregar otra sede a un cliente existente.
 6. Entrar a `/admin/care-team` y confirmar contacto, tipo, disponibilidad y credenciales de carers.
@@ -367,11 +534,12 @@ gabriel@serenity.local
 Pruebas:
 
 1. Entrar a `/carers`.
-2. Confirmar que Gabriel ve visitas asignadas.
-3. Abrir la visita `confirmed`.
-4. Confirmar que el bloque de readiness de ejecucion explica checklist, evidencia e incidencias.
-5. Confirmar que `Submit for review` queda bloqueado si falta checklist completo o evidencia.
-6. Probar flujo de ejecucion si quieres modificar la demo:
+2. Confirmar que Gabriel no ve visitas asignadas en el estado inicial.
+3. Despues de crear una orden y asignarle una visita, volver a `/carers`.
+4. Abrir la visita asignada cuando exista.
+5. Confirmar que el bloque de readiness de ejecucion explica checklist, evidencia e incidencias.
+6. Confirmar que `Submit for review` queda bloqueado si falta checklist completo o evidencia.
+7. Probar flujo de ejecucion si quieres modificar la demo:
    `Start visit` -> checklist/evidence -> `Complete visit` -> `Submit for review`.
 
 Resultado esperado:
@@ -394,7 +562,9 @@ Pruebas:
 
 1. Entrar a `/providers/closing`.
 2. Confirmar que no hay periodos hasta que existan visitas aprobadas.
-3. Confirmar que la pantalla explica el siguiente paso operativo.
+3. Despues de aprobar la primera visita, confirmar que aparece un periodo `open`.
+4. Confirmar que la visita aprobada aparece como pendiente de settlement.
+5. Confirmar que la pantalla explica el siguiente paso operativo.
 
 Resultado esperado:
 
@@ -476,3 +646,49 @@ npm run db:seed:colombia
 - La accion server-side de asignacion vuelve a validar disponibilidad, skills vigentes y lenguaje antes de confirmar.
 - El workspace del carer prioriza resumen operativo, readiness por lanes, agenda con ventana y formularios mas compactos para demo.
 - Colombia y Australia pueden reseedearse sin romper build ni typecheck.
+
+## SER-35 visual QA
+
+Estado: cerrado para el reset Colombia.
+
+Registro detallado: `docs/visual-qa-ser-35-2026-05-02.md`.
+
+Pasada ejecutada:
+
+- Seed usado: `npm run db:seed:colombia`.
+- Dev server: `http://127.0.0.1:3003`.
+- Viewports: desktop `1440x900` y mobile `390x844`.
+- Roles: admin, provider coordinator, center manager y carer.
+
+Resultado:
+
+- Admin, provider, center y carer renderizan sus superficies sin overflow horizontal.
+- Empty states de provider closing/export/audit y center requests quedan claros en zero-start.
+- `/carers/availability` tenia overflow horizontal en mobile; se corrigio convirtiendo el planner a lista vertical bajo `760px`.
+- Quedan observaciones no bloqueantes de scroll largo en formularios densos mobile; estan documentadas para futuros tickets de refinamiento.
+
+## SER-36 review, closing, export and audit after zero-start
+
+Estado: cerrado para el reset Colombia.
+
+Decision vigente:
+
+- Review no tiene trabajo hasta que exista una visita real completada y enviada a `under_review`.
+- Closing no crea ni muestra paquetes viejos; aparece solo cuando una visita aprobada crea un periodo `open`.
+- Export no considera un periodo `open` como paquete exportable. El paquete aparece solo cuando el periodo esta `locked`.
+- Audit de periodo arranca vacio y toma sentido cuando review, settlement, lock/export o sync registran eventos del periodo.
+
+Validacion zero-start:
+
+- `npm run db:seed:colombia` deja 0 ordenes, 0 visitas, 0 closing periods, 0 export jobs y 0 audit events operativos.
+- `/providers/orders` muestra `No provider demand yet` y explica que review empieza despues de una visita completada y enviada.
+- `/providers/closing` muestra `No closing periods yet` y explica que hacen falta visitas aprobadas.
+- `/providers/export` muestra `No export packages yet` y explica que hace falta un periodo settled + locked.
+- `/providers/audit` muestra timeline vacio sin depender de actividad pre-seeded.
+
+Cambios aplicados:
+
+- Provider Orders tiene empty state real cuando no hay demanda.
+- External Export solo selecciona periodos no `open`; si solo hay zero-start u open period, dirige al paso anterior correcto.
+- Audit de periodo incluye eventos con `periodId` y `closingPeriodId`, incluyendo la aprobacion que crea un periodo de cierre.
+- Expense audit en closing ahora incluye `periodId` para aparecer en el timeline del periodo.

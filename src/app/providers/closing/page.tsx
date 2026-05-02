@@ -37,9 +37,9 @@ function getClosingStep(period?: ClosingPeriodItem) {
 function getClosingFocus(period?: ClosingPeriodItem) {
   if (!period) {
     return {
-      action: "Choose a period",
-      copy: "Start by selecting a closing period.",
-      title: "Select the period to close"
+      action: "Create approved visits",
+      copy: "No closing periods exist yet. Complete and approve visits before operational closing starts.",
+      title: "No closing periods yet"
     };
   }
 
@@ -179,7 +179,13 @@ export default async function ProviderClosingPage({
                 <p>billable</p>
               </div>
             </div>
-          ) : null}
+          ) : (
+            <div className="empty-state-card">
+              <span className="metric-icon metric-icon-readiness" aria-hidden="true" />
+              <strong>No closing periods yet</strong>
+              <p>Approved visits will create the operational package for closing.</p>
+            </div>
+          )}
         </section>
 
         {selectedPeriod ? (

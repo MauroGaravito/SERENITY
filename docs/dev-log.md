@@ -2,6 +2,264 @@
 
 Registro breve de decisiones y entregas relevantes. No reemplaza Plane; sirve como memoria tecnica y de producto dentro del repo.
 
+## 2026-05-02 - SER-36 Redefine review, closing, export after zero-start flow
+
+Objetivo:
+
+- Reordenar review, closing, export y audit alrededor del flujo Colombia limpio.
+- Evitar que esas pantallas dependan de actividad vieja sembrada.
+- Asegurar que los estados vacios expliquen que falta antes de review/closing/export/audit.
+
+Resultado:
+
+- `/providers/orders` muestra un empty state claro cuando no hay demanda provider.
+- `/providers/export` ya no trata periodos `open` como paquetes exportables.
+- Export dirige a requests si no hay periodos y a closing si solo existen periodos abiertos.
+- Audit de periodo ahora reconoce eventos con `periodId` y `closingPeriodId`.
+- Los gastos de closing registran `periodId` en audit para que aparezcan en el timeline del periodo.
+- `docs/current-demo-state-and-qa.md`, `docs/workflows.md` y `docs/user-manual.md` reflejan el flujo post-zero-start.
+
+Validacion ejecutada:
+
+- `npm run db:seed:colombia`
+- Browser QA en `http://127.0.0.1:3005` para `/providers/orders`, `/providers/closing`, `/providers/export` y `/providers/audit`
+- `npm run typecheck`
+- `npm run build`
+
+Cierre:
+
+- `SER-36` queda cerrado como realineacion del tramo review/closing/export/audit.
+- El siguiente paso recomendado es `SER-37` o el proximo item que ataque la profundidad funcional del cierre: settlement, lock, export jobs y audit completo despues de aprobar la primera visita real.
+
+## 2026-05-02 - SER-34 Prepare backend boundary inside current monolith
+
+Objetivo:
+
+- Documentar por que Serenity sigue como una sola app Next.js por ahora.
+- Definir boundary backend futuro por dominio.
+- Identificar server actions y funciones Prisma que deben moverse detras de service-layer boundaries.
+- Definir el camino de migracion desde server actions hacia API endpoints.
+- Actualizar documentacion de arquitectura y deployment.
+
+Decision:
+
+- No se separan servicios todavia.
+- Se mantiene un deployment de una app Next.js + PostgreSQL.
+- El split futuro se prepara dentro del monolito con un service layer por dominio.
+- Server actions quedan como adapters de UI.
+- API routes futuras deben llamar los mismos service functions.
+- El backend fisico separado solo se justifica cuando mobile, jobs, integraciones o deploy velocity lo pidan.
+
+Boundaries definidos:
+
+- Auth and access.
+- Admin setup.
+- Provider operations.
+- Center portal.
+- Carer execution.
+- Review and care records.
+- Closing and export.
+- Audit.
+
+Resultado:
+
+- Se creo [backend-boundary-plan.md](./backend-boundary-plan.md).
+- Se actualizo [architecture.md](./architecture.md) con la forma objetivo interna `src/server/*`.
+- Se actualizo [dokploy-deployment.md](./dokploy-deployment.md) para dejar claro que Dokploy sigue con un solo app container.
+- Se actualizo [README.md](../README.md) para enlazar el plan SER-34.
+- Se actualizo [current-demo-state-and-qa.md](./current-demo-state-and-qa.md) con estado y handoff.
+
+Cierre:
+
+- `SER-34` queda cerrado como preparacion arquitectonica.
+- Primer refactor recomendado: provider operations service layer para `assignCarerToVisit`, `updateVisitStatus` y `reviewVisit`.
+- Siguiente item de producto recomendado: `SER-35 Full visual QA across admin, provider, center, carer`.
+
+## 2026-05-01 - SER-33 Define center manager workflow and data ownership
+
+Objetivo:
+
+- Definir si center managers crean solicitudes, monitorean o ambas.
+- Definir que datos pueden editar: centro, sede, paciente, notas y request details.
+- Definir que no pueden ver o cambiar: carer internals, closing, export y audit fuera de scope.
+- Validar direccion UI del portal center y estado vacio Niquia.
+
+Decision:
+
+- Center manager crea solicitudes y monitorea outcomes dentro de su centro.
+- Center manager ve centro, sedes, pacientes, solicitudes, cobertura, carer asignado, incidentes, evidencia resumida, review outcome y audit de sus propias ordenes.
+- Center manager puede mantener patient context cuando la politica lo habilite.
+- Nuevas sedes quedan admin-owned para el MVP; solicitud/draft de nueva sede queda diferido.
+- Center manager puede editar una solicitud solo en etapa temprana, antes de cobertura confirmada o ejecucion.
+- Despues de cobertura confirmada, cambios del centro deben entrar como request change o nota de coordinacion.
+- Center manager puede cancelar antes de ejecucion con motivo obligatorio; despues debe solicitar cambio.
+- Center manager no asigna carers, no ve pool interno, no ve credenciales completas/disponibilidad global/rating interno/restriction reasons, no aprueba care records, no opera closing/export y no ve audit fuera de su centro.
+
+Resultado:
+
+- No se requiere schema nuevo.
+- `/centers` ya queda alineado con la estructura Centro, Sedes, Pacientes y Solicitudes.
+- Se generalizaron textos del portal center para no depender de Laura/Rosalba/Niquia hardcoded.
+- La accion de creacion de solicitud ahora registra audit con `session.fullName` en lugar de texto fijo.
+- La decision quedo documentada en operating model, domain model, business rules, product direction, workflows, current demo QA y user manual.
+
+Cierre:
+
+- `SER-33` queda cerrado como decision de workflow/data ownership y ajuste menor de UI copy.
+- Siguiente recomendado: `SER-34 Prepare backend boundary inside current monolith`.
+
+## 2026-05-01 - SER-32 Define carer relationship model
+
+Objetivo:
+
+- Decidir si `EMPLOYEE` / `INDEPENDENT` alcanza para el MVP.
+- Decidir si permanente/casual entra ahora o queda diferido.
+- Definir que datos necesita Serenity por tipo de carer.
+- Definir que ve Coordinator y que mantiene Admin versus Carer.
+
+Decision:
+
+- `EMPLOYEE` / `INDEPENDENT` es suficiente para el MVP.
+- No se agrega schema nuevo para SER-32.
+- `permanent` / `casual` queda diferido como politica contractual o de roster, no como tipo principal de carer.
+- El carer pertenece operativamente a la prestadora mediante `Carer.providerId`.
+- El centro no posee carers; solo ve el carer asignado y care record dentro de sus visitas.
+- `Carer.ownerUserId` sigue siendo el vinculo de self-service para el workspace del carer.
+
+Datos MVP por tipo:
+
+- `INDEPENDENT`: provider, owner user, nombre, contacto, business/tax id cuando exista, disponibilidad, credenciales, skills derivadas y estado activo.
+- `EMPLOYEE`: provider, owner user, nombre, contacto, etiqueta employee, disponibilidad, credenciales y estado activo.
+
+Datos diferidos:
+
+- Payroll id.
+- Permanente/casual.
+- Reglas laborales, leave, payout, seguros, rate cards y contratos ampliados.
+
+Visibilidad y propiedad:
+
+- Admin crea el carer, define tipo, provider link, estado activo y gobernanza de credenciales.
+- Carer mantiene disponibilidad, evidencia de credenciales donde aplique y care records.
+- Coordinator ve solo carers de su provider con readiness, disponibilidad, skills, idioma, carga activa y razones de restriccion.
+- Center manager ve carer identity y care record solo dentro de visitas de su centro.
+
+Documentacion actualizada:
+
+- [operating-model.md](./operating-model.md)
+- [domain-model.md](./domain-model.md)
+- [business-rules.md](./business-rules.md)
+- [product-direction.md](./product-direction.md)
+- [workflows.md](./workflows.md)
+- [current-demo-state-and-qa.md](./current-demo-state-and-qa.md)
+- [user-manual.md](./user-manual.md)
+
+Cierre:
+
+- `SER-32` queda cerrado como decision de producto/modelo sin migracion.
+- El siguiente paso recomendado es `SER-33 Define center manager workflow and data ownership`.
+
+## 2026-05-01 - SER-31 Complete Niquia / Rosalba end-to-end workflow
+
+Objetivo:
+
+- Validar el flujo completo desde demanda del centro hasta visita aprobada.
+- Confirmar que `SR-2401` puede pasar por coverage, assignment, ejecucion carer, checklist, evidencia, incidente, review y elegibilidad de closing.
+- Dejar el escenario listo para continuar con cierre/export o con el siguiente item de ownership.
+
+Resultado:
+
+- El seed Colombia mantiene zero-start, pero ahora Gabriel tiene un bloque de disponibilidad que cubre la primera ventana operativa de `SR-2401`.
+- Gabriel queda elegible para la visita Niquia/Rosalba con `Personal hygiene support`, `Manual handling`, idioma `English` y disponibilidad completa.
+- La aprobacion de una visita desde provider reviewer crea un closing period `open` si no existe un periodo que cubra la fecha de cierre de la visita.
+- Esto evita que Colombia quede sin paquete operativo despues de aprobar la primera visita.
+
+Validacion ejecutada:
+
+- `npm run db:seed:colombia`
+- `npm run typecheck`
+- Servidor local en `http://127.0.0.1:3003`
+- Validacion de datos SER-31 con `SR-2401`:
+  - orden `COMPLETED`
+  - visita `APPROVED`
+  - carer `Gabriel Ramirez`
+  - 3 checklist items completos
+  - 1 evidencia
+  - 1 incidente
+  - 1 review aprobada por Diana
+  - 1 closing period `OPEN`
+
+Nota de validacion:
+
+- La automatizacion Playwright pudo autenticar y cargar `/centers/orders`, pero el submit del server action redirigio a `/login` en el entorno dev automatizado. La validacion funcional de SER-31 se hizo contra la base local y las mismas entidades de producto. El flujo de creacion de orden desde Laura ya habia sido validado con submit real en SER-30.
+
+Cierre:
+
+- `SER-31` queda funcionalmente cerrado como primer flujo Niquia/Rosalba aprobado.
+- El siguiente paso natural es `SER-32 Define carer relationship model`, porque antes de seguir agregando operacion conviene decidir si carers pertenecen solo a la prestadora, si existen perfiles employee/independent suficientes para MVP y como se modela la relacion carer-provider-center.
+
+## 2026-04-30 - SER-30 Create first service request from center portal
+
+Objetivo:
+
+- Crear la primera solicitud real desde el portal del centro usando datos configurados.
+- Confirmar que Laura inicia demanda para Rosalba y que Mauricio la recibe en provider operations.
+- Reforzar que el coordinator no inventa demanda ni crea datos maestros durante la solicitud.
+
+Resultado:
+
+- `createCenterServiceOrder` valida que la prestadora seleccionada este vinculada al centro mediante `ProviderClient`.
+- La accion valida ventana operativa, duracion positiva y que la duracion no exceda la ventana.
+- La solicitud creada redirige a Laura al detalle `/centers/orders/[id]`.
+- La orden queda asociada a Centro de Cuidado Niquia, Sede Niquia, Rosalba y Serenity Homecare Antioquia.
+- Se crea una visita inicial `scheduled` esperando cobertura provider.
+- Audit registra la creacion de la orden y de la visita inicial con actor Laura.
+- El formulario del centro solo lista providers activos vinculados al centro.
+
+Validacion ejecutada:
+
+- Reseed Colombia zero-start con `npm run db:seed:colombia`.
+- Login real de Laura y submit real desde `/centers/orders`.
+- Se creo `SR-2401` con 1 visita inicial y 2 audit events.
+- Laura ve `SR-2401` y Rosalba en `/centers/orders`.
+- Mauricio ve `SR-2401` y `Morning personal care support` en `/providers/orders`.
+- Provider detail muestra `SR-2401`, Rosalba, Sede Niquia y audit de creacion.
+
+Cierre:
+
+- `SER-30` queda funcionalmente cerrado.
+- La demanda ya nace desde el centro, no desde una orden inventada por provider.
+- Laura representa al centro y solicita; Mauricio recibe demanda y coordina.
+- `SR-2401` es el artefacto operativo para iniciar `SER-31`.
+
+Handoff recomendado:
+
+- Continuar con `SER-31 Complete Niquia / Rosalba end-to-end workflow`.
+- Punto de arranque: `SR-2401` creada por Laura con visita inicial `scheduled`.
+- Validar primero asignacion provider con los 3 carers del seed Colombia.
+- Despues continuar ejecucion carer, review de Diana, visibilidad center, closing/export y audit.
+
+## 2026-04-30 - SER-30A Clarify center manager workspace before first request
+
+Objetivo:
+
+- Hacer que el perfil de Laura funcione como portal del centro antes de crear la primera solicitud.
+- Mostrar centro, sedes, pacientes y solicitudes sin sugerir que Laura administra carers o cobertura provider.
+- Preparar SER-30 para que la primera solicitud nazca desde demanda del centro.
+
+Resultado:
+
+- `/centers` ahora muestra identidad de Centro de Cuidado Niquia, manager Laura, relacion con Serenity, sedes configuradas y pacientes disponibles.
+- Sede Niquia y Rosalba son visibles en estado zero-start antes de que exista una orden.
+- El empty state de solicitudes incluye CTA para crear la primera solicitud desde `/centers/orders`.
+- El limite de rol queda explicito: Laura define demanda y monitorea; Mauricio coordina cobertura; Diana revisa; carers ejecutan.
+
+Validacion ejecutada:
+
+- Login real de Laura redirige a `/centers`.
+- `/centers` contiene Centro de Cuidado Niquia, Serenity Homecare Antioquia, Sede Niquia, Rosalba, CTA de primera solicitud y limite de rol.
+- `npm run typecheck`
+
 ## 2026-04-29 - SER-28 admin setup workflow
 
 Objetivo:
@@ -379,6 +637,33 @@ Lectura de backlog al cierre:
 - SER-17, SER-18, SER-20 y SER-21 mantienen el bloque de external finance y sync.
 - SER-22 aparece como `Done` pero con `Test Pending`; conviene no perderlo como gate de demo end-to-end.
 - SER-26 es discovery transversal de claridad UI; puede alimentarse de los hallazgos de SER-3 y SER-4.
+
+## 2026-05-02 - SER-35 Full visual QA across admin, provider, center, carer
+
+Objetivo:
+
+- Ejecutar una pasada visual completa despues del reset Colombia.
+- Confirmar desktop y mobile para admin, provider, center y carer.
+- Documentar o corregir los issues visuales conocidos antes de seguir con estabilizacion.
+
+Resultado:
+
+- Revisadas rutas admin, provider, center y carer con seed Colombia.
+- Confirmados empty states de zero-start para provider closing/export/audit y center requests.
+- Corregido overflow horizontal mobile en `/carers/availability`.
+- Agregado registro dedicado en `docs/visual-qa-ser-35-2026-05-02.md`.
+- Actualizado `docs/current-demo-state-and-qa.md` con el cierre de SER-35.
+
+Validacion ejecutada:
+
+- `npm run db:seed:colombia`
+- Browser QA en `http://127.0.0.1:3003`
+- `npm run typecheck`
+- `npm run build`
+
+Observacion:
+
+- Algunas pantallas mobile siguen siendo largas por densidad de formularios o listas. No bloquean SER-35 porque no tienen overflow horizontal ni colisiones visuales, pero pueden alimentar un ticket futuro de composer colapsable/tabs internas.
 
 ## 2026-04-25 - SER-1 Provider demo flow stabilization
 

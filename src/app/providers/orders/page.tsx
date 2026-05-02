@@ -144,33 +144,44 @@ export default async function ProviderOrdersPage({
           <span>Status</span>
         </div>
 
-          {filteredOrders.map((order) => (
-            <Link className="orders-table-row" href={`/providers/orders/${order.id}`} key={order.id}>
-              <div>
-                <strong>{order.code}</strong>
-                <p>{order.title}</p>
-              </div>
-              <div>
-                <strong>{order.recipientName}</strong>
-                <p>{order.centerName}</p>
-              </div>
-              <div>
-                <strong>{order.coverageStatus.replaceAll("_", " ")}</strong>
-                <p>{order.pendingAction}</p>
-              </div>
-              <div>
-                <span className={`risk-pill risk-${order.coverageRisk}`}>
-                  {order.coverageRisk}
-                </span>
-              </div>
-              <div>
-                <div className="stacked-statuses">
-                  <StatusBadge value={order.status} />
-                  <StatusBadge value={order.coverageStatus} />
+          {filteredOrders.length > 0 ? (
+            filteredOrders.map((order) => (
+              <Link className="orders-table-row" href={`/providers/orders/${order.id}`} key={order.id}>
+                <div>
+                  <strong>{order.code}</strong>
+                  <p>{order.title}</p>
                 </div>
-              </div>
-            </Link>
-          ))}
+                <div>
+                  <strong>{order.recipientName}</strong>
+                  <p>{order.centerName}</p>
+                </div>
+                <div>
+                  <strong>{order.coverageStatus.replaceAll("_", " ")}</strong>
+                  <p>{order.pendingAction}</p>
+                </div>
+                <div>
+                  <span className={`risk-pill risk-${order.coverageRisk}`}>
+                    {order.coverageRisk}
+                  </span>
+                </div>
+                <div>
+                  <div className="stacked-statuses">
+                    <StatusBadge value={order.status} />
+                    <StatusBadge value={order.coverageStatus} />
+                  </div>
+                </div>
+              </Link>
+            ))
+          ) : (
+            <div className="empty-state-card">
+              <span className="metric-icon metric-icon-visits" aria-hidden="true" />
+              <strong>No provider demand yet</strong>
+              <p>
+                Review starts after a real visit is completed and submitted. Create or receive a
+                center request before review, closing, export, or audit have work to show.
+              </p>
+            </div>
+          )}
         </div>
       </section>
     </ProviderShell>

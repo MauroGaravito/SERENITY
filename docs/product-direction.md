@@ -160,11 +160,14 @@ La recomendacion es separar:
 ### Modulo 7. Backoffice del cuidador
 
 - Perfil profesional.
+- Relacion con la prestadora como `INDEPENDENT` o `EMPLOYEE`.
 - Credenciales y vencimientos.
 - Disponibilidad.
 - Historial de trabajos.
 - Gastos, kilometraje e ingresos.
 - Recordatorios de documentacion pendiente.
+
+Para el MVP, `INDEPENDENT` y `EMPLOYEE` son suficientes como tipos principales. `Permanent` y `casual` deben tratarse mas adelante como politica contractual/roster si hacen falta para payroll, turnos o reglas laborales.
 
 ## 7. MVP recomendado
 
@@ -223,6 +226,9 @@ Cada actor debe ver solo lo que necesita para operar.
 
 - Vista de demanda, cobertura, cumplimiento e incidencias.
 - Debe ver solo su centro y sus pacientes.
+- Puede crear demanda y monitorear outcomes, pero no operar cobertura provider.
+- La pantalla principal debe organizarse alrededor de centro, sedes, pacientes y solicitudes.
+- El zero-start debe mostrar el centro configurado, primera sede, primer paciente y CTA para crear la primera solicitud.
 
 ### Prestadora
 
